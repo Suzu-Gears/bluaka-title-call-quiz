@@ -9,7 +9,8 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.2.5"
+    "astro": "^5.2.5",
+    "puppeteer": "^24.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",
