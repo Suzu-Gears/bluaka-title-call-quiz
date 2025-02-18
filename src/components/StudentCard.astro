@@ -1,0 +1,63 @@
+---
+import type { Student } from '@/lib/interfaces'
+
+const { name, voiceActor } = Astro.props as Student
+---
+
+<div class="grid-item" data-name={name}>
+  <div class="progress-bar" id={`progress-${name}`}></div>
+  <div class="grid-item-content">
+    <img src={`/image/${name}.png`} loading="lazy" alt={name} />
+    <p>{name}</p>
+    <small>CV.{voiceActor}</small>
+  </div>
+</div>
+
+<style>
+  .grid-item {
+    position: relative;
+    text-align: center;
+    cursor: pointer;
+    overflow: hidden;
+    border-radius: 10px;
+  }
+
+  .grid-item img {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+    user-select: none;
+    user-drag: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  .grid-item img:hover {
+    transform: scale(1.05);
+  }
+
+  .grid-item p {
+    margin-top: 8px;
+    font-size: 1rem;
+  }
+
+  .progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(0, 123, 255, 0.3);
+    width: 0;
+    z-index: 1;
+  }
+
+  .grid-item-content {
+    position: relative;
+    z-index: 2;
+  }
+</style>

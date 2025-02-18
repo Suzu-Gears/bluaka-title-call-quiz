@@ -1,0 +1,88 @@
+---
+import StudentCard from '@/components/StudentCard.astro'
+import { getSpreadSheetJSON } from '@/lib/getSpreadSheetJSON'
+import type { Students } from '@/lib/interfaces'
+import { SPREADSHEET_ID, STUDENTS_SHEET_NAME } from '@/server-constants'
+
+const studentsData: Students = await getSpreadSheetJSON({
+  spreadsheetId: SPREADSHEET_ID,
+  sheetName: STUDENTS_SHEET_NAME,
+  outputDir: 'public/data',
+  outputFile: 'studentsData.json',
+})
+---
+
+<div class="grid" id="studentGrid">
+  {
+    studentsData.map(({ name, voiceActor }) => (
+      <StudentCard name={name} voiceActor={voiceActor} data-name={name} />
+    ))
+  }
+</div>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 1080px;
+  }
+</style>
+
+<script type="module">
+  let activeAudioPlayer = null
+  let activeProgressBar = null
+  const audioPlayers = new Map()
+
+  function playAudio(name) {
+    let audioPlayer = audioPlayers.get(name)
+    const progressBar = document.getElementById(`progress-${name}`)
+
+    if (!audioPlayer) {
+      audioPlayer = new Audio(`/audio/${name}.mp3`)
+      audioPlayer.id = `audio-${name}`
+      audioPlayer.hidden = true
+      audioPlayers.set(name, audioPlayer)
+    }
+
+    if (activeAudioPlayer && activeAudioPlayer !== audioPlayer) {
+      resetAudio(activeAudioPlayer)
+    }
+
+    activeAudioPlayer = audioPlayer
+    activeProgressBar = progressBar
+
+    audioPlayer.currentTime = 0
+    audioPlayer.play()
+    updateProgress(audioPlayer, progressBar)
+
+    audioPlayer.onended = () => resetAudio(audioPlayer)
+  }
+
+  function updateProgress(audioPlayer, progressBar) {
+    const intervalId = setInterval(() => {
+      if (audioPlayer.paused || audioPlayer.ended) {
+        clearInterval(intervalId)
+        progressBar.style.width = '0'
+        return
+      }
+      progressBar.style.width = `${(audioPlayer.currentTime / audioPlayer.duration) * 100}%`
+    }, 100)
+  }
+
+  function resetAudio(audioPlayer) {
+    audioPlayer.pause()
+    audioPlayer.currentTime = 0
+    if (activeProgressBar) activeProgressBar.style.width = '0'
+    activeAudioPlayer = null
+    activeProgressBar = null
+  }
+
+  document.querySelector('.grid').addEventListener('click', (e) => {
+    const gridItem = e.target.closest('.grid-item')
+    if (!gridItem) return
+    const name = gridItem.dataset.name
+    playAudio(name)
+  })
+</script>

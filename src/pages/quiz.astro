@@ -1,0 +1,33 @@
+---
+import { getQuizGeneratorURL } from '@/lib/getQuizGeneratorURL2'
+
+const QuizGeneratorURL = await getQuizGeneratorURL()
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>ブルアカタイトルコールリスト</title>
+  </head>
+  <body>
+    <iframe src={QuizGeneratorURL}>Iframe対応ブラウザでご覧ください。</iframe>
+  </body>
+</html>
+
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+  }
+</style>
