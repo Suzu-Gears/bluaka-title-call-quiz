@@ -40,21 +40,25 @@
     <div id="root"></div>
 
     <!-- トップページへ戻るボタン -->
-    <button class="btn back-to-home" onclick="goToHome()">Topへ</button>
+    <button class="additional-button back-to-home" onclick="goToHome()"
+      >Topへ</button
+    >
 
     <!-- ローカルストレージ削除ボタン -->
-    <button class="btn clear-storage" onclick="clearLocalStorage()"
-      >達成率リセット</button
+    <button
+      class="additional-button clear-storage"
+      onclick="clearLocalStorage()">達成率リセット</button
     >
 
     <!-- サービスワーカーのキャッシュ削除ボタン -->
-    <button class="btn clear-sw-cache" onclick="clearServiceWorkerCache()"
-      >SWキャッシュ削除</button
+    <button
+      class="additional-button clear-sw-cache"
+      onclick="clearServiceWorkerCache()">SWキャッシュ削除</button
     >
 
     <style>
       /* ボタンの共通スタイル */
-      .btn {
+      .additional-button {
         position: fixed;
         right: 20px;
         padding: 13px 24px;
@@ -67,21 +71,18 @@
         transition: background-color 0.3s;
       }
 
-      .btn:hover {
+      .additional-button:hover {
         background-color: rgb(18, 62, 190);
       }
 
-      /* トップへ戻るボタン */
+      /* 各ボタンの位置指定 */
       .back-to-home {
         top: 50px;
       }
-
-      /* ローカルストレージ削除ボタン */
       .clear-storage {
         top: 100px;
       }
 
-      /* サービスワーカーのキャッシュ削除ボタン */
       .clear-sw-cache {
         bottom: 20px;
       }
@@ -90,16 +91,11 @@
     <script is:inline>
       function checkAndToggleButtons() {
         const pageIntro = document.getElementById('page_intro')
-        const backToHomeButton = document.querySelector('.back-to-home')
-        const clearStorageButton = document.querySelector('.clear-storage')
+        const buttons = document.querySelectorAll('.additional-button')
 
-        if (pageIntro) {
-          backToHomeButton.style.display = 'block'
-          clearStorageButton.style.display = 'block'
-        } else {
-          backToHomeButton.style.display = 'none'
-          clearStorageButton.style.display = 'none'
-        }
+        buttons.forEach((button) => {
+          button.style.display = pageIntro ? 'block' : 'none'
+        })
       }
 
       // 初回チェック
