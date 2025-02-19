@@ -47,9 +47,9 @@
       >達成率リセット</button
     >
 
-    <!-- キャッシュ削除してリロードボタン -->
-    <button class="btn clear-cache" onclick="clearCacheAndReload()"
-      >キャッシュ削除してリロード</button
+    <!-- サービスワーカーのキャッシュ削除ボタン -->
+    <button class="btn clear-sw-cache" onclick="clearServiceWorkerCache()"
+      >SWキャッシュ削除</button
     >
 
     <style>
@@ -81,8 +81,8 @@
         top: 100px;
       }
 
-      /* キャッシュ削除してリロードボタン */
-      .clear-cache {
+      /* サービスワーカーのキャッシュ削除ボタン */
+      .clear-sw-cache {
         bottom: 20px;
       }
     </style>
@@ -125,10 +125,25 @@
         }
       }
 
-      function clearCacheAndReload() {
-        if (confirm('キャッシュを削除してリロードしますか？')) {
-          const iframe = document.querySelector('.iframe')
-          iframe.contentWindow.location.reload(true) // スーパーリロード
+      function clearServiceWorkerCache() {
+        if (confirm('サービスワーカーのキャッシュを削除しますか？')) {
+          if ('caches' in window) {
+            caches
+              .keys()
+              .then(function (cacheNames) {
+                return Promise.all(
+                  cacheNames.map(function (cacheName) {
+                    return caches.delete(cacheName)
+                  }),
+                )
+              })
+              .then(function () {
+                alert(
+                  'サービスワーカーのキャッシュを削除しました。ページを再読み込みします。',
+                )
+                location.reload()
+              })
+          }
         }
       }
     </script>
