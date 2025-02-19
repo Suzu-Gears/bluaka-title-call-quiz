@@ -17,6 +17,16 @@ const QuizGeneratorURL = await getQuizGeneratorURL()
   </body>
 </html>
 
+<script>
+  if (!window.location.search.includes('nocache')) {
+    window.location.href =
+      window.location.href +
+      (window.location.href.includes('?') ? '&' : '?') +
+      'nocache=' +
+      new Date().getTime()
+  }
+</script>
+
 <style>
   body {
     margin: 0;

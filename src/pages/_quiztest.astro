@@ -1,0 +1,72 @@
+---
+
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>ブルアカタイトルコールリスト</title>
+  </head>
+  <body>
+    <iframe
+      class="iframe"
+      src="https://quizgenerator.net/quizhoster/?action=play&course_id=153839&course_path=d99ab9f1d5cbde76706049fb7ddaf1a6"
+      >Iframe対応ブラウザでご覧ください。</iframe
+    >
+    <button id="clear-cache-button">キャッシュ削除してリロード</button>
+  </body>
+</html>
+
+<script>
+  document
+    .getElementById('clear-cache-button')
+    .addEventListener('click', async () => {
+      const confirmation = confirm(
+        'iframeのキャッシュを削除してリロードしますか？',
+      )
+      if (confirmation) {
+        const iframe = document.querySelector('.iframe')
+        const iframeSrc = iframe.src
+        iframe.src = ''
+        iframe.src =
+          iframeSrc +
+          (iframeSrc.includes('?') ? '&' : '?') +
+          'nocache=' +
+          new Date().getTime()
+      }
+    })
+</script>
+
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+  }
+
+  #clear-cache-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  #clear-cache-button:hover {
+    background-color: #d32f2f;
+  }
+</style>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>...Loading</title>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then(function (registrations) {
+            // Service Workerを一旦登録解除
+            return Promise.all(
+              registrations.map(function (registration) {
+                // 無関係のService Workerを解除しないようにスコープがassets/内の時のみ実行
+                if (
+                  registration.scope.startsWith(
+                    `${window.location.origin}/assets/`,
+                  )
+                ) {
+                  return registration.unregister()
+                }
+              }),
+            )
+          })
+          .then(function () {
+            // Service Workerを登録
+            navigator.serviceWorker.register('/rand_quiz/sw.js', {
+              scope: '/rand_quiz/',
+            })
+          })
+      }
+    </script>
+    <script defer="defer" src="/rand_quiz/player-config.js"></script>
+    <script defer="defer" src="/rand_quiz/app/player.js"></script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- トップページへ戻るボタン -->
+    <button class="btn back-to-home" onclick="goToHome()">Topへ</button>
+
+    <!-- ローカルストレージ削除ボタン -->
+    <button class="btn clear-storage" onclick="clearLocalStorage()"
+      >達成率リセット</button
+    >
+
+    <!-- キャッシュ削除してリロードボタン -->
+    <button class="btn clear-cache" onclick="clearCacheAndReload()"
+      >キャッシュ削除してリロード</button
+    >
+
+    <style>
+      /* ボタンの共通スタイル */
+      .btn {
+        position: fixed;
+        right: 20px;
+        padding: 13px 24px;
+        background-color: rgb(0, 96, 221);
+        color: white;
+        font-size: 14px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .btn:hover {
+        background-color: rgb(18, 62, 190);
+      }
+
+      /* トップへ戻るボタン */
+      .back-to-home {
+        top: 50px;
+      }
+
+      /* ローカルストレージ削除ボタン */
+      .clear-storage {
+        top: 100px;
+      }
+
+      /* キャッシュ削除してリロードボタン */
+      .clear-cache {
+        bottom: 20px;
+      }
+    </style>
+
+    <script is:inline>
+      function checkAndToggleButtons() {
+        const pageIntro = document.getElementById('page_intro')
+        const backToHomeButton = document.querySelector('.back-to-home')
+        const clearStorageButton = document.querySelector('.clear-storage')
+
+        if (pageIntro) {
+          backToHomeButton.style.display = 'block'
+          clearStorageButton.style.display = 'block'
+        } else {
+          backToHomeButton.style.display = 'none'
+          clearStorageButton.style.display = 'none'
+        }
+      }
+
+      // 初回チェック
+      checkAndToggleButtons()
+
+      // `MutationObserver` を使って `#page_intro` の追加・削除を監視
+      const observer = new MutationObserver(() => {
+        checkAndToggleButtons()
+      })
+
+      // `body` 全体を監視（`childList: true` により子要素の変更を検出）
+      observer.observe(document.body, { childList: true, subtree: true })
+
+      function goToHome() {
+        window.location.href = '../'
+      }
+
+      function clearLocalStorage() {
+        if (confirm('達成率をリセットしますか？')) {
+          localStorage.clear()
+          alert('リセットが完了しました。ページを再読み込みします。')
+          location.reload()
+        }
+      }
+
+      function clearCacheAndReload() {
+        if (confirm('キャッシュを削除してリロードしますか？')) {
+          const iframe = document.querySelector('.iframe')
+          iframe.contentWindow.location.reload(true) // スーパーリロード
+        }
+      }
+    </script>
+  </body>
+</html>
