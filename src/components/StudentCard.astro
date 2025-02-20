@@ -2,13 +2,22 @@
 import type { Student } from '@/lib/interfaces'
 
 const { name, voiceActor } = Astro.props as Student
+
+const calculateFontSize = (name: string): string => {
+  const baseFontSize = 16
+  const maxLength = 6
+  if (name.length > maxLength) {
+    return `${baseFontSize * (maxLength / name.length) + 2.5}px; letter-spacing: -2px;`
+  }
+  return `${baseFontSize}px`
+}
 ---
 
 <div class="grid-item" data-name={name}>
   <div class="progress-bar" id={`progress-${name}`}></div>
   <div class="grid-item-content">
-    <img src={`/image/${name}.png`} loading="lazy" alt={name} />
-    <p>{name}</p>
+    <img src={`/image/${name}.webp`} loading="lazy" alt={name} />
+    <p style={`font-size: ${calculateFontSize(name)}`}>{name}</p>
     <small>CV.{voiceActor}</small>
   </div>
 </div>
@@ -19,14 +28,16 @@ const { name, voiceActor } = Astro.props as Student
     text-align: center;
     cursor: pointer;
     overflow: hidden;
-    border-radius: 10px;
+    width: 100%;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   .grid-item img {
     width: 100%;
-    height: auto;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 0px;
     transition: transform 0.3s;
     user-select: none;
     user-drag: none;
@@ -42,8 +53,19 @@ const { name, voiceActor } = Astro.props as Student
   }
 
   .grid-item p {
-    margin-top: 8px;
-    font-size: 1rem;
+    margin: 0;
+    padding: 0;
+    height: 16px;
+    white-space: nowrap;
+    font-family: sans-serif;
+  }
+
+  .grid-item small {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    white-space: nowrap;
+    font-family: sans-serif;
   }
 
   .progress-bar {

@@ -23,10 +23,12 @@ const studentsData: Students = await getSpreadSheetJSON({
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    justify-content: center;
+    place-items: center;
     width: 100%;
     max-width: 1080px;
+    gap: 8px;
   }
 </style>
 
