@@ -91,7 +91,9 @@ async function main() {
       if (!fs.existsSync(imageFilePath)) {
         const imageUrl = `https://schaledb.com/images/student/collection/${id}.webp`
         await downloadFile(imageUrl, imageFilePath)
-        console.log(`Downloaded ${id}.webp as ${name}.webp`)
+        // 1秒待機
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        console.log(`Downloaded ${id}.webp as ${imageFileName}`)
       } else {
         console.log(`File ${imageFileName} already exists. Skipping...`)
       }
@@ -100,13 +102,12 @@ async function main() {
       if (!fs.existsSync(audioFilePath)) {
         const audioUrl = `https://r2.schaledb.com/voice/jp_${devname}/${devname}_title.mp3`
         await downloadFile(audioUrl, audioFilePath)
-        console.log(`Downloaded ${devname}_title.mp3 as ${name}.mp3`)
+        // 1秒待機
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        console.log(`Downloaded ${devname}_title.mp3 as ${audioFileName}`)
       } else {
         console.log(`File ${audioFileName} already exists. Skipping...`)
       }
-
-      // 1秒待機
-      await new Promise((resolve) => setTimeout(resolve, 1000))
     }
   }
 }
