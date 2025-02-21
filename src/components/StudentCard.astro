@@ -3,42 +3,149 @@ import type { Student } from '@/lib/interfaces'
 
 const { name, voiceActor } = Astro.props as Student
 
-const calculateFontSize = (name: string): string => {
-  const baseFontSize = 16
-  const maxLength = 6
-  if (name.length > maxLength) {
-    return `${baseFontSize * (maxLength / name.length) + 2.5}px; letter-spacing: -2px;`
-  }
-  return `${baseFontSize}px`
+// 全角括弧が含まれている場合、先頭に半角スペースを追加する関数
+const formatName = (name: string): string => {
+  return name.includes('（') ? '\u00A0' + '\u00A0' + name : name
 }
+
+const formattedName = formatName(name)
 ---
 
 <div class="grid-item" data-name={name}>
   <div class="progress-bar" id={`progress-${name}`}></div>
   <div class="grid-item-content">
     <img src={`/image/${name}.webp`} loading="lazy" alt={name} />
-    <p style={`font-size: ${calculateFontSize(name)}`}>{name}</p>
-    <small>CV.{voiceActor}</small>
+    <div class="name" id="fit-text">{formattedName}</div>
+    <!--
+    <div class="voice-actor">CV.{voiceActor}</div>
+    -->
   </div>
 </div>
 
+<script>
+  import fitty from 'fitty'
+
+  // 指定したセレクタのフォントサイズを取得する関数
+  function getFontSize(selector: string) {
+    const element = document.querySelector(selector)
+    if (element) {
+      const style = window.getComputedStyle(element)
+      return parseFloat(style.fontSize)
+    }
+    return 16 // デフォルト値
+  }
+
+  // devicePixelRatioの変更を検知してfittyを再設定する関数
+  function setupFitty() {
+    const maxFontSize = getFontSize('#fit-text') || getFontSize('.name')
+    fitty('#fit-text', {
+      minSize: 9,
+      maxSize: maxFontSize,
+      multiLine: true,
+    })
+  }
+
+  // 初回ロード時にfittyを設定
+  document.addEventListener('DOMContentLoaded', () => {
+    setupFitty()
+  })
+
+  // devicePixelRatioの変更を検知してfittyを再設定
+  let devicePixelRatio = window.devicePixelRatio
+  window.addEventListener('resize', () => {
+    if (window.devicePixelRatio !== devicePixelRatio) {
+      devicePixelRatio = window.devicePixelRatio
+      setupFitty()
+    }
+  })
+</script>
+
+<script>
+  let activeAudioPlayer: HTMLAudioElement | null = null
+  let activeProgressBar: HTMLElement | null = null
+  const audioPlayers = new Map()
+
+  function playAudio(name: string) {
+    let audioPlayer = audioPlayers.get(name)
+    const progressBar = document.getElementById(`progress-${name}`)
+
+    if (!audioPlayer) {
+      audioPlayer = new Audio(`/audio/${name}.mp3`)
+      audioPlayer.id = `audio-${name}`
+      audioPlayer.hidden = true
+      audioPlayers.set(name, audioPlayer)
+    }
+
+    if (activeAudioPlayer && activeAudioPlayer !== audioPlayer) {
+      resetAudio(activeAudioPlayer)
+    }
+
+    activeAudioPlayer = audioPlayer
+    activeProgressBar = progressBar
+
+    audioPlayer.currentTime = 0
+    audioPlayer.play()
+    if (progressBar) {
+      updateProgress(audioPlayer, progressBar)
+    }
+
+    audioPlayer.onended = () => resetAudio(audioPlayer)
+  }
+
+  function updateProgress(
+    audioPlayer: HTMLAudioElement,
+    progressBar: HTMLElement,
+  ) {
+    const intervalId = setInterval(() => {
+      if (audioPlayer.paused || audioPlayer.ended) {
+        clearInterval(intervalId)
+        progressBar.style.width = '0'
+        return
+      }
+      progressBar.style.width = `${(audioPlayer.currentTime / audioPlayer.duration) * 100}%`
+    }, 100)
+  }
+
+  function resetAudio(audioPlayer: HTMLAudioElement) {
+    audioPlayer.pause()
+    audioPlayer.currentTime = 0
+    if (activeProgressBar) activeProgressBar.style.width = '0'
+    activeAudioPlayer = null
+    activeProgressBar = null
+  }
+  const gridElement = document.querySelector('.grid')
+  if (gridElement) {
+    gridElement.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const gridItem = target.closest('.grid-item')
+      if (!gridItem) return
+      const name = (gridItem as HTMLElement).dataset.name
+      if (name) {
+        playAudio(name)
+      }
+    })
+  }
+</script>
+
 <style>
+  div {
+    padding: 0;
+    margin: 0;
+  }
+
   .grid-item {
     position: relative;
     text-align: center;
     cursor: pointer;
-    overflow: hidden;
     width: 100%;
-    border-radius: 4px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    background-color: white;
   }
 
   .grid-item img {
     width: 100%;
-    aspect-ratio: 1;
+    aspect-ratio: 1/1.1;
     object-fit: cover;
-    border-radius: 0px;
+    border-radius: 4%;
     transition: transform 0.3s;
     user-select: none;
     user-drag: none;
@@ -48,20 +155,26 @@ const calculateFontSize = (name: string): string => {
     -moz-user-select: none;
     -ms-user-select: none;
   }
-
-  .grid-item img:hover {
-    transform: scale(1.05);
+  @media (hover: hover) {
+    .grid-item img:hover {
+      transform: scale(1.05);
+    }
   }
 
-  .grid-item p {
-    margin: 0;
-    padding: 0;
+  .grid-item .name {
     height: 16px;
     white-space: nowrap;
     font-family: sans-serif;
+    display: inline-block;
+    color: #60676f;
+    background: linear-gradient(
+      transparent 0% 85%,
+      rgba(255, 255, 0, 0.8) 85% 100%
+    );
+    font-weight: bolder;
   }
 
-  .grid-item small {
+  .grid-item .voice-actor {
     margin: 0;
     padding: 0;
     font-size: 12px;
@@ -80,6 +193,7 @@ const calculateFontSize = (name: string): string => {
   }
 
   .grid-item-content {
+    display: block;
     position: relative;
     z-index: 2;
   }
