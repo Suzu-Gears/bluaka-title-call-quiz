@@ -23,12 +23,25 @@ const studentsData: Students = await getSpreadSheetJSON({
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     justify-content: center;
     place-items: center;
     width: 100%;
     max-width: 1080px;
+    padding: 8px;
     gap: 8px;
+    @media (min-resolution: 288dpi) {
+      /*250dpi以上で適用*/
+      /*iPhone13 miniは289dpi以上で変化*/
+
+      grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    }
+
+    /*
+    @media (-webkit-min-device-pixel-ratio: 2) {
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    }
+      */
   }
 </style>
 
