@@ -14,6 +14,28 @@ const downloadDir = path.join(__dirname, '../../public/download')
 const schaleDBFilePath = path.join(downloadDir, 'schaledb.json')
 const sortJsonFilePath = path.join(downloadDir, 'sort.json')
 
+// Studentインターフェースの定義
+interface Student {
+  DefaultOrder: number
+  Id: number
+  Name: string
+  PathName: string
+  DevName: string
+  StarGrade: number
+  FamilyName: string
+  FamilyNameRuby: string
+  PersonalName: string
+  PersonalNameRuby: string
+  CharacterVoice: string
+  School: string
+  SchoolYear: string
+  CharacterAge: string
+  Birthday: string
+  BirthDay: string
+  CharHeightMetric: string
+  Costume: string
+}
+
 // SchaleDBからデータを取得する関数
 async function fetchSchaleDBData(url: string): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -34,8 +56,8 @@ async function fetchSchaleDBData(url: string): Promise<any> {
 }
 
 // 必要なプロパティを抜き出して新しいJSONを作成する関数
-function extractProperties(data: any): any {
-  const result: any[] = []
+function extractProperties(data: any): Student[] {
+  const result: Student[] = []
   for (const key in data) {
     if (data.hasOwnProperty(key)) {
       const student = data[key]
@@ -45,6 +67,7 @@ function extractProperties(data: any): any {
         Name,
         PathName,
         DevName,
+        StarGrade,
         FamilyName,
         FamilyNameRuby,
         PersonalName,
@@ -65,6 +88,7 @@ function extractProperties(data: any): any {
         Name,
         PathName,
         DevName,
+        StarGrade,
         FamilyName,
         FamilyNameRuby,
         PersonalName,
@@ -76,7 +100,7 @@ function extractProperties(data: any): any {
         Birthday,
         BirthDay,
         CharHeightMetric,
-        Costume, //add
+        Costume,
       })
     }
   }

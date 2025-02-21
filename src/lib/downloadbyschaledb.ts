@@ -47,9 +47,24 @@ async function downloadFile(url: string, dest: string): Promise<void> {
     const file = fs.createWriteStream(dest)
     https
       .get(url, (response) => {
+        if (response.statusCode !== 200) {
+          file.close()
+          fs.unlink(dest, () =>
+            reject(
+              new Error(`Failed to get '${url}' (${response.statusCode})`),
+            ),
+          )
+          return
+        }
         response.pipe(file)
         file.on('finish', () => {
-          file.close(() => resolve())
+          file.close((err) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve()
+          })
         })
       })
       .on('error', (err) => {
@@ -61,6 +76,7 @@ async function downloadFile(url: string, dest: string): Promise<void> {
 // メイン関数
 async function main() {
   let data
+  const failedDownloads: string[] = []
 
   // schaledb.json が既に存在する場合はそれを使用
   if (fs.existsSync(schaleDBFilePath)) {
@@ -100,15 +116,50 @@ async function main() {
 
       // 音声ファイルのダウンロード
       if (!fs.existsSync(audioFilePath)) {
-        const audioUrl = `https://r2.schaledb.com/voice/jp_${devname}/${devname}_title.mp3`
-        await downloadFile(audioUrl, audioFilePath)
-        // 1秒待機
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        console.log(`Downloaded ${devname}_title.mp3 as ${audioFileName}`)
+        // PathNameからアンダーバーを除去し、小文字に変換
+        const formattedPathName = student.PathName.replace(
+          /_/g,
+          '',
+        ).toLowerCase()
+        let audioUrl = `https://r2.schaledb.com/voice/jp_${formattedPathName}/${formattedPathName}_title.mp3`
+        try {
+          await downloadFile(audioUrl, audioFilePath)
+          // 1秒待機
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          console.log(
+            `Downloaded ${formattedPathName}_title.mp3 as ${audioFileName}`,
+          )
+        } catch (err) {
+          const error = err as Error
+          console.error(`Failed to download ${audioUrl}: ${error.message}`)
+          // PathNameで再試行
+          audioUrl = `https://r2.schaledb.com/voice/jp_${student.PathName}/${student.PathName}_title.mp3`
+          try {
+            await downloadFile(audioUrl, audioFilePath)
+            // 1秒待機
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            console.log(
+              `Downloaded ${student.PathName}_title.mp3 as ${audioFileName}`,
+            )
+          } catch (err) {
+            const error = err as Error
+            console.error(`Failed to download ${audioUrl}: ${error.message}`)
+            // エラーが発生した生徒名をリストに追加
+            failedDownloads.push(name)
+          }
+        }
       } else {
         console.log(`File ${audioFileName} already exists. Skipping...`)
       }
     }
+  }
+
+  // エラーが発生した生徒名を出力
+  if (failedDownloads.length > 0) {
+    console.log('Failed to download audio files for the following students:')
+    failedDownloads.forEach((name) => console.log(name))
+  } else {
+    console.log('All audio files downloaded successfully.')
   }
 }
 
