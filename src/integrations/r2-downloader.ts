@@ -1,6 +1,6 @@
 import type { AstroIntegration } from 'astro'
 
-import { downloadR2Folder } from '@/lib/downloadR2Folder'
+import { downloadR2Folder } from '../lib/downloadR2Folder'
 
 export default (): AstroIntegration => ({
   name: 'r2-downloader',
