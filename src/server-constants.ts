@@ -1,5 +1,7 @@
 const env =
-  typeof process !== 'undefined' && process.env ? process.env : import.meta.env
+  typeof import.meta !== 'undefined' && import.meta.env
+    ? import.meta.env
+    : process.env
 
 export const CUSTOM_DOMAIN = env.CUSTOM_DOMAIN || '' // <- Set custom domain if you have. e.g. suzu-mono-gram.com
 export const BASE_PATH = env.BASE_PATH || '' // <- Set sub directory path if you want. e.g. /docs/

@@ -7,8 +7,9 @@
     "build": "npm run cache:fetch && astro build",
     "preview": "astro preview",
     "astro": "astro",
+    "cache:fetch": "tsx ./src/lib/test.ts",
     "local-cache:fetch": "tsx --env-file=.env ./src/lib/test.ts",
-    "cache:fetch": "tsx ./src/lib/test.ts"
+    "local-cache:purge": "tsx ./src/lib/purgeCache.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",

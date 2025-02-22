@@ -18,6 +18,8 @@ const formattedName = formatName(name)
     <!--
     <div class="voice-actor">CV.{voiceActor}</div>
     -->
+    <audio id={`audio-${name}`} src={`/audio/${name}.mp3`} preload="none" hidden
+    ></audio>
   </div>
 </div>
 
@@ -61,20 +63,14 @@ const formattedName = formatName(name)
 
 <script>
   let activeAudioPlayer: HTMLAudioElement | null = null
-  const audioPlayers = new Map()
 
   function playAudio(name: string) {
-    let audioPlayer = audioPlayers.get(name)
+    const audioPlayer = document.getElementById(
+      `audio-${name}`,
+    ) as HTMLAudioElement
     const imgElement = document.querySelector(
       `.grid-item[data-name="${name}"] img`,
     )
-
-    if (!audioPlayer) {
-      audioPlayer = new Audio(`/audio/${name}.mp3`)
-      audioPlayer.id = `audio-${name}`
-      audioPlayer.hidden = true
-      audioPlayers.set(name, audioPlayer)
-    }
 
     if (activeAudioPlayer && activeAudioPlayer !== audioPlayer) {
       resetAudio(activeAudioPlayer)

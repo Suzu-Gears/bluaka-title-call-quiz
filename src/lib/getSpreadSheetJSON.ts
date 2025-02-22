@@ -4,7 +4,9 @@ import path from 'node:path'
 import type { SpreadsheetConfig, Students } from '@/lib/interfaces'
 import { GAS_DEPLOY_ID } from '@/server-constants'
 
-export async function getSpreadSheetJSON(config: SpreadsheetConfig): Promise<Students> {
+export async function getSpreadSheetJSON(
+  config: SpreadsheetConfig,
+): Promise<Students> {
   const { spreadsheetId, sheetName, outputDir, outputFile } = config
   const DOWNLOAD_URL = `https://script.google.com/macros/s/${GAS_DEPLOY_ID}/exec?id=${spreadsheetId}&name=${sheetName}`
   const filePath = path.join(outputDir, outputFile)
@@ -35,6 +37,11 @@ export async function getSpreadSheetJSON(config: SpreadsheetConfig): Promise<Stu
     return data
   } catch (error) {
     console.error('Error downloading JSON:', error)
+    console.error('Please check the following:')
+    console.error(`- GAS_DEPLOY_ID: ${GAS_DEPLOY_ID}`)
+    console.error(`- spreadsheetId: ${spreadsheetId}`)
+    console.error(`- sheetName: ${sheetName}`)
+    console.error(`- DOWNLOAD_URL: ${DOWNLOAD_URL}`)
     throw error
   }
 }
