@@ -13,7 +13,7 @@ const formatName = (name: string): string => {
 // 音声ファイルが存在するか確認
 const audioExists = doesFileExist(path.join('.', 'public/audio'), `${name}.mp3`)
 
-const formattedName = formatName(name) + (audioExists ? '' : '🔇')
+const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 ---
 
 <div class="grid-item" data-name={name}>
@@ -23,8 +23,16 @@ const formattedName = formatName(name) + (audioExists ? '' : '🔇')
     <!--
     <div class="voice-actor">CV.{voiceActor}</div>
     -->
-    <audio id={`audio-${name}`} src={`/audio/${name}.mp3`} preload="none" hidden
-    ></audio>
+    {
+      audioExists && (
+        <audio
+          id={`audio-${name}`}
+          src={`/audio/${name}.mp3`}
+          preload="none"
+          hidden
+        />
+      )
+    }
   </div>
 </div>
 
