@@ -1,5 +1,7 @@
 ---
+import { doesFileExist } from '@/lib/fileExists'
 import type { Student } from '@/lib/interfaces'
+import path from 'path'
 
 const { name, voiceActor } = Astro.props as Student
 
@@ -8,7 +10,10 @@ const formatName = (name: string): string => {
   return name.includes('（') ? '\u00A0' + '\u00A0' + name : name
 }
 
-const formattedName = formatName(name)
+// 音声ファイルが存在するか確認
+const audioExists = doesFileExist(path.join('.', 'public/audio'), `${name}.mp3`)
+
+const formattedName = formatName(name) + (audioExists ? '' : '🔇')
 ---
 
 <div class="grid-item" data-name={name}>
