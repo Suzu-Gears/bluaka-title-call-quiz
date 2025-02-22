@@ -1,4 +1,4 @@
-import { downloadR2Folder } from '@/lib/downloadR2Folder'
+import { downloadR2Folder } from '@/lib/cloudflareR2Client'
 
 console.log('Downloading R2 folders...')
 

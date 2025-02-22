@@ -1,7 +1,7 @@
 ---
 import { doesFileExist } from '@/lib/fileExists'
 import type { Student } from '@/lib/interfaces'
-import path from 'path'
+import path from 'node:path'
 
 const { name, voiceActor } = Astro.props as Student
 
@@ -155,7 +155,7 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
     outline: none; /* デフォルトのフォーカスアウトラインを無効にする */
   }
 
-  .grid-item:focus {
+  .grid-item:focus-visible {
     outline: 3px solid rgba(0, 123, 255, 0.7); /* フォーカス時のアウトラインを追加 */
     outline-offset: 6px; /* アウトラインを外側にオフセット */
   }
