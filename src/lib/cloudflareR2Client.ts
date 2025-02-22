@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
   type ListObjectsV2Output,
@@ -112,5 +113,43 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
     }
   } catch (error) {
     console.error('Error downloading folder:', error)
+  }
+}
+
+export async function deleteR2Folder(folderPath: string) {
+  if (!folderPath) {
+    console.error('Error: folderPath is required.')
+    return
+  }
+
+  try {
+    const listCommand = new ListObjectsV2Command({
+      Bucket: R2_BUCKET_NAME,
+      Prefix: folderPath,
+    })
+
+    const listResponse = await s3Client.send(listCommand)
+
+    if (!listResponse.Contents) {
+      console.log('No files found in the specified folder.')
+      return
+    }
+
+    for (const item of listResponse.Contents) {
+      if (!item.Key) continue
+
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: item.Key,
+      })
+
+      await s3Client.send(deleteCommand)
+      console.log(`Deleted: ${item.Key}`)
+    }
+
+    // キャッシュを更新
+    await updateFileList()
+  } catch (error) {
+    console.error('Error deleting folder contents:', error)
   }
 }
