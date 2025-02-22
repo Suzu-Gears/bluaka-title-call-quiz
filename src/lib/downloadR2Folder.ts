@@ -12,7 +12,7 @@ import {
   R2_BUCKET_NAME,
   R2_ENDPOINT,
   R2_SECRET_ACCESS_KEY,
-} from '@/server-constants'
+} from '../server-constants'
 
 const s3Client = new S3Client({
   endpoint: R2_ENDPOINT,
