@@ -1,6 +1,7 @@
 import {
   GetObjectCommand,
   ListObjectsV2Command,
+  type ListObjectsV2Output,
   S3Client,
 } from '@aws-sdk/client-s3'
 import fs from 'node:fs'
@@ -23,6 +24,33 @@ const s3Client = new S3Client({
   },
 })
 
+let fileListCache: ListObjectsV2Output | null = null
+
+export async function getFileList(): Promise<ListObjectsV2Output> {
+  if (fileListCache !== null) {
+    return Promise.resolve(fileListCache)
+  }
+
+  const listCommand = new ListObjectsV2Command({
+    Bucket: R2_BUCKET_NAME,
+  })
+
+  const listResponse = await s3Client.send(listCommand)
+
+  if (!listResponse.Contents) {
+    console.log('No files found in the bucket.')
+    return listResponse
+  }
+
+  fileListCache = listResponse
+  return fileListCache
+}
+
+export async function updateFileList(): Promise<ListObjectsV2Output> {
+  fileListCache = null
+  return getFileList()
+}
+
 export async function downloadR2Folder(folderPath: string, localPath: string) {
   try {
     // 環境変数をコンソールに表示
@@ -33,21 +61,22 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
     console.log('R2_BUCKET_NAME:', maskValue(R2_BUCKET_NAME))
     console.log('R2_ENDPOINT:', maskValue(R2_ENDPOINT))
 
-    const listCommand = new ListObjectsV2Command({
-      Bucket: R2_BUCKET_NAME,
-      Prefix: folderPath,
-    })
-
-    const listResponse = await s3Client.send(listCommand)
+    const listResponse = await getFileList()
 
     if (!listResponse.Contents) {
-      console.log('No files found in the specified folder.')
+      console.log('No files found in the bucket.')
       return
     }
 
-    for (const item of listResponse.Contents) {
+    // folderPathに基づいて対象を絞り込む
+    const filteredContents = listResponse.Contents.filter(
+      (item) => item.Key && item.Key.startsWith(folderPath),
+    )
+
+    for (const item of filteredContents) {
       if (!item.Key) continue
 
+      // folderPathを取り除いた相対パスを計算
       const relativePath = path.relative(folderPath, item.Key)
       const localFilePath = path.join(localPath, relativePath)
 
