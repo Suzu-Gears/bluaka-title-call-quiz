@@ -25,6 +25,12 @@ const s3Client = new S3Client({
 
 export async function downloadR2Folder(folderPath: string, localPath: string) {
   try {
+    // 環境変数をコンソールに表示
+    console.log('R2_ACCESS_KEY_ID:', R2_ACCESS_KEY_ID)
+    console.log('R2_SECRET_ACCESS_KEY:', R2_SECRET_ACCESS_KEY)
+    console.log('R2_BUCKET_NAME:', R2_BUCKET_NAME)
+    console.log('R2_ENDPOINT:', R2_ENDPOINT)
+
     const listCommand = new ListObjectsV2Command({
       Bucket: R2_BUCKET_NAME,
       Prefix: folderPath,
