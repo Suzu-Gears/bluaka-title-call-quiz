@@ -1,3 +1,6 @@
-import { GAS_DEPLOY_ID } from '@/server-constants'
+import { downloadR2Folder } from '@/lib/downloadR2Folder'
 
-console.log(GAS_DEPLOY_ID)
+const FolderPath = 'quiz'
+const LocalPath = 'public'
+
+downloadR2Folder(FolderPath, LocalPath)
