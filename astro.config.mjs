@@ -1,5 +1,4 @@
 import { defineConfig } from 'astro/config';
-import R2Downloader from './src/integrations/r2-downloader';
 import { BASE_PATH, CUSTOM_DOMAIN } from './src/server-constants';
 
 const getSite = function () {
@@ -24,5 +23,4 @@ const getSite = function () {
 export default defineConfig({
   site: getSite(),
   base: BASE_PATH,
-  integrations: [R2Downloader()],
 });
