@@ -5,7 +5,7 @@ import { downloadR2Folder } from '../lib/downloadR2Folder'
 export default (): AstroIntegration => ({
   name: 'r2-downloader',
   hooks: {
-    'astro:build:start': async () => {
+    'astro:config:done': async () => {
       console.log('Downloading R2 folders...')
 
       await Promise.all([
