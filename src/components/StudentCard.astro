@@ -16,7 +16,7 @@ const audioExists = doesFileExist(path.join('.', 'public/audio'), `${name}.mp3`)
 const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 ---
 
-<div class="grid-item" data-name={name}>
+<div class="grid-item" data-name={name} tabindex="0">
   <div class="grid-item-content">
     <img src={`/image/${name}.webp`} loading="lazy" alt={name} />
     <div class="name" id="fit-text">{formattedName}</div>
@@ -124,6 +124,19 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
         playAudio(name)
       }
     })
+
+    gridElement.addEventListener('keydown', (e) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (e.key === 'Enter') {
+        const gridItem = target.closest('.grid-item')
+        if (!gridItem) return
+        const name = (gridItem as HTMLElement).dataset.name
+        if (name) {
+          playAudio(name)
+        }
+      }
+    })
   }
 </script>
 
@@ -138,13 +151,20 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
     text-align: center;
     cursor: pointer;
     width: 100%;
+    border-radius: 8px;
+    outline: none; /* デフォルトのフォーカスアウトラインを無効にする */
+  }
+
+  .grid-item:focus {
+    outline: 3px solid rgba(0, 123, 255, 0.7); /* フォーカス時のアウトラインを追加 */
+    outline-offset: 6px; /* アウトラインを外側にオフセット */
   }
 
   .grid-item img {
     width: 100%;
     aspect-ratio: 1/1.1;
     object-fit: cover;
-    border-radius: 4%;
+    border-radius: 8px;
     transition: transform 0.3s;
     user-select: none;
     user-drag: none;
