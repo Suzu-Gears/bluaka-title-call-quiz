@@ -1,6 +1,11 @@
 import { downloadR2Folder } from '@/lib/downloadR2Folder'
 
-const FolderPath = 'quiz'
-const LocalPath = 'public'
+console.log('Downloading R2 folders...')
 
-downloadR2Folder(FolderPath, LocalPath)
+await Promise.all([
+  downloadR2Folder('audio', 'public/audio'),
+  downloadR2Folder('image', 'public/image'),
+  downloadR2Folder('quiz', 'public'),
+])
+
+console.log('Download completed for R2 folders')
