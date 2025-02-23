@@ -1,11 +1,11 @@
-import { downloadR2Folder } from '@/lib/cloudflareR2Client'
+import { uploadFolderToR2 } from './cloudflareR2Client'
 
-console.log('Downloading R2 folders...')
+const localFolderPath = 'public/rand10'
+const bucketFolder = 'quiz'
 
-await Promise.all([
-  downloadR2Folder('audio', 'public/audio'),
-  downloadR2Folder('image', 'public/image'),
-  downloadR2Folder('quiz', 'public'),
-])
-
-console.log('Download completed for R2 folders')
+try {
+  await uploadFolderToR2(localFolderPath, bucketFolder)
+  console.log('Folder uploaded successfully.')
+} catch (error) {
+  console.error('Error uploading folder:', error)
+}

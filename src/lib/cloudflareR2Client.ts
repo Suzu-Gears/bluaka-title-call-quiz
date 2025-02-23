@@ -3,9 +3,11 @@ import {
   GetObjectCommand,
   ListObjectsV2Command,
   type ListObjectsV2Output,
+  PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
 import fs from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 
@@ -152,4 +154,68 @@ export async function deleteR2Folder(folderPath: string) {
   } catch (error) {
     console.error('Error deleting folder contents:', error)
   }
+}
+
+export async function uploadFileToR2(
+  localFilePath: string,
+  bucketFolder: string,
+) {
+  try {
+    const fileName = path.basename(localFilePath)
+    const bucketKey = `${bucketFolder}/${fileName}`
+
+    const fileStream = fs.createReadStream(localFilePath)
+
+    const putCommand = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: bucketKey,
+      Body: fileStream,
+    })
+
+    await s3Client.send(putCommand)
+    console.log(`Uploaded: ${localFilePath} to ${bucketKey}`)
+  } catch (error) {
+    console.error('Error uploading file:', error)
+  }
+}
+
+export async function uploadFolderToR2(
+  localFolderPath: string,
+  bucketFolder: string,
+) {
+  try {
+    const folderName = path.basename(localFolderPath)
+    const files = await getFilesRecursively(localFolderPath)
+
+    for (const file of files) {
+      const relativePath = path
+        .relative(localFolderPath, file)
+        .replace(/\\/g, '/')
+      const bucketKey = `${bucketFolder}/${folderName}/${relativePath}`
+
+      const fileStream = fs.createReadStream(file)
+
+      const putCommand = new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: bucketKey,
+        Body: fileStream,
+      })
+
+      await s3Client.send(putCommand)
+      console.log(`Uploaded: ${file} to ${bucketKey}`)
+    }
+  } catch (error) {
+    console.error('Error uploading folder:', error)
+  }
+}
+
+async function getFilesRecursively(dir: string): Promise<string[]> {
+  const dirents = await readdir(dir, { withFileTypes: true })
+  const files = await Promise.all(
+    dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name)
+      return dirent.isDirectory() ? getFilesRecursively(res) : res
+    }),
+  )
+  return Array.prototype.concat(...files)
 }
