@@ -1,36 +1,24 @@
 import fs from 'node:fs'
+import path from 'node:path'
 
-import { getSpreadSheetJSON } from '@/lib/getSpreadSheetJSON'
-import { SPREADSHEET_ID, STUDENTS_SHEET_NAME } from '@/server-constants'
+import { getStudentsJson } from '@/lib/getSpreadSheetJSON'
+import type { QuizOption, Students } from '@/lib/interfaces'
 
-const studentsData = await getSpreadSheetJSON({
-  spreadsheetId: SPREADSHEET_ID,
-  sheetName: STUDENTS_SHEET_NAME,
-  outputDir: 'public/data',
-  outputFile: 'studentsData.json',
-})
+export async function makeQuestionText(
+  quizOption: QuizOption,
+): Promise<string> {
+  const studentsData: Students = await getStudentsJson()
 
-// 設定ファイルの内容
-const settingsContent = `#messages_intro:記述問題
-#shuffle_questions:false
-#mode:master
-#movable:true
-`
+  const questionsContent = studentsData
+    .map(
+      ({ name }) =>
+        `\n[[/audio/${name}.mp3]]<br>この声は誰？\nfill-in:\n${name}\n`,
+    )
+    .join('') // 空文字で結合することでカンマを除去
 
-// 問題ファイルの内容を生成
-const questionsContent = studentsData
-  .map(
-    ({ name }) => `[[${siteURL}/audio/${name}.mp3]]<br>この声は誰？
-fill-in:
-${name}
-`,
-  )
-  .join('\n')
+  const fileContent = `${quizOption.option}\n${questionsContent}`
+  const filePath = path.join('public', 'data', `${quizOption.slug}.txt`)
+  fs.writeFileSync(filePath, fileContent, 'utf8')
 
-// 設定ファイルを作成
-fs.writeFileSync('settings.txt', settingsContent, 'utf8')
-
-// 問題ファイルを作成
-fs.writeFileSync('questions.txt', questionsContent, 'utf8')
-
-console.log('設定ファイルと問題ファイルを生成しました。')
+  return filePath
+}
