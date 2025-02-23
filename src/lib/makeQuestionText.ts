@@ -2,11 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { getStudentsJson } from '@/lib/getSpreadSheetJSON'
-import type { QuizOption, Students } from '@/lib/interfaces'
+import type { QuizParam, Students } from '@/lib/interfaces'
 
-export async function makeQuestionText(
-  quizOption: QuizOption,
-): Promise<string> {
+export async function makeQuestionText(quizParam: QuizParam): Promise<string> {
   const studentsData: Students = await getStudentsJson()
 
   const questionsContent = studentsData
@@ -16,8 +14,8 @@ export async function makeQuestionText(
     )
     .join('') // 空文字で結合することでカンマを除去
 
-  const fileContent = `${quizOption.option}\n${questionsContent}`
-  const filePath = path.join('public', 'data', `${quizOption.slug}.txt`)
+  const fileContent = `${quizParam.option}\n${questionsContent}`
+  const filePath = path.join('public', 'data', `${quizParam.slug}.txt`)
   fs.writeFileSync(filePath, fileContent, 'utf8')
 
   return filePath

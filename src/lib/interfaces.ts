@@ -15,9 +15,9 @@ export interface Student {
   sortText: string
 }
 
-export type QuizOptions = QuizOption[]
+export type QuizParams = QuizParam[]
 
-export interface QuizOption {
+export interface QuizParam {
   title: string
   slug: string
   description: string
