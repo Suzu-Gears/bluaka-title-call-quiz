@@ -18,6 +18,8 @@ export interface Student {
 export type QuizOptions = QuizOption[]
 
 export interface QuizOption {
+  title: string
   slug: string
+  description: string
   option: string
 }

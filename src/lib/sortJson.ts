@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename)
 // 保存先ディレクトリ
 const downloadDir = path.join(__dirname, '../../public/data')
 const sortJsonFilePath = path.join(downloadDir, 'sort.json')
+const sortCsvFilePath = path.join(downloadDir, 'sort.csv')
 
 // Studentインターフェースの定義
 interface Student {
@@ -89,6 +90,13 @@ function extractProperties(data: any): Student[] {
   return result
 }
 
+// JSONデータをCSV形式に変換する関数
+function jsonToCsv(data: Student[]): string {
+  const headers = Object.keys(data[0]).join(',')
+  const rows = data.map((student) => Object.values(student).join(','))
+  return [headers, ...rows].join('\n')
+}
+
 // メイン関数
 export async function main() {
   const data = await getSchaleDB()
@@ -112,6 +120,9 @@ export async function main() {
       seenCostumes.add(item.Costume)
     }
   })
-}
 
-main().catch((err) => console.error('Error:', err))
+  // CSVファイルとして保存
+  const csv = jsonToCsv(sortedByDefaultOrder)
+  fs.writeFileSync(sortCsvFilePath, csv)
+  console.log('Extracted and saved sort.csv')
+}
