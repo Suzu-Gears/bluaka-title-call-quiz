@@ -1,22 +1,16 @@
-//npx tsx src/lib/sortJson.tsで実行
-
 import fs from 'node:fs'
-import https from 'node:https'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { getSchaleDB } from '@/lib/schaleDBClient'
 
-// __dirname の代わりに import.meta.url を使用
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// 保存先ディレクトリ
 const downloadDir = path.join(__dirname, '../../public/data')
 const sortJsonFilePath = path.join(downloadDir, 'sort.json')
 const sortCsvFilePath = path.join(downloadDir, 'sort.csv')
 
-// Studentインターフェースの定義
 interface Student {
   DefaultOrder: number
   Id: number
@@ -38,7 +32,6 @@ interface Student {
   Costume: string
 }
 
-// 必要なプロパティを抜き出して新しいJSONを作成する関数
 function extractProperties(data: any): Student[] {
   const result: Student[] = []
   for (const key in data) {
@@ -90,18 +83,15 @@ function extractProperties(data: any): Student[] {
   return result
 }
 
-// JSONデータをCSV形式に変換する関数
 function jsonToCsv(data: Student[]): string {
   const headers = Object.keys(data[0]).join(',')
   const rows = data.map((student) => Object.values(student).join(','))
   return [headers, ...rows].join('\n')
 }
 
-// メイン関数
 export async function main() {
   const data = await getSchaleDB()
 
-  // 必要なプロパティを抜き出して新しいJSONを作成
   const sortedData = extractProperties(data)
   fs.writeFileSync(sortJsonFilePath, JSON.stringify(sortedData, null, 2))
   console.log('Extracted and saved sort.json')
@@ -121,7 +111,6 @@ export async function main() {
     }
   })
 
-  // CSVファイルとして保存
   const csv = jsonToCsv(sortedByDefaultOrder)
   fs.writeFileSync(sortCsvFilePath, csv)
   console.log('Extracted and saved sort.csv')

@@ -19,11 +19,19 @@ export function readLocalJSON(filePath: string): Record<string, any> {
   }
 }
 
+export function createDirectoryIfNotExists(dirPath: string): void {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true })
+  }
+}
+
 export function saveJSON(
   filePath: string,
   jsonData: Record<string, any>,
 ): void {
   try {
+    const dir = path.dirname(filePath)
+    createDirectoryIfNotExists(dir)
     const data = JSON.stringify(jsonData, null, 2)
     fs.writeFileSync(filePath, data, 'utf-8')
   } catch (err) {
