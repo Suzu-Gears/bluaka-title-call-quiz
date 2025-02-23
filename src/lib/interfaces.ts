@@ -1,8 +1,6 @@
 export interface SpreadsheetConfig {
   spreadsheetId: string
   sheetName: string
-  outputDir: string
-  outputFile: string
 }
 
 export type Students = Student[]
@@ -15,4 +13,11 @@ export interface Student {
   firstName: string
   costume: string
   sortText: string
+}
+
+export type QuizOptions = QuizOption[]
+
+export interface QuizOption {
+  slug: string
+  option: string
 }

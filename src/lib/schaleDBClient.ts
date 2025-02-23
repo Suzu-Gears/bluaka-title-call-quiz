@@ -1,17 +1,26 @@
-import fs from 'node:fs'
 import https from 'node:https'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { doesFileExist, readLocalJSON, saveJSON } from '@/lib/fileOperations'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const schaledbURL = 'https://schaledb.com/data/jp/students.json'
 const schaledbFilePath = path.join(__dirname, '../../public/data/schaledb.json')
 
-let schaledbCache: Record<string, any> | null = null
-
 export async function getSchaleDB(): Promise<Record<string, any>> {
-  if (schaledbCache !== null) {
-    return Promise.resolve(schaledbCache)
+  if (
+    !doesFileExist(
+      path.dirname(schaledbFilePath),
+      path.basename(schaledbFilePath),
+    )
+  ) {
+    const data = await fetchSchaleDB()
+    saveJSON(schaledbFilePath, data)
   }
-  return fetchSchaleDB()
+  return readLocalJSON(schaledbFilePath)
 }
 
 async function fetchSchaleDB(): Promise<Record<string, any>> {
@@ -22,10 +31,9 @@ async function fetchSchaleDB(): Promise<Record<string, any>> {
         res.on('data', (chunk) => {
           data += chunk
         })
-        res.on('end', () => {
+        res.on('end', async () => {
           try {
             const jsonData = JSON.parse(data)
-            schaledbCache = jsonData
             resolve(jsonData)
           } catch (err) {
             reject(err)
@@ -36,25 +44,4 @@ async function fetchSchaleDB(): Promise<Record<string, any>> {
         reject(err)
       })
   })
-}
-
-async function updateSchaleDB(): Promise<void> {
-  const newSchaleDB = await fetchSchaleDB()
-  let existingSchaleDB: Record<string, any> | null = null
-
-  if (fs.existsSync(schaledbFilePath)) {
-    const fileData = fs.readFileSync(schaledbFilePath, 'utf-8')
-    existingSchaleDB = JSON.parse(fileData)
-  }
-
-  if (
-    !existingSchaleDB ||
-    JSON.stringify(existingSchaleDB) !== JSON.stringify(newSchaleDB)
-  ) {
-    fs.writeFileSync(
-      schaledbFilePath,
-      JSON.stringify(newSchaleDB, null, 2),
-      'utf-8',
-    )
-  }
 }

@@ -1,15 +1,9 @@
 ---
 import StudentCard from '@/components/StudentCard.astro'
-import { getSpreadSheetJSON } from '@/lib/getSpreadSheetJSON'
+import { getStudentsJson } from '@/lib/getSpreadSheetJSON'
 import type { Students } from '@/lib/interfaces'
-import { SPREADSHEET_ID, STUDENTS_SHEET_NAME } from '@/server-constants'
 
-const studentsData: Students = await getSpreadSheetJSON({
-  spreadsheetId: SPREADSHEET_ID,
-  sheetName: STUDENTS_SHEET_NAME,
-  outputDir: 'public/data',
-  outputFile: 'studentsData.json',
-})
+const studentsData: Students = await getStudentsJson()
 ---
 
 <div class="grid" id="studentGrid">

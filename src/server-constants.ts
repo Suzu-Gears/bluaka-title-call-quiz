@@ -9,6 +9,7 @@ export const BASE_PATH = env.BASE_PATH || '' // <- Set sub directory path if you
 export const GAS_DEPLOY_ID = env.GAS_DEPLOY_ID || ''
 export const SPREADSHEET_ID = env.SPREADSHEET_ID || ''
 export const STUDENTS_SHEET_NAME = env.STUDENTS_SHEET_NAME || ''
+export const QUIZ_SHEET_NAME = env.QUIZ_SHEET_NAME || ''
 export const QUIZGEM_VERSION = env.QUIZGEM_VERSION || ''
 
 export const R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID || ''

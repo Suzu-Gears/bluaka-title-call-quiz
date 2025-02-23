@@ -1,21 +1,41 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import type { QuizOptions, SpreadsheetConfig, Students } from '@/lib/interfaces'
+import {
+  GAS_DEPLOY_ID,
+  QUIZ_SHEET_NAME,
+  SPREADSHEET_ID,
+  STUDENTS_SHEET_NAME,
+} from '@/server-constants'
 
-import type { SpreadsheetConfig, Students } from '@/lib/interfaces'
-import { GAS_DEPLOY_ID } from '@/server-constants'
+let studentsCache: Students | null = null
+let quizOptionsCache: QuizOptions | null = null
+
+export async function getStudentsJson(): Promise<Students> {
+  if (studentsCache !== null) {
+    return Promise.resolve(studentsCache)
+  }
+  studentsCache = (await getSpreadSheetJSON({
+    spreadsheetId: SPREADSHEET_ID,
+    sheetName: STUDENTS_SHEET_NAME,
+  })) as Students
+  return studentsCache
+}
+
+export async function getQuizOptionsJson(): Promise<QuizOptions> {
+  if (quizOptionsCache !== null) {
+    return Promise.resolve(quizOptionsCache)
+  }
+  quizOptionsCache = (await getSpreadSheetJSON({
+    spreadsheetId: SPREADSHEET_ID,
+    sheetName: QUIZ_SHEET_NAME,
+  })) as QuizOptions
+  return quizOptionsCache
+}
 
 export async function getSpreadSheetJSON(
   config: SpreadsheetConfig,
-): Promise<Students> {
-  const { spreadsheetId, sheetName, outputDir, outputFile } = config
+): Promise<Record<string, any>> {
+  const { spreadsheetId, sheetName } = config
   const DOWNLOAD_URL = `https://script.google.com/macros/s/${GAS_DEPLOY_ID}/exec?id=${spreadsheetId}&name=${sheetName}`
-  const filePath = path.join(outputDir, outputFile)
-
-  if (fs.existsSync(filePath)) {
-    console.log(`File already exists at ${filePath}. Reading existing file.`)
-    const existingData = fs.readFileSync(filePath, 'utf-8')
-    return JSON.parse(existingData) as Students
-  }
 
   try {
     console.log(`Downloading JSON data from sheet:${sheetName}`)
@@ -24,16 +44,7 @@ export async function getSpreadSheetJSON(
     if (!response.ok) {
       throw new Error(`Failed to fetch data: ${response.statusText}`)
     }
-
-    const data = (await response.json()) as Students
-
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true })
-    }
-
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
-
-    console.log(`Data saved to ${filePath}`)
+    const data = await response.json()
     return data
   } catch (error) {
     console.error('Error downloading JSON:', error)
