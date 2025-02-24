@@ -13,4 +13,4 @@ await Promise.all([
 ])
 await Promise.all([getMissingAudioBySchaledb(), getMissingImageBySchaledb()])
 console.log('Download completed for R2 folders')
-process.exit(1)
+process.exit(0)
