@@ -11,7 +11,6 @@ await Promise.all([
   downloadR2Folder('image', 'public/image'),
   downloadR2Folder('quiz', 'public'),
 ])
-await getMissingAudioBySchaledb()
-await getMissingImageBySchaledb()
-
+await Promise.all([getMissingAudioBySchaledb(), getMissingImageBySchaledb()])
 console.log('Download completed for R2 folders')
+process.exit(1)
