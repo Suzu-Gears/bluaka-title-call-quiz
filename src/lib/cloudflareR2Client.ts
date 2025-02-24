@@ -156,6 +156,7 @@ export async function deleteR2Folder(folderPath: string) {
   }
 }
 
+/* Content-Typeが未設定なのでapplication/octet-streamになる */
 export async function uploadFileToR2(
   localFilePath: string,
   bucketFolder: string,
@@ -179,6 +180,7 @@ export async function uploadFileToR2(
   }
 }
 
+/* Content-Typeが未設定なのでapplication/octet-streamになる */
 export async function uploadFolderToR2(
   localFolderPath: string,
   bucketFolder: string,
