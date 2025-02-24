@@ -4,7 +4,7 @@ dist/
 .astro/
 
 public/audio/*
-public/images/*
+public/image/*
 
 # dependencies
 node_modules/
