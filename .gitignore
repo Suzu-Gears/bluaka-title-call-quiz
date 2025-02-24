@@ -3,7 +3,8 @@ dist/
 # generated types
 .astro/
 
-public/download/*
+public/audio/*
+public/images/*
 
 # dependencies
 node_modules/
