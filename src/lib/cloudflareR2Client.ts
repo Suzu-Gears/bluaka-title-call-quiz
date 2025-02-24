@@ -76,8 +76,9 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
       (item) => item.Key && item.Key.startsWith(folderPath),
     )
 
-    for (const item of filteredContents) {
-      if (!item.Key) continue
+    // 並列実行のためのPromise配列を作成
+    const downloadPromises = filteredContents.map(async (item) => {
+      if (!item.Key) return
 
       // folderPathを取り除いた相対パスを計算
       const relativePath = path.relative(folderPath, item.Key)
@@ -85,7 +86,7 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
 
       if (fs.existsSync(localFilePath)) {
         console.log(`File already exists, skipping: ${localFilePath}`)
-        continue
+        return
       }
 
       const getCommand = new GetObjectCommand({
@@ -97,7 +98,7 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
 
       if (!getResponse.Body) {
         console.log(`Failed to download file: ${item.Key}`)
-        continue
+        return
       }
 
       await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true })
@@ -112,7 +113,10 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
       })
 
       console.log(`Downloaded: ${localFilePath}`)
-    }
+    })
+
+    // 全てのダウンロードが完了するまで待機
+    await Promise.all(downloadPromises)
   } catch (error) {
     console.error('Error downloading folder:', error)
   }
