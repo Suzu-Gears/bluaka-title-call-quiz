@@ -91,25 +91,88 @@ async function fetchSchaleDB(): Promise<Record<string, any>> {
   })
 }
 
+export async function getMissingAudioBySchaledb() {
+  const data = await getSchaleDB()
+  let failedDownloads: string[] = []
+  for (const key in data) {
+    if (data.hasOwnProperty(key)) {
+      const student: Student = data[key]
+      const { Name: name, DevName: devname, PathName: pathname } = student
+      const audioFileName = `${name}.mp3`
+      const audioFilePath = path.join(audioFolderPath, audioFileName)
+
+      if (!fs.existsSync(audioFilePath)) {
+        const formattedDevName = devname.toLowerCase()
+        let audioUrl = `https://r2.schaledb.com/voice/jp_${formattedDevName}/${formattedDevName}_title.mp3`
+        try {
+          await downloadFile(audioUrl, audioFilePath)
+          console.log(
+            `Downloaded ${formattedDevName}_title.mp3 as ${audioFileName}`,
+          )
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          await uploadFileToR2(audioFilePath, 'audio')
+        } catch (err) {
+          const error = err as Error
+          console.error(`Failed to download ${audioUrl}: ${error.message}`)
+          const formattedPathName = pathname.replace(/_/g, '').toLowerCase()
+          audioUrl = `https://r2.schaledb.com/voice/jp_${formattedPathName}/${formattedPathName}_title.mp3`
+          try {
+            await downloadFile(audioUrl, audioFilePath)
+            console.log(
+              `Downloaded ${formattedPathName}_title.mp3 as ${audioFileName}`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            await uploadFileToR2(audioFilePath, 'audio')
+          } catch (err) {
+            const error = err as Error
+            console.error(`Failed to download ${audioUrl}: ${error.message}`)
+            failedDownloads.push(audioFileName)
+          }
+        }
+      } else {
+        console.log(`File already exists, skipping: ${audioFileName}`)
+      }
+    }
+  }
+  if (failedDownloads.length > 0) {
+    console.log('Failed to download audio files for the following students:')
+    failedDownloads.forEach((audioFileName) => console.log(audioFileName))
+  } else {
+    console.log('All audio files downloaded successfully.')
+  }
+}
+
 export async function getMissingImageBySchaledb() {
   const data = await getSchaleDB()
+  let failedDownloads: string[] = []
   for (const key in data) {
     if (data.hasOwnProperty(key)) {
       const student: Student = data[key]
       const { Id: id, Name: name } = student
       const imageFileName = `${name}.webp`
       const imageFilePath = path.join(imageFolderPath, imageFileName)
-
       if (!fs.existsSync(imageFilePath)) {
         const imageUrl = `https://schaledb.com/images/student/collection/${id}.webp`
-        await downloadFile(imageUrl, imageFilePath)
-        console.log(`Downloaded ${id}.webp as ${imageFileName}`)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        await uploadFileToR2(imageFilePath, 'image')
+        try {
+          await downloadFile(imageUrl, imageFilePath)
+          console.log(`Downloaded ${id}.webp as ${imageFileName}`)
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          await uploadFileToR2(imageFilePath, 'image')
+        } catch (err) {
+          const error = err as Error
+          console.error(`Failed to download ${imageUrl}: ${error.message}`)
+          failedDownloads.push(imageFileName)
+        }
       } else {
         console.log(`File already exists, skipping: ${imageFileName}`)
       }
     }
+  }
+  if (failedDownloads.length > 0) {
+    console.log('Failed to download image files for the following students:')
+    failedDownloads.forEach((imageFileName) => console.log(imageFileName))
+  } else {
+    console.log('All image files downloaded successfully.')
   }
 }
 
