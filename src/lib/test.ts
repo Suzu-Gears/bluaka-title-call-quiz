@@ -1,15 +1,3 @@
-import {
-  convertToArray,
-  getFilteredSchaleDB,
-  getMissingAudioBySchaledb,
-  getMissingImageBySchaledb,
-  getSchaleDB,
-  type Student,
-  type Students,
-} from '@/lib/schaleDBClient'
+import { main } from '@/lib/jsonUtils'
 
-try {
-  await getMissingAudioBySchaledb()
-} catch (error) {
-  console.error('Error occurred:', error) // エラー処理
-}
+main()

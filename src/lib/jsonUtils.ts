@@ -31,6 +31,7 @@ interface Student {
   CharHeightMetric: string
   Costume?: string
   NameSortOrder?: number
+  isCollaboration?: boolean
 }
 
 function removeDuplicates(students: Students): Students {
@@ -55,6 +56,18 @@ function removeDuplicates(students: Students): Students {
     JSON.stringify(uniqueStudents, null, 2),
   )
   return uniqueStudents
+}
+
+function extractCostume(name: string): string {
+  const costumeMatch = name.match(/（[^）]+）/)
+  return costumeMatch ? costumeMatch[0].slice(1, -1) : ''
+}
+
+function addCostumeProperty(students: Students): Students {
+  return students.map((student) => ({
+    ...student,
+    Costume: extractCostume(student.Name),
+  }))
 }
 
 function extractProperties(data: any): Students {
@@ -82,8 +95,6 @@ function extractProperties(data: any): Students {
         BirthDay,
         CharHeightMetric,
       } = student
-      const costumeMatch = Name.match(/（[^）]+）/)
-      const Costume = costumeMatch ? costumeMatch[0].slice(1, -1) : ''
       result.push({
         DefaultOrder,
         Id,
@@ -102,7 +113,6 @@ function extractProperties(data: any): Students {
         Birthday,
         BirthDay,
         CharHeightMetric,
-        Costume,
       })
     }
   }
