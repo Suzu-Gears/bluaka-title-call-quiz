@@ -1,16 +1,20 @@
 ---
 import StudentCard from '@/components/StudentCard.astro'
-import { getStudentsJson } from '@/lib/getSpreadSheetJSON'
 import type { Students } from '@/lib/interfaces'
+import { getStudentsData } from '@/lib/schaleDBClient'
 
-const studentsData: Students = await getStudentsJson()
+const studentsData: Students = await getStudentsData()
 ---
 
 <div class="grid" id="studentGrid">
   {
-    studentsData.map(({ name, voiceActor }) => (
-      <StudentCard name={name} voiceActor={voiceActor} data-name={name} />
-    ))
+    studentsData.length > 0 ? (
+      studentsData.map(({ Name, CharacterVoice }) => (
+        <StudentCard name={Name} voiceActor={CharacterVoice} data-name={Name} />
+      ))
+    ) : (
+      <p>No students available</p>
+    )
   }
 </div>
 
