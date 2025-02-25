@@ -5,6 +5,7 @@ dist/
 
 public/audio/*
 public/image/*
+public/data/*
 
 # dependencies
 node_modules/
