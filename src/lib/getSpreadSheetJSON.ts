@@ -1,4 +1,4 @@
-import type { QuizOptions, SpreadsheetConfig, Students } from '@/lib/interfaces'
+import type { QuizParams, SpreadsheetConfig, Students } from '@/lib/interfaces'
 import {
   GAS_DEPLOY_ID,
   QUIZ_SHEET_NAME,
@@ -7,9 +7,9 @@ import {
 } from '@/server-constants'
 
 let studentsCache: Students | null = null
-let quizOptionsCache: QuizOptions | null = null
+let quizOptionsCache: QuizParams | null = null
 
-export async function getStudentsJson(): Promise<Students> {
+async function getStudentsJson(): Promise<Students> {
   if (studentsCache !== null) {
     return Promise.resolve(studentsCache)
   }
@@ -20,14 +20,14 @@ export async function getStudentsJson(): Promise<Students> {
   return studentsCache
 }
 
-export async function getQuizOptionsJson(): Promise<QuizOptions> {
+export async function getQuizOptionsJson(): Promise<QuizParams> {
   if (quizOptionsCache !== null) {
     return Promise.resolve(quizOptionsCache)
   }
   quizOptionsCache = (await getSpreadSheetJSON({
     spreadsheetId: SPREADSHEET_ID,
     sheetName: QUIZ_SHEET_NAME,
-  })) as QuizOptions
+  })) as QuizParams
   return quizOptionsCache
 }
 
