@@ -7,7 +7,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3'
 import fs from 'node:fs'
-import { readdir, stat } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 
