@@ -45,26 +45,13 @@ export async function getSchaleDB(): Promise<Record<string, any>> {
 }
 
 async function fetchSchaleDB(): Promise<Record<string, any>> {
-  return new Promise((resolve, reject) => {
-    https
-      .get(schaledbURL, (res) => {
-        let data = ''
-        res.on('data', (chunk) => {
-          data += chunk
-        })
-        res.on('end', async () => {
-          try {
-            const jsonData = JSON.parse(data)
-            resolve(jsonData)
-          } catch (err) {
-            reject(err)
-          }
-        })
-      })
-      .on('error', (err) => {
-        reject(err)
-      })
-  })
+  const response = await fetch(schaledbURL)
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch data from ${schaledbURL}: ${response.statusText}`,
+    )
+  }
+  return response.json()
 }
 
 export async function getMissingAudioBySchaledb(): Promise<void> {
