@@ -1,9 +1,26 @@
 ---
 import StudentCard from '@/components/StudentCard.astro'
-import type { Students } from '@/lib/interfaces'
+import type { Student, Students } from '@/lib/interfaces'
 import { getStudentsData } from '@/lib/schaleDBClient'
 
-const studentsData: Students = await getStudentsData()
+interface Props {
+  sortBy?: Extract<
+    keyof Student,
+    keyof {
+      [K in keyof Required<Student> as Required<Student>[K] extends number
+        ? K
+        : never]: Required<Student>[K]
+    }
+  >
+}
+
+const { sortBy: SortBy = 'DefaultOrder' } = Astro.props as Props
+
+let studentsData: Students = await getStudentsData()
+
+studentsData = studentsData.sort((a, b) => {
+  return (a[SortBy] ?? 0) - (b[SortBy] ?? 0)
+})
 ---
 
 <div class="grid" id="studentGrid">

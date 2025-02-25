@@ -1,5 +1,7 @@
 ---
 import CharacterGrid from '@/components/StudentGrid.astro'
+
+const sortBy = 'NameSortOrder'
 ---
 
 <html lang="ja">
@@ -14,7 +16,7 @@ import CharacterGrid from '@/components/StudentGrid.astro'
     <div>
       {Astro.site}
     </div>
-    <CharacterGrid />
+    <CharacterGrid sortBy={sortBy} />
   </body>
 </html>
 
