@@ -68,7 +68,7 @@ async function fetchSchaleDB(): Promise<Record<string, any>> {
 }
 
 export async function getMissingAudioBySchaledb(): Promise<void> {
-  const data = await getSchaleDB()
+  const data = await getStudentsData()
   let failedDownloads: string[] = []
   for (const key in data) {
     if (data.hasOwnProperty(key)) {
@@ -119,7 +119,7 @@ export async function getMissingAudioBySchaledb(): Promise<void> {
 }
 
 export async function getMissingImageBySchaledb(): Promise<void> {
-  const data = await getSchaleDB()
+  const data = await getStudentsData()
   let failedDownloads: string[] = []
   for (const key in data) {
     if (data.hasOwnProperty(key)) {
