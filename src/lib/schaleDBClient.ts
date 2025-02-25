@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 
 import { uploadFileToR2 } from '@/lib/cloudflareR2Client'
 import { doesFileExist, readLocalJSON, saveJSON } from '@/lib/fileOperations'
+import type { Student, Students } from '@/lib/interfaces'
+import { makeStudentsJson } from '@/lib/jsonUtils'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -14,45 +16,19 @@ const schaledbFilePath = path.join(__dirname, '../../public/data/schaledb.json')
 const audioFolderPath = path.join(__dirname, '../../public/audio')
 const imageFolderPath = path.join(__dirname, '../../public/image')
 
-export type Students = Student[]
+let studentsDataCache: Students | null = null
 
-export interface Student {
-  DefaultOrder: number
-  Id: number
-  Name: string
-  PathName: string
-  DevName: string
-  StarGrade: number
-  FamilyName: string
-  FamilyNameRuby: string
-  PersonalName: string
-  PersonalNameRuby: string
-  CharacterVoice: string
-  School: string
-  SchoolYear: string
-  CharacterAge: string
-  Birthday: string
-  BirthDay: string
-  CharHeightMetric: string
-}
-
-function filterStudentData(data: Record<string, any>): Students {
-  // dataが配列でない場合、配列に変換
-  const dataArray = Array.isArray(data) ? data : Object.values(data)
-
-  return dataArray as Students
-}
-
-export async function getFilteredSchaleDB(): Promise<Students> {
+export async function getStudentsData(): Promise<Students> {
+  if (studentsDataCache !== null) {
+    return Promise.resolve(studentsDataCache)
+  }
   const data = await getSchaleDB()
-  const filteredData = filterStudentData(data)
-  return filteredData
-}
-
-export async function convertToArray(
-  data: Record<string, any>,
-): Promise<Record<string, any>> {
-  return Object.values(data)
+  studentsDataCache = await makeStudentsJson(data)
+  saveJSON(
+    path.join(__dirname, '../../public/data/final.json'),
+    studentsDataCache,
+  )
+  return studentsDataCache
 }
 
 export async function getSchaleDB(): Promise<Record<string, any>> {

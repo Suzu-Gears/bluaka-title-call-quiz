@@ -2,36 +2,33 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { getSchaleDB } from '@/lib/schaleDBClient'
+import type { Students } from '@/lib/interfaces'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const dataFolderPath = path.join(__dirname, '../../public/data')
 
-type Students = Student[]
+export async function makeStudentsJson(
+  data: Record<string, any>,
+): Promise<Students> {
+  let processingData = convertToArray(data)
+  processingData = extractProperties(processingData)
+  processingData = removeDuplicates(processingData)
+  processingData = addCostumeProperty(processingData)
+  processingData = addNameSortOrder(processingData)
+  processingData = addCollaborationProperty(processingData)
 
-interface Student {
-  DefaultOrder: number
-  Id: number
-  Name: string
-  PathName: string
-  DevName: string
-  StarGrade: number
-  FamilyName: string
-  FamilyNameRuby: string
-  PersonalName: string
-  PersonalNameRuby: string
-  CharacterVoice: string
-  School: string
-  SchoolYear: string
-  CharacterAge: string
-  Birthday: string
-  BirthDay: string
-  CharHeightMetric: string
-  Costume?: string
-  NameSortOrder?: number
-  isCollaboration?: boolean
+  const result = processingData
+  const sortCsvFilePath = path.join(dataFolderPath, 'final.csv')
+  await jsonToCsv(result, sortCsvFilePath)
+
+  return result
+}
+
+function convertToArray(data: Record<string, any>): Students {
+  const dataArray = Array.isArray(data) ? data : Object.values(data)
+  return dataArray as Students
 }
 
 function removeDuplicates(students: Students): Students {
@@ -58,15 +55,45 @@ function removeDuplicates(students: Students): Students {
   return uniqueStudents
 }
 
-function extractCostume(name: string): string {
-  const costumeMatch = name.match(/（[^）]+）/)
-  return costumeMatch ? costumeMatch[0].slice(1, -1) : ''
+function addNameSortOrder(students: Students): Students {
+  // 名前から全角括弧とその中身を除去する関数
+  const extractName = (name: string): string => {
+    return name.replace(/（[^）]+）/g, '').trim()
+  }
+
+  // extractNameを使って並び替え
+  const sortedStudents = students.sort((a, b) => {
+    const nameA = extractName(a.Name)
+    const nameB = extractName(b.Name)
+    if (nameA === nameB) {
+      return a.DefaultOrder - b.DefaultOrder
+    }
+    return nameA.localeCompare(nameB, 'ja')
+  })
+
+  // NameSortOrderを追加
+  sortedStudents.forEach((student, index) => {
+    student.NameSortOrder = index + 1
+  })
+
+  return sortedStudents
 }
 
 function addCostumeProperty(students: Students): Students {
+  return students.map((student) => {
+    const costumeMatch = student.Name.match(/（[^）]+）/)
+    const costume = costumeMatch ? costumeMatch[0].slice(1, -1) : ''
+    return {
+      ...student,
+      Costume: costume,
+    }
+  })
+}
+
+function addCollaborationProperty(students: Students): Students {
   return students.map((student) => ({
     ...student,
-    Costume: extractCostume(student.Name),
+    IsCollaboration: /^CH9\d{3}/.test(student.DevName),
   }))
 }
 
@@ -124,32 +151,7 @@ function jsonToCsv(data: Students, filePath: string): void {
   const headers = Object.keys(data[0]).join(',')
   const rows = data.map((student) => Object.values(student).join(','))
   const csvContent = [headers, ...rows].join('\n')
-  fs.writeFileSync(filePath, csvContent)
+  const bom = '\uFEFF'
+  fs.writeFileSync(filePath, bom + csvContent)
   console.log(`Extracted and saved ${filePath}`)
-}
-
-export async function main() {
-  const data = await getSchaleDB()
-  const sortedData = extractProperties(data)
-  const removeDuplicateData = removeDuplicates(sortedData)
-
-  console.log(removeDuplicateData)
-
-  // CostumeをDefaultOrder昇順で並び替えてコンソールに表示
-  const sortedByDefaultOrder = sortedData.sort(
-    (a, b) => a.DefaultOrder - b.DefaultOrder,
-  )
-
-  const seenCostumes = new Set<string>()
-  sortedByDefaultOrder.forEach((item) => {
-    if (item.Costume && !seenCostumes.has(item.Costume)) {
-      console.log(
-        `DefaultOrder: ${item.DefaultOrder}, Costume: ${item.Costume}`,
-      )
-      seenCostumes.add(item.Costume)
-    }
-  })
-
-  const sortCsvFilePath = path.join(dataFolderPath, 'sort.csv')
-  jsonToCsv(sortedByDefaultOrder, sortCsvFilePath)
 }

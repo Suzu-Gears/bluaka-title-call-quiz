@@ -6,13 +6,26 @@ export interface SpreadsheetConfig {
 export type Students = Student[]
 
 export interface Student {
-  name: string
-  voiceActor: string
-  date: string
-  school: string
-  firstName: string
-  costume: string
-  sortText: string
+  DefaultOrder: number
+  Id: number
+  Name: string
+  PathName: string
+  DevName: string
+  StarGrade: number
+  FamilyName: string
+  FamilyNameRuby: string
+  PersonalName: string
+  PersonalNameRuby: string
+  CharacterVoice: string
+  School: string
+  SchoolYear: string
+  CharacterAge: string
+  Birthday: string
+  BirthDay: string
+  CharHeightMetric: string
+  Costume?: string
+  NameSortOrder?: number
+  IsCollaboration?: boolean
 }
 
 export type QuizParams = QuizParam[]
