@@ -1,9 +1,8 @@
 ---
 import { doesFileExist } from '@/lib/fileOperations'
-import type { Student } from '@/lib/interfaces'
 import path from 'node:path'
 
-const { name, voiceActor } = Astro.props as Student
+const { name, voiceActor } = Astro.props as { name: string; voiceActor: string }
 
 // 全角括弧が含まれている場合、先頭に半角スペースを追加する関数
 const formatName = (name: string): string => {
@@ -114,7 +113,7 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 
   const gridElement = document.querySelector('.grid')
   if (gridElement) {
-    gridElement.addEventListener('click', (e) => {
+    gridElement.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement | null
       if (!target) return
       const gridItem = target.closest('.grid-item')
@@ -125,10 +124,11 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
       }
     })
 
-    gridElement.addEventListener('keydown', (e) => {
-      const target = e.target as HTMLElement | null
+    gridElement.addEventListener('keydown', (e: Event) => {
+      const event = e as KeyboardEvent
+      const target = event.target as HTMLElement | null
       if (!target) return
-      if (e.key === 'Enter') {
+      if (event.key === 'Enter') {
         const gridItem = target.closest('.grid-item')
         if (!gridItem) return
         const name = (gridItem as HTMLElement).dataset.name
