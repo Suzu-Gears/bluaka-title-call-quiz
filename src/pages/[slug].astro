@@ -1,0 +1,45 @@
+---
+import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
+import type { QuizParam, QuizParams } from '@/lib/interfaces'
+
+export async function getStaticPaths() {
+  const quizParams: QuizParams = await getQuizOptionsJson()
+  return quizParams.map((quizParam: QuizParam) => ({
+    params: {
+      title: quizParam.title,
+      slug: quizParam.slug,
+      description: quizParam.description,
+    },
+  }))
+}
+
+const quizParams: QuizParams = await getQuizOptionsJson()
+const { slug } = Astro.params
+const quizParam = quizParams.find((param) => param.slug === slug) || {
+  title: 'Default Title',
+  description: 'No description available',
+}
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>
+      {quizParam.title}
+    </title>
+  </head>
+  <body>
+    <div>
+      {quizParam.title}
+    </div>
+    <div>
+      {quizParam ? quizParam.description : 'No description available'}
+    </div>
+    <div>
+      {Astro.site}
+    </div>
+  </body>
+</html>
