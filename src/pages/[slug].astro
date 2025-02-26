@@ -117,11 +117,11 @@ export async function getStaticPaths() {
 
 <script is:inline>
   function checkAndToggleButtons() {
-    const pageIntro = document.querySelector('[data-page="intro"]')
+    const pageQuiz = document.querySelector('[data-page="quiz"]')
     const buttons = document.querySelectorAll('.additional-button')
 
     buttons.forEach((button) => {
-      button.style.display = pageIntro ? 'block' : 'none'
+      button.style.display = pageQuiz ? 'none' : 'block'
     })
   }
 
