@@ -2,11 +2,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { doesFileExist } from '@/lib/fileOperations'
-import { getStudentsJson } from '@/lib/getSpreadSheetJSON'
 import type { QuizParam, Students } from '@/lib/interfaces'
+import { getStudentsData } from '@/lib/schaleDBClient'
 
 export async function makeQuestionText(quizParam: QuizParam): Promise<string> {
-  const studentsData: Students = await getStudentsJson()
+  const studentsData: Students = await getStudentsData()
 
   const questionsContent = studentsData
     .filter(({ Name, IsCollaboration }) => {
