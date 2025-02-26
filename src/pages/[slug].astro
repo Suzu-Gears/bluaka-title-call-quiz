@@ -2,22 +2,23 @@
 import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
 import type { QuizParam, QuizParams } from '@/lib/interfaces'
 
+export interface staticPath {
+  params: Pick<QuizParam, 'slug'>
+  props: Pick<QuizParam, 'title' | 'description'>
+}
+
 export async function getStaticPaths() {
   const quizParams: QuizParams = await getQuizOptionsJson()
-  return quizParams.map((quizParam: QuizParam) => ({
+  const staticPaths: staticPath[] = quizParams.map((quizParam) => ({
     params: {
-      title: quizParam.title,
       slug: quizParam.slug,
+    },
+    props: {
+      title: quizParam.title,
       description: quizParam.description,
     },
   }))
-}
-
-const quizParams: QuizParams = await getQuizOptionsJson()
-const { slug } = Astro.params
-const quizParam = quizParams.find((param) => param.slug === slug) || {
-  title: 'Default Title',
-  description: 'No description available',
+  return staticPaths
 }
 ---
 
