@@ -11,13 +11,18 @@ const formatName = (name: string): string => {
 
 // 音声ファイルが存在するか確認
 const audioExists = doesFileExist(path.join('.', 'public/audio'), `${name}.mp3`)
-
 const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 ---
 
 <div class="grid-item" data-name={name} tabindex="0">
   <div class="image-container">
-    <img src={`/image/${name}.webp`} loading="lazy" alt={name} />
+    <img
+      src={doesFileExist(path.join('.', 'public/image'), `${name}.webp`)
+        ? `/image/${name}.webp`
+        : `/default-student-image.webp`}
+      loading="lazy"
+      alt={name}
+    />
     <div class="voice-actor">CV.{voiceActor}</div>
   </div>
   <div class="name-container">
