@@ -4,6 +4,7 @@ dist/
 .astro/
 
 public/*/
+tmp/
 
 # dependencies
 node_modules/
