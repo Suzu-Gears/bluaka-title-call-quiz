@@ -27,5 +27,5 @@ export default defineConfig({
   devToolbar: {
     enabled: false,
   },
-  integrations: [PublicQuizCopier],
+  integrations: [PublicQuizCopier()],
 });
