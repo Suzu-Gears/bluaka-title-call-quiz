@@ -1,7 +1,6 @@
 import puppeteer from 'puppeteer'
 
 import { QUIZGEM_VERSION } from '@/server-constants'
-import path from 'path'
 
 export async function getQuizGeneratorURL(): Promise<string> {
   const browser = await puppeteer.launch({
@@ -33,20 +32,19 @@ export async function getQuizGeneratorURL(): Promise<string> {
 
   // ファイルアップロード
   const fileInput = await iframe.$('input[type="file"][name="file"]')
-  //public/bluaka-title-call-quiz.xlsx
-  await fileInput?.uploadFile('public/bluaka-title-call-quiz.xlsx')
+  await fileInput?.uploadFile('public/data/master10.txt')
 
   // 変換ボタンをクリック
   const submitButton = await iframe.$('input[type="submit"][value="変換"]')
   await submitButton?.click()
 
-  // 限定公開ボタンの表示を待機
-  await iframe.waitForSelector('input[value="限定公開"]', {
+  // ダウンロードボタンの表示を待機
+  await iframe.waitForSelector('input[value="ダウンロード"]', {
     timeout: 10000,
   })
 
-  // 限定公開ボタンの onclick 属性から URL を取得
-  const downloadButton = await iframe.$('input[value="限定公開"]')
+  // ダウンロードボタンの onclick 属性から URL を取得
+  const downloadButton = await iframe.$('input[value="ダウンロード"]')
   const downloadUrl = await iframe.evaluate((button) => {
     if (!button) return null
     const onclick = button.getAttribute('onclick')
@@ -59,10 +57,6 @@ export async function getQuizGeneratorURL(): Promise<string> {
     await browser.close()
     return ''
   }
-
-  /*
-  <input type="button" value="限定公開" onclick="window.open('/quizhoster/index.php?action=directUpload&amp;path=zipOBzZmm&amp;origFileName=bluaka\x2dtitle\x2dcall\x2dquiz\x2exlsx&amp;public=0')">
-  */
 
   // URLエンコードされた部分をデコード
   let decodedUrl = decodeURIComponent(downloadUrl)

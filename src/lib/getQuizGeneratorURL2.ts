@@ -45,34 +45,34 @@ export async function getQuizGeneratorURL(): Promise<string> {
   })
 
   // 限定公開ボタンの onclick 属性から URL を取得
-  const downloadButton = await iframe.$('input[value="限定公開"]')
-  const downloadUrl = await iframe.evaluate((button) => {
+  const limitedButton = await iframe.$('input[value="限定公開"]')
+  const limitedUrl = await iframe.evaluate((button) => {
     if (!button) return null
     const onclick = button.getAttribute('onclick')
     const match = onclick?.match(/window\.open\('([^']+)'/) // onclick 属性から URL を抽出
     return match ? match[1] : null
-  }, downloadButton)
+  }, limitedButton)
 
-  if (!downloadUrl) {
-    console.error('Download URL not found.')
+  if (!limitedUrl) {
+    console.error('Limited URL not found.')
     await browser.close()
     return ''
   }
 
   // URLエンコードされた部分をデコード
-  let decodedUrl = decodeURIComponent(downloadUrl)
+  let decodedUrl = decodeURIComponent(limitedUrl)
 
   // エスケープされた部分をデコード
   decodedUrl = decodedUrl.replace(/\\x2d/g, '-') // \x2d -> -
   decodedUrl = decodedUrl.replace(/\\x2e/g, '.') // \x2e -> .
 
-  console.log('Decoded download URL:', decodedUrl)
+  console.log('Decoded Limited URL:', decodedUrl)
 
   // 絶対URLを生成
   const baseUrl = `https://quizgenerator.net`
   // baseUrlがスラッシュで終わっていない場合、末尾にスラッシュを追加
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
-  console.log('BaseURL:', baseUrl)
+  console.log('BaseURL:', normalizedBaseUrl)
   const absoluteUrl = new URL(decodedUrl, normalizedBaseUrl).href
   console.log('AbsoluteURL:', absoluteUrl)
 
