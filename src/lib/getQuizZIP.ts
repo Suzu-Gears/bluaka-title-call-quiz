@@ -82,7 +82,7 @@ export async function getQuizGeneratorZIP(
 
   // ダウンロードボタンの表示を待機
   await iframe.waitForSelector('input[value="ダウンロード"]', {
-    timeout: 10000,
+    timeout: 30000,
   })
 
   // ダウンロードボタンをクリックしてファイルをダウンロード

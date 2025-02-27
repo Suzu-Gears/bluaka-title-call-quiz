@@ -67,6 +67,27 @@ export function deleteHTMLFiles(dirPath: string): void {
 }
 
 /**
+ * 指定したフォルダ直下のZIPファイルを削除する。
+ * @param dirPath 削除対象のフォルダパス(プロジェクトルートからの相対パス)
+ * 例：deleteZIPFiles('public/example')
+ */
+export function deleteZIPFiles(dirPath: string): void {
+  try {
+    const files = fs.readdirSync(dirPath)
+    files.forEach((file) => {
+      if (path.extname(file) === '.zip') {
+        fs.unlinkSync(path.join(dirPath, file))
+        console.log(`Deleted ${path.join(dirPath, file)}`)
+      }
+    })
+  } catch (err) {
+    throw new Error(
+      `Failed to delete ZIP files in directory ${dirPath}: ${(err as Error).message}`,
+    )
+  }
+}
+
+/**
  * 指定したディレクトリの中身を指定したディレクトリにコピーする。
  * ディレクトリが存在しない場合は作成する。
  * @param srcDir コピー元のディレクトリパス(プロジェクトルートからの相対パス)
@@ -85,6 +106,7 @@ export function copyDirectoryContents(srcDir: string, destDir: string): void {
       } else {
         fs.copyFileSync(srcFile, destFile)
       }
+      console.log(`Copied ${srcFile} to ${destFile}`)
     })
   } catch (err) {
     throw new Error(
