@@ -1,4 +1,5 @@
 ---
+import Footer from '@/components/Footer.astro'
 import Header from '@/components/Header.astro'
 import CharacterGrid from '@/components/StudentGrid.astro'
 import Navigation from '../components/Navigation.astro'
@@ -24,6 +25,7 @@ const sortBy = 'NameSortOrder'
     <Header />
     <Navigation />
     <CharacterGrid sortBy={sortBy} />
+    <Footer />
   </body>
 </html>
 
