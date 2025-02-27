@@ -152,10 +152,16 @@ if (!doesFolderExist(publicDirPath)) {
 <script is:inline>
   function checkAndToggleButtons() {
     const pageQuiz = document.querySelector('[data-page="quiz"]')
-    const buttons = document.querySelectorAll('.additional-button')
+    const homeButton = document.querySelectorAll('.back-to-home')
+    const pageMasterQuiz = document.getElementById('completion-rate-wrapper')
+    const clearStorageButton = document.querySelectorAll('.clear-storage')
 
-    buttons.forEach((button) => {
+    homeButton.forEach((button) => {
       button.style.display = pageQuiz ? 'none' : 'block'
+    })
+
+    clearStorageButton.forEach((button) => {
+      button.style.display = pageMasterQuiz ? 'block' : 'none'
     })
   }
 
