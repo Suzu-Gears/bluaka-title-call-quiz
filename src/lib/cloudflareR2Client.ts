@@ -9,7 +9,7 @@ import {
 import fs from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
-import { Readable } from 'node:stream'
+import type { Readable } from 'node:stream'
 
 import {
   R2_ACCESS_KEY_ID,
