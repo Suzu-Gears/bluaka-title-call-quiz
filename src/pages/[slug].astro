@@ -1,10 +1,14 @@
 ---
+import { copyDirectoryContents, deleteHTMLFiles } from '@/lib/fileOperations'
+import { getQuizGeneratorZIP } from '@/lib/getQuizZIP'
 import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
 import type { QuizParam, QuizParams } from '@/lib/interfaces'
+import { makeQuestionText } from '@/lib/makeQuestionText'
+import { unzipLocalFile } from '@/lib/unzip'
 
 export interface staticPath {
   params: Pick<QuizParam, 'slug'>
-  props: Pick<QuizParam, 'title' | 'description'>
+  props: Pick<QuizParam, 'title' | 'description' | 'option'>
 }
 
 export async function getStaticPaths() {
@@ -16,10 +20,27 @@ export async function getStaticPaths() {
     props: {
       title: quizParam.title,
       description: quizParam.description,
+      option: quizParam.option,
     },
   }))
   return staticPaths
 }
+
+// QuizParamを再構築し、makeQuestionTextを実行
+const quizParam: QuizParam = {
+  slug: Astro.params.slug,
+  title: Astro.props.title,
+  description: Astro.props.description,
+  option: Astro.props.option,
+}
+
+const quizFilePath = await makeQuestionText(quizParam)
+console.log(`Created quiz file at ${quizFilePath}`)
+const quizGeneratorZIPFilePath = await getQuizGeneratorZIP(quizFilePath)
+console.log(`Created quiz generator ZIP file at ${quizGeneratorZIPFilePath}`)
+await unzipLocalFile(quizGeneratorZIPFilePath, `tmp/${quizParam.slug}`)
+deleteHTMLFiles(`tmp/${quizParam.slug}`)
+copyDirectoryContents(`tmp/${quizParam.slug}`, `public/${quizParam.slug}`)
 ---
 
 <html lang="ja">
@@ -31,7 +52,7 @@ export async function getStaticPaths() {
     <meta name="description" content={Astro.props.description} />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>...Loading</title>
+    <title>{Astro.props.title}</title>
     <script>
       if ('caches' in window) {
         caches
@@ -74,8 +95,9 @@ export async function getStaticPaths() {
           })
       }
     </script>
-    <script defer="defer" src=`/${Astro.params.slug}/player-config.js`></script>
-    <script defer="defer" src=`/${Astro.params.slug}/app/player.js`></script>
+    <script defer="defer" src={`/${Astro.params.slug}/player-config.js`}
+    ></script>
+    <script defer="defer" src={`/${Astro.params.slug}/app/player.js`}></script>
   </head>
   <body>
     <div id="root"></div>
