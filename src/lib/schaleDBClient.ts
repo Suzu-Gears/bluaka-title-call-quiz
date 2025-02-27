@@ -31,7 +31,7 @@ export async function getStudentsData(): Promise<Students> {
   return studentsDataCache
 }
 
-export async function getSchaleDB(): Promise<Record<string, any>> {
+async function getSchaleDB(): Promise<Record<string, any>> {
   if (
     !doesFileExist(
       path.dirname(schaledbFilePath),
