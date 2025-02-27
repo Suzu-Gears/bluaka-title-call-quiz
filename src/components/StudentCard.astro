@@ -9,9 +9,15 @@ const formatName = (name: string): string => {
   return name.includes('（') ? '\u00A0' + '\u00A0' + name : name
 }
 
+// voiceActorの前後に半角スペースを追加する関数
+const formatVoiceActor = (voiceActor: string): string => {
+  return `\u00A0\u00A0CV.${voiceActor}\u00A0\u00A0`
+}
+
 // 音声ファイルが存在するか確認
 const audioExists = doesFileExist(path.join('.', 'public/audio'), `${name}.mp3`)
 const formattedName = formatName(name) + (audioExists ? '' : '🚫')
+const formattedVoiceActor = formatVoiceActor(voiceActor)
 ---
 
 <div class="grid-item" data-name={name} tabindex="0">
@@ -23,10 +29,12 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
       loading="lazy"
       alt={name}
     />
-    <div class="voice-actor">CV.{voiceActor}</div>
+    <div class="voice-actor-container">
+      <div class="voice-actor">{formattedVoiceActor}</div>
+    </div>
   </div>
   <div class="name-container">
-    <div class="name" id="fit-text">{formattedName}</div>
+    <div class="name">{formattedName}</div>
   </div>
   {
     audioExists && (
@@ -54,10 +62,10 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
   }
 
   // devicePixelRatioの変更を検知してfittyを再設定する関数
-  function setupFitty() {
-    const maxFontSize = getFontSize('#fit-text') || getFontSize('.name')
-    fitty('#fit-text', {
-      minSize: 9,
+  function setupFitty(selector: string) {
+    const maxFontSize = getFontSize(selector)
+    fitty(selector, {
+      minSize: 8,
       maxSize: maxFontSize,
       multiLine: true,
     })
@@ -65,7 +73,8 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 
   // 初回ロード時にfittyを設定
   document.addEventListener('DOMContentLoaded', () => {
-    setupFitty()
+    setupFitty('.name')
+    setupFitty('.voice-actor')
   })
 
   // devicePixelRatioの変更を検知してfittyを再設定
@@ -73,7 +82,8 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
   window.addEventListener('resize', () => {
     if (window.devicePixelRatio !== devicePixelRatio) {
       devicePixelRatio = window.devicePixelRatio
-      setupFitty()
+      setupFitty('.name')
+      setupFitty('.voice-actor')
     }
   })
 </script>
@@ -173,7 +183,7 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
     padding-bottom: 110%; /* 1/1.1 のアスペクト比を維持 */
   }
 
-  .voice-actor {
+  .voice-actor-container {
     position: absolute;
     bottom: 0;
     width: 100%;
@@ -185,8 +195,11 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
     flex-direction: column;
     justify-content: center;
     align-items: center;
+  }
 
-    font-size: 12px;
+  .voice-actor {
+    display: inline-block;
+    font-size: 0.75em;
     font-weight: bold;
     white-space: nowrap;
     font-family: sans-serif;
@@ -235,10 +248,11 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 20px;
+    height: 1.5em;
   }
 
   .name {
+    display: inline-block;
     white-space: nowrap;
     font-family: sans-serif;
     color: #60676f;
