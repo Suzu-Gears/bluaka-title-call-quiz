@@ -1,13 +1,11 @@
+import appRoot from 'app-root-path'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import type { Students } from '@/lib/interfaces'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const dataFolderPath = path.join(__dirname, '../../public/data')
+const projectRoot = appRoot.path
+const dataFolderPath = path.join(projectRoot, 'public/data')
 
 export async function makeStudentsJson(
   data: Record<string, any>,

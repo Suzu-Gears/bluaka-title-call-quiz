@@ -1,20 +1,19 @@
+import appRoot from 'app-root-path'
 import fs from 'node:fs'
 import https from 'node:https'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import { uploadFileToR2 } from '@/lib/cloudflareR2Client'
 import { doesFileExist, readLocalJSON, saveJSON } from '@/lib/fileOperations'
 import type { Student, Students } from '@/lib/interfaces'
 import { makeStudentsJson } from '@/lib/jsonUtils'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const projectRoot = appRoot.path
 
 const schaledbURL = 'https://schaledb.com/data/jp/students.json'
-const schaledbFilePath = path.join(__dirname, '../../public/data/schaledb.json')
-const audioFolderPath = path.join(__dirname, '../../public/audio')
-const imageFolderPath = path.join(__dirname, '../../public/image')
+const schaledbFilePath = path.join(projectRoot, 'public/data/schaledb.json')
+const audioFolderPath = path.join(projectRoot, 'public/audio')
+const imageFolderPath = path.join(projectRoot, 'public/image')
 
 let studentsDataCache: Students | null = null
 
@@ -24,10 +23,7 @@ export async function getStudentsData(): Promise<Students> {
   }
   const data = await getSchaleDB()
   studentsDataCache = await makeStudentsJson(data)
-  saveJSON(
-    path.join(__dirname, '../../public/data/final.json'),
-    studentsDataCache,
-  )
+  saveJSON(path.join(projectRoot, 'public/data/final.json'), studentsDataCache)
   return studentsDataCache
 }
 
