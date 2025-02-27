@@ -1,0 +1,37 @@
+---
+import { getStaticPaths } from '../pages/[slug].astro'
+
+const staticPaths = await getStaticPaths()
+---
+
+<nav>
+  <ul>
+    {
+      staticPaths.map(({ params, props }) => (
+        <li>
+          <a href={`/${params.slug}`}>{props.title}</a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<style>
+  nav {
+    padding: 1rem;
+  }
+  ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  li {
+    margin: 0.5rem 0;
+  }
+  a {
+    text-decoration: none;
+    color: #007bff;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>

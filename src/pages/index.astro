@@ -1,5 +1,6 @@
 ---
 import CharacterGrid from '@/components/StudentGrid.astro'
+import Navigation from '../components/Navigation.astro'
 
 const sortBy = 'NameSortOrder'
 ---
@@ -13,9 +14,7 @@ const sortBy = 'NameSortOrder'
     <title>ブルアカタイトルコールクイズ</title>
   </head>
   <body>
-    <div>
-      {Astro.site}
-    </div>
+    <Navigation />
     <CharacterGrid sortBy={sortBy} />
   </body>
 </html>
