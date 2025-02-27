@@ -18,6 +18,7 @@ const copyFiles = (src: string, dest: string) => {
     } else {
       if (!fs.existsSync(destPath)) {
         fs.copyFileSync(srcPath, destPath)
+        console.log(`Copied ${srcPath} to ${destPath}`)
       }
     }
   }
