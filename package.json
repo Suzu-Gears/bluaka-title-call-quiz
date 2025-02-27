@@ -7,9 +7,9 @@
     "build": "npm run cache:fetch && astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "cache:fetch": "tsx ./src/lib/downloadPublic.ts",
-    "local-cache:fetch": "tsx --env-file=.env ./src/lib/downloadPublic.ts",
-    "local-cache:purge": "tsx ./src/lib/purgeCache.ts",
+    "cache:fetch": "tsx ./src/scripts/downloadPublic.ts",
+    "local-cache:fetch": "tsx --env-file=.env ./src/scripts/downloadPublic.ts",
+    "local-cache:purge": "tsx ./src/scripts/purgeCache.ts",
     "test": "tsx --env-file=.env ./src/lib/test.ts"
   },
   "dependencies": {
