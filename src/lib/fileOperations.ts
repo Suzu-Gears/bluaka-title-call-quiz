@@ -40,3 +40,51 @@ export function saveJSON(
     )
   }
 }
+
+/**
+ * 指定したフォルダ直下のHTMLファイルを削除する。
+ * @param dirPath 削除対象のフォルダパス(プロジェクトルートからの相対パス)
+ * 例：deleteHTMLFiles('public/example')
+ */
+export function deleteHTMLFiles(dirPath: string): void {
+  try {
+    const files = fs.readdirSync(dirPath)
+    files.forEach((file) => {
+      if (path.extname(file) === '.html') {
+        fs.unlinkSync(path.join(dirPath, file))
+        console.log(`Deleted ${path.join(dirPath, file)}`)
+      }
+    })
+  } catch (err) {
+    throw new Error(
+      `Failed to delete HTML files in directory ${dirPath}: ${(err as Error).message}`,
+    )
+  }
+}
+
+/**
+ * 指定したディレクトリの中身を指定したディレクトリにコピーする。
+ * ディレクトリが存在しない場合は作成する。
+ * @param srcDir コピー元のディレクトリパス(プロジェクトルートからの相対パス)
+ * @param destDir コピー先のディレクトリパス(プロジェクトルートからの相対パス)
+ * 例：copyDirectoryContents('public/source', 'public/destination')
+ */
+export function copyDirectoryContents(srcDir: string, destDir: string): void {
+  try {
+    createDirectoryIfNotExists(destDir)
+    const files = fs.readdirSync(srcDir)
+    files.forEach((file) => {
+      const srcFile = path.join(srcDir, file)
+      const destFile = path.join(destDir, file)
+      if (fs.lstatSync(srcFile).isDirectory()) {
+        copyDirectoryContents(srcFile, destFile)
+      } else {
+        fs.copyFileSync(srcFile, destFile)
+      }
+    })
+  } catch (err) {
+    throw new Error(
+      `Failed to copy directory contents from ${srcDir} to ${destDir}: ${(err as Error).message}`,
+    )
+  }
+}
