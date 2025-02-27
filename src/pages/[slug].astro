@@ -53,6 +53,8 @@ if (!doesFolderExist(publicDirPath)) {
 } else {
   console.log(`Quiz file already exists at ${publicDirPath}`)
 }
+
+const slug = Astro.params.slug
 ---
 
 <html lang="ja">
@@ -64,8 +66,26 @@ if (!doesFolderExist(publicDirPath)) {
     <meta name="description" content={Astro.props.description} />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>{Astro.props.title}</title>
+    <title id="page-title">{Astro.props.title}</title>
     <script>
+      // タイトルの変更を監視して再設定する関数
+      function resetTitle() {
+        const titleElement = document.getElementById('page-title')
+        const newTitle = document.body.dataset.title
+        if (titleElement && titleElement.textContent !== newTitle) {
+          titleElement.textContent = newTitle ?? ''
+        }
+      }
+      // MutationObserverを使ってタイトルの変更を監視
+      const titleObserver = new MutationObserver(resetTitle)
+      const titleElement = document.querySelector('title')
+      if (titleElement) {
+        titleObserver.observe(titleElement, {
+          childList: true,
+        })
+      }
+    </script>
+    <script define:vars={{ slug }}>
       if ('caches' in window) {
         caches
           .keys()
@@ -96,25 +116,21 @@ if (!doesFolderExist(publicDirPath)) {
                   )
                 })
                 .then(function () {
-                  navigator.serviceWorker.register(
-                    `/${Astro.params.slug}/sw.js`,
-                    {
-                      scope: `/${Astro.params.slug}/`,
-                    },
-                  )
+                  navigator.serviceWorker.register(`/${slug}/sw.js`, {
+                    scope: `/${slug}/`,
+                  })
                 })
             }
           })
       }
     </script>
-    <script defer="defer" src={`/${Astro.params.slug}/player-config.js`}
-    ></script>
-    <script defer="defer" src={`/${Astro.params.slug}/app/player.js`}></script>
+    <script defer="defer" src={`/${slug}/player-config.js`}></script>
+    <script defer="defer" src={`/${slug}/app/player.js`}></script>
   </head>
-  <body>
+  <body data-title={Astro.props.title} data-slug={slug}>
     <div id="root"></div>
     <button class="additional-button back-to-home" onclick="goToHome()"
-      >Topへ</button
+      >生徒一覧へ戻る</button
     >
     <button
       class="additional-button clear-storage"
