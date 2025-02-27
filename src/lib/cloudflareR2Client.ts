@@ -104,7 +104,7 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
       await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true })
 
       const writeStream = fs.createWriteStream(localFilePath)
-      const bodyStream = getResponse.Body as Readable
+      const bodyStream: Readable = getResponse.Body as Readable
       bodyStream.pipe(writeStream)
 
       await new Promise<void>((resolve, reject) => {
