@@ -23,7 +23,9 @@ export function readLocalJSON(filePath: string): Record<string, any> {
   }
 }
 
-export function createDirectoryIfNotExists(dirPath: string): void {
+export async function createDirectoryIfNotExists(
+  dirPath: string,
+): Promise<void> {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true })
   }
@@ -50,15 +52,17 @@ export function saveJSON(
  * @param dirPath 削除対象のフォルダパス(プロジェクトルートからの相対パス)
  * 例：deleteHTMLFiles('public/example')
  */
-export function deleteHTMLFiles(dirPath: string): void {
+export async function deleteHTMLFiles(dirPath: string): Promise<void> {
   try {
-    const files = fs.readdirSync(dirPath)
-    files.forEach((file) => {
-      if (path.extname(file) === '.html') {
-        fs.unlinkSync(path.join(dirPath, file))
-        console.log(`Deleted ${path.join(dirPath, file)}`)
-      }
-    })
+    const files = await fs.promises.readdir(dirPath)
+    await Promise.all(
+      files.map(async (file) => {
+        if (path.extname(file) === '.html') {
+          await fs.promises.unlink(path.join(dirPath, file))
+          console.log(`Deleted ${path.join(dirPath, file)}`)
+        }
+      }),
+    )
   } catch (err) {
     throw new Error(
       `Failed to delete HTML files in directory ${dirPath}: ${(err as Error).message}`,
@@ -71,15 +75,17 @@ export function deleteHTMLFiles(dirPath: string): void {
  * @param dirPath 削除対象のフォルダパス(プロジェクトルートからの相対パス)
  * 例：deleteZIPFiles('public/example')
  */
-export function deleteZIPFiles(dirPath: string): void {
+export async function deleteZIPFiles(dirPath: string): Promise<void> {
   try {
-    const files = fs.readdirSync(dirPath)
-    files.forEach((file) => {
-      if (path.extname(file) === '.zip') {
-        fs.unlinkSync(path.join(dirPath, file))
-        console.log(`Deleted ${path.join(dirPath, file)}`)
-      }
-    })
+    const files = await fs.promises.readdir(dirPath)
+    await Promise.all(
+      files.map(async (file) => {
+        if (path.extname(file) === '.zip') {
+          await fs.promises.unlink(path.join(dirPath, file))
+          console.log(`Deleted ${path.join(dirPath, file)}`)
+        }
+      }),
+    )
   } catch (err) {
     throw new Error(
       `Failed to delete ZIP files in directory ${dirPath}: ${(err as Error).message}`,
@@ -94,20 +100,25 @@ export function deleteZIPFiles(dirPath: string): void {
  * @param destDir コピー先のディレクトリパス(プロジェクトルートからの相対パス)
  * 例：copyDirectoryContents('public/source', 'public/destination')
  */
-export function copyDirectoryContents(srcDir: string, destDir: string): void {
+export async function copyDirectoryContents(
+  srcDir: string,
+  destDir: string,
+): Promise<void> {
   try {
-    createDirectoryIfNotExists(destDir)
-    const files = fs.readdirSync(srcDir)
-    files.forEach((file) => {
-      const srcFile = path.join(srcDir, file)
-      const destFile = path.join(destDir, file)
-      if (fs.lstatSync(srcFile).isDirectory()) {
-        copyDirectoryContents(srcFile, destFile)
-      } else {
-        fs.copyFileSync(srcFile, destFile)
-      }
-      console.log(`Copied ${srcFile} to ${destFile}`)
-    })
+    await createDirectoryIfNotExists(destDir)
+    const files = await fs.promises.readdir(srcDir)
+    await Promise.all(
+      files.map(async (file) => {
+        const srcFile = path.join(srcDir, file)
+        const destFile = path.join(destDir, file)
+        if (fs.lstatSync(srcFile).isDirectory()) {
+          await copyDirectoryContents(srcFile, destFile)
+        } else {
+          await fs.promises.copyFile(srcFile, destFile)
+        }
+        console.log(`Copied ${srcFile} to ${destFile}`)
+      }),
+    )
   } catch (err) {
     throw new Error(
       `Failed to copy directory contents from ${srcDir} to ${destDir}: ${(err as Error).message}`,

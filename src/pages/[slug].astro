@@ -48,10 +48,10 @@ if (!doesFolderExist(publicDirPath)) {
   console.log(`Created quiz file at ${quizFilePath}`)
   const quizGeneratorZIPFilePath = await getQuizGeneratorZIP(quizFilePath)
   console.log(`Created quiz generator ZIP file at ${quizGeneratorZIPFilePath}`)
-  unzipLocalFile(quizGeneratorZIPFilePath, `tmp/${quizParam.slug}`)
-  deleteHTMLFiles(`tmp/${quizParam.slug}`)
-  deleteZIPFiles(`tmp/${quizParam.slug}`)
-  copyDirectoryContents(`tmp/${quizParam.slug}`, publicDirPath)
+  await unzipLocalFile(quizGeneratorZIPFilePath, `tmp/${quizParam.slug}`)
+  await deleteHTMLFiles(`tmp/${quizParam.slug}`)
+  await deleteZIPFiles(`tmp/${quizParam.slug}`)
+  await copyDirectoryContents(`tmp/${quizParam.slug}`, publicDirPath)
 } else {
   console.log(`Quiz file already exists at ${publicDirPath}`)
 }
