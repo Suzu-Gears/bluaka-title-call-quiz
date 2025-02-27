@@ -173,4 +173,12 @@ if (!doesFolderExist(publicDirPath)) {
   function goToHome() {
     window.location.href = '../'
   }
+
+  function clearLocalStorage() {
+    if (confirm('達成率をリセットしますか？')) {
+      localStorage.clear()
+      alert('リセットが完了しました。ページを再読み込みします。')
+      location.reload()
+    }
+  }
 </script>
