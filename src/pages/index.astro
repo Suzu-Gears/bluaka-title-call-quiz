@@ -1,4 +1,5 @@
 ---
+import Header from '@/components/Header.astro'
 import CharacterGrid from '@/components/StudentGrid.astro'
 import Navigation from '../components/Navigation.astro'
 
@@ -12,8 +13,15 @@ const sortBy = 'NameSortOrder'
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>ブルアカタイトルコールクイズ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
+    <Header />
     <Navigation />
     <CharacterGrid sortBy={sortBy} />
   </body>
@@ -21,13 +29,15 @@ const sortBy = 'NameSortOrder'
 
 <style>
   body {
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     padding-inline: 16px;
+    max-width: 1080px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     background-color: #f4fcfd;
+    font-family: sans-serif;
   }
 </style>

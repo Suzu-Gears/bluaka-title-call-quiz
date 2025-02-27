@@ -5,11 +5,15 @@ const staticPaths = await getStaticPaths()
 ---
 
 <nav>
+  <h2>クイズ一覧</h2>
   <ul>
     {
       staticPaths.map(({ params, props }) => (
-        <li>
-          <a href={`/${params.slug}`}>{props.title}</a>
+        <li class="card">
+          <a href={`/${params.slug}`} tabindex="0">
+            <strong>{props.title}</strong>
+            <p>{props.description}</p>
+          </a>
         </li>
       ))
     }
@@ -18,20 +22,51 @@ const staticPaths = await getStaticPaths()
 
 <style>
   nav {
+    margin-block-start: 1rem;
     padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 1rem;
   }
-  ul {
-    list-style-type: none;
+  h2 {
+    margin: 0;
     padding: 0;
   }
+  ul {
+    font-family: 'Kosugi Maru', sans-serif;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
   li {
-    margin: 0.5rem 0;
+    margin-block-start: 1rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 1rem;
+    transition: box-shadow 0.3s ease;
+  }
+  @media (hover: hover) {
+    li:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+  li:has(a:focus-visible) {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
   }
   a {
     text-decoration: none;
     color: #007bff;
   }
-  a:hover {
-    text-decoration: underline;
+  a:focus {
+    outline: none;
+  }
+  strong {
+    display: block;
+    font-size: 1.2rem;
+  }
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #555;
   }
 </style>

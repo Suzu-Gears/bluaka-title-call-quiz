@@ -37,11 +37,11 @@ studentsData = studentsData.sort((a, b) => {
 
 <style>
   .grid {
+    margin-block-start: 1rem;
     display: grid;
     justify-content: center;
     place-items: center;
     width: 100%;
-    max-width: 1080px;
     gap: 8px;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     font-size: 16px;
@@ -50,7 +50,8 @@ studentsData = studentsData.sort((a, b) => {
     @media (min-resolution: 160dpi), (-webkit-min-device-pixel-ratio: 2) {
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 16px;
-      font-size: 18px;
+      font-size: 20px;
+      font-family: 'Kosugi Maru', sans-serif;
     }
 
     /*iPhone13 miniは289dpi以上で変化 ratio2と3の両方が対象？*/
@@ -58,6 +59,7 @@ studentsData = studentsData.sort((a, b) => {
       grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
       gap: 8px;
       font-size: 16px;
+      font-family: 'Kosugi Maru', sans-serif;
     }
   }
 </style>

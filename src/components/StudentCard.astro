@@ -6,7 +6,7 @@ const { name, voiceActor } = Astro.props as { name: string; voiceActor: string }
 
 // 全角括弧が含まれている場合、先頭に半角スペースを追加する関数
 const formatName = (name: string): string => {
-  return name.includes('（') ? '\u00A0' + '\u00A0' + name : name
+  return name.includes('（') ? '\u00A0' + name : name
 }
 
 // voiceActorの前後に半角スペースを追加する関数
@@ -199,10 +199,9 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 
   .voice-actor {
     display: inline-block;
-    font-size: 0.75em;
-    font-weight: bold;
+    font-size: 0.8em;
+    font-weight: 700;
     white-space: nowrap;
-    font-family: sans-serif;
     color: #ffffff;
   }
 
@@ -254,13 +253,12 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
   .name {
     display: inline-block;
     white-space: nowrap;
-    font-family: sans-serif;
     color: #60676f;
     background: linear-gradient(
       transparent 0% 65%,
       #f9f49b 65% 80%,
       transparent 80% 100%
     );
-    font-weight: bold;
+    font-weight: 700;
   }
 </style>
