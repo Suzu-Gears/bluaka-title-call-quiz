@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import PublicQuizCopier from './src/integrations/publicQuizCopier.ts';
 import { BASE_PATH, CUSTOM_DOMAIN } from './src/server-constants';
 
 const getSite = function () {
@@ -26,4 +27,5 @@ export default defineConfig({
   devToolbar: {
     enabled: false,
   },
+  integrations: [PublicQuizCopier],
 });
