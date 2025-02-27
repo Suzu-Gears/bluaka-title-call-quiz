@@ -6,6 +6,10 @@ export function doesFileExist(localPath: string, fileName: string): boolean {
   return fs.existsSync(filePath)
 }
 
+export function doesFolderExist(localPath: string): boolean {
+  return fs.existsSync(localPath)
+}
+
 export function readLocalJSON(filePath: string): Record<string, any> {
   try {
     const data = fs.readFileSync(filePath, 'utf-8')

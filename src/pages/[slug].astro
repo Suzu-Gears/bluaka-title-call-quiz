@@ -1,5 +1,11 @@
 ---
-import { copyDirectoryContents, deleteHTMLFiles } from '@/lib/fileOperations'
+import path from 'node:path'
+
+import {
+  copyDirectoryContents,
+  deleteHTMLFiles,
+  doesFolderExist,
+} from '@/lib/fileOperations'
 import { getQuizGeneratorZIP } from '@/lib/getQuizZIP'
 import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
 import type { QuizParam, QuizParams } from '@/lib/interfaces'
@@ -34,13 +40,19 @@ const quizParam: QuizParam = {
   option: Astro.props.option,
 }
 
-const quizFilePath = await makeQuestionText(quizParam)
-console.log(`Created quiz file at ${quizFilePath}`)
-const quizGeneratorZIPFilePath = await getQuizGeneratorZIP(quizFilePath)
-console.log(`Created quiz generator ZIP file at ${quizGeneratorZIPFilePath}`)
-await unzipLocalFile(quizGeneratorZIPFilePath, `tmp/${quizParam.slug}`)
-deleteHTMLFiles(`tmp/${quizParam.slug}`)
-copyDirectoryContents(`tmp/${quizParam.slug}`, `public/${quizParam.slug}`)
+const publicDirPath = path.join('public', quizParam.slug)
+
+if (!doesFolderExist(publicDirPath)) {
+  const quizFilePath = await makeQuestionText(quizParam)
+  console.log(`Created quiz file at ${quizFilePath}`)
+  const quizGeneratorZIPFilePath = await getQuizGeneratorZIP(quizFilePath)
+  console.log(`Created quiz generator ZIP file at ${quizGeneratorZIPFilePath}`)
+  await unzipLocalFile(quizGeneratorZIPFilePath, `tmp/${quizParam.slug}`)
+  deleteHTMLFiles(`tmp/${quizParam.slug}`)
+  copyDirectoryContents(`tmp/${quizParam.slug}`, publicDirPath)
+} else {
+  console.log(`Quiz file already exists at ${publicDirPath}`)
+}
 ---
 
 <html lang="ja">
