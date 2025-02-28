@@ -46,9 +46,10 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 </div>
 
 <script>
+  import type { FittyInstance } from 'fitty'
   import fitty from 'fitty'
 
-  function getFontSize(selector: string) {
+  function getFontSize(selector: string): number {
     const element = document.querySelector(selector)
     if (element) {
       const style = window.getComputedStyle(element)
@@ -57,26 +58,36 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     return 16
   }
 
-  function setupFitty(selector: string) {
-    const maxFontSize = getFontSize(selector)
-    fitty(selector, {
-      minSize: 8,
-      maxSize: maxFontSize,
-      multiLine: true,
+  function setupFitty() {
+    const selectors = ['.name', '.voice-actor']
+    const instances = selectors.map((selector) => {
+      const maxFontSize = getFontSize(selector)
+
+      return fitty(selector, {
+        minSize: 8,
+        maxSize: maxFontSize,
+        multiLine: true,
+      })
     })
+    return instances
   }
 
+  let fittyInstances: FittyInstance[][] = []
+
   document.addEventListener('DOMContentLoaded', () => {
-    setupFitty('.name')
-    setupFitty('.voice-actor')
+    fittyInstances = setupFitty()
   })
 
   let devicePixelRatio = window.devicePixelRatio
   window.addEventListener('resize', () => {
     if (window.devicePixelRatio !== devicePixelRatio) {
       devicePixelRatio = window.devicePixelRatio
-      setupFitty('.name')
-      setupFitty('.voice-actor')
+
+      fittyInstances.forEach((instances) => {
+        instances.forEach((instance) => instance.unsubscribe())
+      })
+
+      fittyInstances = setupFitty()
     }
   })
 </script>
