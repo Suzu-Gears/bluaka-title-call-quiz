@@ -5,7 +5,11 @@ import path from 'node:path'
 const { name, voiceActor } = Astro.props as { name: string; voiceActor: string }
 
 const formatName = (name: string): string => {
-  return name.includes('（') ? '\u00A0' + name : name
+  if (name.includes('（')) {
+    return '\u00A0' + name
+  } else {
+    return '\u00A0' + name + '\u00A0'
+  }
 }
 
 const formatVoiceActor = (voiceActor: string): string => {
