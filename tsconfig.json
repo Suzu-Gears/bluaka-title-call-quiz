@@ -1,5 +1,8 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "public", "tmp"]
+  "exclude": ["dist", "public", "tmp"],
+  "compilerOptions": {
+    "verbatimModuleSyntax": true
+  }
 }
