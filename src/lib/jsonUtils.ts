@@ -142,7 +142,7 @@ function extractProperties(data: any): Students {
   return result
 }
 
-function jsonToCsv(data: Students, filePath: string): void {
+async function jsonToCsv(data: Students, filePath: string): Promise<void> {
   const headers = Object.keys(data[0]).join(',')
   const rows = data.map((student) => Object.values(student).join(','))
   const csvContent = [headers, ...rows].join('\n')
