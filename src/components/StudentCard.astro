@@ -103,6 +103,15 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     document.body.appendChild(sharedAudioPlayer)
     sharedAudioPlayer.addEventListener('ended', resetAudio)
     setupAudioEventListeners()
+    document.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement | null
+      if (!target) {
+        return
+      }
+      if (!target.closest('.grid-item') && currentlyPlayingName) {
+        resetAudio()
+      }
+    })
   })
 
   function playAudio(name: string) {
