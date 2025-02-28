@@ -44,16 +44,6 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
   <div class="name-container">
     <div class="name">{formattedName}</div>
   </div>
-  {
-    audioExists && (
-      <audio
-        id={`audio-${name}`}
-        src={`/audio/${name}.mp3`}
-        preload="none"
-        hidden
-      />
-    )
-  }
 </div>
 
 <script>
@@ -104,50 +94,85 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 </script>
 
 <script>
-  let activeAudioPlayer: HTMLAudioElement | null = null
+  let sharedAudioPlayer: HTMLAudioElement | null = null
+  let currentlyPlayingName: string | null = null
+
+  document.addEventListener('DOMContentLoaded', () => {
+    sharedAudioPlayer = document.createElement('audio')
+    sharedAudioPlayer.hidden = true
+    document.body.appendChild(sharedAudioPlayer)
+    sharedAudioPlayer.addEventListener('ended', resetAudio)
+    setupAudioEventListeners()
+  })
 
   function playAudio(name: string) {
-    const audioPlayer = document.getElementById(
-      `audio-${name}`,
-    ) as HTMLAudioElement
-    const imgElement = document.querySelector(
-      `.grid-item[data-name="${name}"] img`,
-    )
-
-    if (activeAudioPlayer && activeAudioPlayer !== audioPlayer) {
-      resetAudio(activeAudioPlayer)
+    if (!sharedAudioPlayer) {
+      return
     }
 
-    activeAudioPlayer = audioPlayer
-
-    audioPlayer.currentTime = 0
-    audioPlayer.play()
-    if (imgElement) {
-      imgElement.classList.add('playing')
+    const gridItem = document.querySelector(`.grid-item[data-name="${name}"]`)
+    if (!gridItem || gridItem.getAttribute('data-has-audio') === 'false') {
+      return
     }
 
-    audioPlayer.onended = () => resetAudio(audioPlayer)
+    const imgElement = gridItem.querySelector('img')
+
+    if (currentlyPlayingName) {
+      resetAudio()
+    }
+
+    currentlyPlayingName = name
+    sharedAudioPlayer.src = `/audio/${name}.mp3`
+    sharedAudioPlayer.currentTime = 0
+    sharedAudioPlayer.load()
+    const playPromise = sharedAudioPlayer.play()
+
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          if (imgElement) {
+            imgElement.classList.add('playing')
+          }
+        })
+        .catch((error) => {
+          console.error('音声再生エラー:', error)
+          resetAudio()
+        })
+    }
   }
 
-  function resetAudio(audioPlayer: HTMLAudioElement) {
-    audioPlayer.pause()
-    audioPlayer.currentTime = 0
+  function resetAudio() {
+    if (!sharedAudioPlayer || !currentlyPlayingName) {
+      return
+    }
+
+    sharedAudioPlayer.pause()
+    sharedAudioPlayer.currentTime = 0
+
     const imgElement = document.querySelector(
-      `.grid-item[data-name="${audioPlayer.id.replace('audio-', '')}"] img`,
+      `.grid-item[data-name="${currentlyPlayingName}"] img`,
     )
     if (imgElement) {
       imgElement.classList.remove('playing')
     }
-    activeAudioPlayer = null
+    currentlyPlayingName = null
   }
 
-  const gridElement = document.querySelector('.grid')
-  if (gridElement) {
+  function setupAudioEventListeners() {
+    const gridElement = document.querySelector('.grid')
+    if (!gridElement) {
+      return
+    }
+
     gridElement.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement | null
-      if (!target) return
+      if (!target) {
+        return
+      }
       const gridItem = target.closest('.grid-item')
-      if (!gridItem) return
+      if (!gridItem) {
+        return
+      }
       const name = (gridItem as HTMLElement).dataset.name
       if (name) {
         playAudio(name)
@@ -156,11 +181,15 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 
     gridElement.addEventListener('keydown', (e: Event) => {
       const event = e as KeyboardEvent
-      const target = event.target as HTMLElement | null
-      if (!target) return
       if (event.key === 'Enter') {
+        const target = event.target as HTMLElement | null
+        if (!target) {
+          return
+        }
         const gridItem = target.closest('.grid-item')
-        if (!gridItem) return
+        if (!gridItem) {
+          return
+        }
         const name = (gridItem as HTMLElement).dataset.name
         if (name) {
           playAudio(name)
