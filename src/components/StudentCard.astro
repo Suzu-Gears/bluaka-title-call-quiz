@@ -1,10 +1,17 @@
 ---
 import { doesFileExist } from '@/lib/fileOperations'
+import type { Student } from '@/lib/interfaces'
 import path from 'node:path'
 
-const { name, voiceActor } = Astro.props as { name: string; voiceActor: string }
+type StudentName = Student['Name']
+type VoiceActor = Student['CharacterVoice']
 
-const formatName = (name: string): string => {
+const { name, voiceActor } = Astro.props as {
+  name: StudentName
+  voiceActor: VoiceActor
+}
+
+const formatName = (name: StudentName): string => {
   if (name.includes('（')) {
     return '\u00A0' + name
   } else {
@@ -12,7 +19,7 @@ const formatName = (name: string): string => {
   }
 }
 
-const formatVoiceActor = (voiceActor: string): string => {
+const formatVoiceActor = (voiceActor: VoiceActor): string => {
   return `\u00A0\u00A0CV.${voiceActor}\u00A0\u00A0`
 }
 
