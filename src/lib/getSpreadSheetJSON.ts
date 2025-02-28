@@ -6,19 +6,7 @@ import {
   STUDENTS_SHEET_NAME,
 } from '@/server-constants'
 
-let studentsCache: Students | null = null
 let quizOptionsCache: QuizParams | null = null
-
-async function getStudentsJson(): Promise<Students> {
-  if (studentsCache !== null) {
-    return Promise.resolve(studentsCache)
-  }
-  studentsCache = (await getSpreadSheetJSON({
-    spreadsheetId: SPREADSHEET_ID,
-    sheetName: STUDENTS_SHEET_NAME,
-  })) as Students
-  return studentsCache
-}
 
 export async function getQuizOptionsJson(): Promise<QuizParams> {
   if (quizOptionsCache !== null) {
