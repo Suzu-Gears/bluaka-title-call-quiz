@@ -28,7 +28,12 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 const formattedVoiceActor = formatVoiceActor(voiceActor)
 ---
 
-<div class="grid-item" data-name={name} tabindex="0">
+<div
+  class="grid-item"
+  data-name={name}
+  tabindex={audioExists ? '0' : '-1'}
+  data-no-playable={!audioExists || null}
+>
   <div class="image-container">
     <img
       src={doesFileExist(path.join('.', 'public/image'), `${name}.webp`)
@@ -120,7 +125,7 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     }
 
     const gridItem = document.querySelector(`.grid-item[data-name="${name}"]`)
-    if (!gridItem || gridItem.getAttribute('data-has-audio') === 'false') {
+    if (!gridItem || gridItem.hasAttribute('data-no-playable')) {
       return
     }
 
@@ -182,6 +187,9 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
       if (!gridItem) {
         return
       }
+      if (gridItem.hasAttribute('data-no-playable')) {
+        return
+      }
       const name = (gridItem as HTMLElement).dataset.name
       if (name) {
         playAudio(name)
@@ -196,7 +204,7 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
           return
         }
         const gridItem = target.closest('.grid-item')
-        if (!gridItem) {
+        if (!gridItem || gridItem.hasAttribute('data-no-playable')) {
           return
         }
         const name = (gridItem as HTMLElement).dataset.name
@@ -222,6 +230,9 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     width: 100%;
     border-radius: 8px;
     outline: none;
+  }
+  .grid-item[data-no-playable] {
+    cursor: default;
   }
 
   .grid-item:focus-visible {
@@ -291,6 +302,9 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
   @media (hover: hover) {
     .image-container:hover {
       transform: scale(1.05);
+    }
+    .grid-item[data-no-playable] .image-container:hover {
+      transform: none;
     }
   }
 
