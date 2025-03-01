@@ -1,4 +1,5 @@
 ---
+import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
 import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
 import type { QuizParam, QuizParams } from '@/lib/interfaces'
 import { generateQuiz } from '@/lib/quizUtils'
@@ -100,6 +101,7 @@ const slug = Astro.params.slug
     </script>
     <script defer="defer" src={`/${slug}/player-config.js`}></script>
     <script defer="defer" src={`/${slug}/app/player.js`}></script>
+    <GoogleAnalytics />
   </head>
   <body data-title={Astro.props.title} data-slug={slug}>
     <div id="root"></div>
