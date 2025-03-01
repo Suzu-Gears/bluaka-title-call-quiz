@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { doesFileExist } from '@/lib/fileOperations'
-import type { QuizParam, Students } from '@/lib/interfaces'
+import type { CostumeList, QuizParam, Students } from '@/lib/interfaces'
+import { getCostumeList, getLatestCostumeStudent } from '@/lib/jsonUtils'
 import { getStudentsData } from '@/lib/schaleDBClient'
 
 /**
@@ -13,6 +14,12 @@ import { getStudentsData } from '@/lib/schaleDBClient'
  */
 export async function makeQuestionText(quizParam: QuizParam): Promise<string> {
   const studentsData: Students = await getStudentsData()
+  const costumeList: CostumeList = await getCostumeList()
+  const costumeListString = costumeList.join('・')
+  const latestCostumeStudentName = await getLatestCostumeStudent()
+  const exampleStudentText = latestCostumeStudentName
+    ? `<br>例：${latestCostumeStudentName}`
+    : ''
 
   const questionsContent = studentsData
     .filter(({ Name, IsCollaboration }) => {
@@ -24,7 +31,7 @@ export async function makeQuestionText(quizParam: QuizParam): Promise<string> {
     })
     .map(
       ({ Name }) =>
-        `\n[[/audio/${Name}.mp3]]<br>この声は誰？\nfill-in:\n${Name}\n`,
+        `\n[[/audio/${Name}.mp3]]<br>これは誰のタイトルコール？<br><br>生徒の名前をカタカナで、別衣装があればカッコの中に記載${exampleStudentText}<br><br>別衣装の一覧：${costumeListString}\nfill-in:\n${Name}\n`,
     )
     .join('')
 
