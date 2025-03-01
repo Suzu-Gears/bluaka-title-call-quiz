@@ -23,23 +23,31 @@ const sortBy = 'NameSortOrder'
   </head>
   <body>
     <Header />
-    <Navigation />
-    <CharacterGrid sortBy={sortBy} />
+    <div class="content">
+      <Navigation />
+      <CharacterGrid sortBy={sortBy} />
+    </div>
     <Footer />
   </body>
 </html>
 
 <style>
   body {
+    margin: 0;
+    padding: 0;
+    background-color: #f4fcfd;
+    font-family: sans-serif;
+  }
+
+  .content {
     margin: 0 auto;
     padding: 0;
-    padding-inline: 16px;
+    padding-inline: 1rem;
+    width: auto;
     max-width: 1080px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background-color: #f4fcfd;
-    font-family: sans-serif;
   }
 </style>
