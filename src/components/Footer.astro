@@ -1,6 +1,12 @@
+---
+import { getProjectVersion } from '@/lib/getProjectVersion'
+
+const projectVersion = await getProjectVersion()
+---
+
 <footer style="text-align: center;">
   <div>
-    <small>©2025 ブルアカタイトルコールクイズ</small>
+    <small>©2025 ブルアカタイトルコールクイズ {projectVersion}</small>
     <a
       href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/"
       target="_blank"
