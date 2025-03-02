@@ -1,0 +1,257 @@
+---
+import { doesFileExist } from '@/lib/fileOperations'
+import path from 'node:path'
+
+const { name, voiceActor } = Astro.props as { name: string; voiceActor: string }
+
+const formatName = (name: string): string => {
+  return name.includes('（') ? '\u00A0' + name : name
+}
+
+const formatVoiceActor = (voiceActor: string): string => {
+  return `\u00A0\u00A0CV.${voiceActor}\u00A0\u00A0`
+}
+
+const audioExists = doesFileExist(path.join('.', 'public/audio'), `${name}.mp3`)
+const formattedName = formatName(name) + (audioExists ? '' : '🚫')
+const formattedVoiceActor = formatVoiceActor(voiceActor)
+---
+
+<div class="grid-item" data-name={name} tabindex="0">
+  <div class="image-container">
+    <img
+      src={doesFileExist(path.join('.', 'public/image'), `${name}.webp`)
+        ? `/image/${name}.webp`
+        : `/default-student-image.webp`}
+      loading="lazy"
+      alt={name}
+    />
+    <div class="voice-actor-container">
+      <div class="voice-actor">{formattedVoiceActor}</div>
+    </div>
+  </div>
+  <div class="name-container">
+    <div class="name">{formattedName}</div>
+  </div>
+  {
+    audioExists && (
+      <audio
+        id={`audio-${name}`}
+        src={`/audio/${name}.mp3`}
+        preload="none"
+        hidden
+      />
+    )
+  }
+</div>
+
+<script>
+  import fitty from 'fitty'
+
+  function getFontSize(selector: string) {
+    const element = document.querySelector(selector)
+    if (element) {
+      const style = window.getComputedStyle(element)
+      return parseFloat(style.fontSize)
+    }
+    return 16
+  }
+
+  function setupFitty(selector: string) {
+    const maxFontSize = getFontSize(selector)
+    fitty(selector, {
+      minSize: 8,
+      maxSize: maxFontSize,
+      multiLine: true,
+    })
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setupFitty('.name')
+    setupFitty('.voice-actor')
+  })
+
+  let devicePixelRatio = window.devicePixelRatio
+  window.addEventListener('resize', () => {
+    if (window.devicePixelRatio !== devicePixelRatio) {
+      devicePixelRatio = window.devicePixelRatio
+      setupFitty('.name')
+      setupFitty('.voice-actor')
+    }
+  })
+</script>
+
+<script>
+  let activeAudioPlayer: HTMLAudioElement | null = null
+
+  function playAudio(name: string) {
+    const audioPlayer = document.getElementById(
+      `audio-${name}`,
+    ) as HTMLAudioElement
+    const imgElement = document.querySelector(
+      `.grid-item[data-name="${name}"] img`,
+    )
+
+    if (activeAudioPlayer && activeAudioPlayer !== audioPlayer) {
+      resetAudio(activeAudioPlayer)
+    }
+
+    activeAudioPlayer = audioPlayer
+
+    audioPlayer.currentTime = 0
+    audioPlayer.play()
+    if (imgElement) {
+      imgElement.classList.add('playing')
+    }
+
+    audioPlayer.onended = () => resetAudio(audioPlayer)
+  }
+
+  function resetAudio(audioPlayer: HTMLAudioElement) {
+    audioPlayer.pause()
+    audioPlayer.currentTime = 0
+    const imgElement = document.querySelector(
+      `.grid-item[data-name="${audioPlayer.id.replace('audio-', '')}"] img`,
+    )
+    if (imgElement) {
+      imgElement.classList.remove('playing')
+    }
+    activeAudioPlayer = null
+  }
+
+  const gridElement = document.querySelector('.grid')
+  if (gridElement) {
+    gridElement.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const gridItem = target.closest('.grid-item')
+      if (!gridItem) return
+      const name = (gridItem as HTMLElement).dataset.name
+      if (name) {
+        playAudio(name)
+      }
+    })
+
+    gridElement.addEventListener('keydown', (e: Event) => {
+      const event = e as KeyboardEvent
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      if (event.key === 'Enter') {
+        const gridItem = target.closest('.grid-item')
+        if (!gridItem) return
+        const name = (gridItem as HTMLElement).dataset.name
+        if (name) {
+          playAudio(name)
+        }
+      }
+    })
+  }
+</script>
+
+<style>
+  div {
+    padding: 0;
+    margin: 0;
+  }
+
+  .grid-item {
+    margin-block-start: 0.5rem;
+    position: relative;
+    text-align: center;
+    cursor: pointer;
+    width: 100%;
+    border-radius: 8px;
+    outline: none;
+  }
+
+  .grid-item:focus-visible {
+    outline: 3px solid rgba(0, 123, 255, 0.7);
+    outline-offset: 6px;
+  }
+
+  .image-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 110%;
+  }
+
+  .voice-actor-container {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 18%;
+    background-color: rgb(28 42 65 / 70%);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .voice-actor {
+    display: inline-block;
+    font-size: 0.8em;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #ffffff;
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 1/1.1;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.3s;
+    user-select: none;
+    user-drag: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  img.playing {
+    animation: box-shadow-blink 0.6s infinite;
+  }
+
+  @keyframes box-shadow-blink {
+    0% {
+      box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.7);
+    }
+    100% {
+      box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.3);
+    }
+  }
+
+  @media (hover: hover) {
+    .image-container:hover {
+      transform: scale(1.05);
+    }
+  }
+
+  .name-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 1.5em;
+  }
+
+  .name {
+    display: inline-block;
+    white-space: nowrap;
+    color: #60676f;
+    background: linear-gradient(
+      transparent 0% 65%,
+      #f9f49b 65% 80%,
+      transparent 80% 100%
+    );
+    font-weight: 700;
+  }
+</style>

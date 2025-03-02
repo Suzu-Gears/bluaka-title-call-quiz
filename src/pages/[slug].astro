@@ -1,0 +1,199 @@
+---
+import path from 'node:path'
+
+import {
+  copyDirectoryContents,
+  deleteHTMLFiles,
+  deleteZIPFiles,
+  doesFolderExist,
+} from '@/lib/fileOperations'
+import { getQuizGeneratorZIP } from '@/lib/getQuizZIP'
+import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
+import type { QuizParam, QuizParams } from '@/lib/interfaces'
+import { makeQuestionText } from '@/lib/makeQuestionText'
+import { unzipLocalFile } from '@/lib/unzip'
+
+export interface staticPath {
+  params: Pick<QuizParam, 'slug'>
+  props: Pick<QuizParam, 'title' | 'description' | 'option'>
+}
+
+export async function getStaticPaths() {
+  const quizParams: QuizParams = await getQuizOptionsJson()
+  const staticPaths: staticPath[] = quizParams.map((quizParam) => ({
+    params: {
+      slug: quizParam.slug,
+    },
+    props: {
+      title: quizParam.title,
+      description: quizParam.description,
+      option: quizParam.option,
+    },
+  }))
+  return staticPaths
+}
+
+const quizParam: QuizParam = {
+  slug: Astro.params.slug,
+  title: Astro.props.title,
+  description: Astro.props.description,
+  option: Astro.props.option,
+}
+
+const publicDirPath = path.join('public', quizParam.slug)
+
+if (!doesFolderExist(publicDirPath)) {
+  const quizFilePath = await makeQuestionText(quizParam)
+  console.log(`Created quiz file at ${quizFilePath}`)
+  const quizGeneratorZIPFilePath = await getQuizGeneratorZIP(quizFilePath)
+  console.log(`Created quiz generator ZIP file at ${quizGeneratorZIPFilePath}`)
+  await unzipLocalFile(quizGeneratorZIPFilePath, `tmp/${quizParam.slug}`)
+  await deleteHTMLFiles(`tmp/${quizParam.slug}`)
+  await deleteZIPFiles(`tmp/${quizParam.slug}`)
+  await copyDirectoryContents(`tmp/${quizParam.slug}`, publicDirPath)
+} else {
+  console.log(`Quiz file already exists at ${publicDirPath}`)
+}
+
+const slug = Astro.params.slug
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={Astro.props.description} />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title id="page-title">{Astro.props.title}</title>
+    <script>
+      function resetTitle() {
+        const titleElement = document.getElementById('page-title')
+        const newTitle = document.body.dataset.title
+        if (titleElement && titleElement.textContent !== newTitle) {
+          titleElement.textContent = newTitle ?? ''
+        }
+      }
+      const titleObserver = new MutationObserver(resetTitle)
+      const titleElement = document.querySelector('title')
+      if (titleElement) {
+        titleObserver.observe(titleElement, {
+          childList: true,
+        })
+      }
+    </script>
+    <script define:vars={{ slug }}>
+      if ('caches' in window) {
+        caches
+          .keys()
+          .then(function (cacheNames) {
+            return Promise.all(
+              cacheNames.map(function (cacheName) {
+                return caches.delete(cacheName)
+              }),
+            )
+          })
+          .then(function () {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker
+                .getRegistrations()
+                .then(function (registrations) {
+                  return Promise.all(
+                    registrations.map(function (registration) {
+                      if (
+                        registration.scope.startsWith(
+                          `${window.location.origin}/assets/`,
+                        )
+                      ) {
+                        return registration.unregister()
+                      }
+                    }),
+                  )
+                })
+                .then(function () {
+                  navigator.serviceWorker.register(`/${slug}/sw.js`, {
+                    scope: `/${slug}/`,
+                  })
+                })
+            }
+          })
+      }
+    </script>
+    <script defer="defer" src={`/${slug}/player-config.js`}></script>
+    <script defer="defer" src={`/${slug}/app/player.js`}></script>
+  </head>
+  <body data-title={Astro.props.title} data-slug={slug}>
+    <div id="root"></div>
+    <button class="additional-button back-to-home" onclick="goToHome()"
+      >生徒一覧へ戻る</button
+    >
+    <button
+      class="additional-button clear-storage"
+      onclick="clearLocalStorage()">達成率リセット</button
+    >
+  </body>
+</html>
+
+<style>
+  .additional-button {
+    position: fixed;
+    right: 20px;
+    padding: 13px 24px;
+    background-color: rgb(0, 96, 221);
+    color: white;
+    font-size: 14px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  .additional-button:hover {
+    background-color: rgb(18, 62, 190);
+  }
+
+  .back-to-home {
+    top: 50px;
+  }
+  .clear-storage {
+    top: 100px;
+  }
+</style>
+
+<script is:inline>
+  function checkAndToggleButtons() {
+    const pageQuiz = document.querySelector('[data-page="quiz"]')
+    const homeButton = document.querySelectorAll('.back-to-home')
+    const pageMasterQuiz = document.getElementById('completion-rate-wrapper')
+    const clearStorageButton = document.querySelectorAll('.clear-storage')
+
+    homeButton.forEach((button) => {
+      button.style.display = pageQuiz ? 'none' : 'block'
+    })
+
+    clearStorageButton.forEach((button) => {
+      button.style.display = pageMasterQuiz ? 'block' : 'none'
+    })
+  }
+
+  checkAndToggleButtons()
+
+  const observer = new MutationObserver(() => {
+    checkAndToggleButtons()
+  })
+
+  observer.observe(document.body, { childList: true, subtree: true })
+
+  function goToHome() {
+    window.location.href = '../'
+  }
+
+  function clearLocalStorage() {
+    if (confirm('達成率をリセットしますか？')) {
+      localStorage.clear()
+      alert('リセットが完了しました。ページを再読み込みします。')
+      location.reload()
+    }
+  }
+</script>

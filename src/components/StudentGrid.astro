@@ -1,0 +1,65 @@
+---
+import StudentCard from '@/components/StudentCard.astro'
+import type { Student, Students } from '@/lib/interfaces'
+import { getStudentsData } from '@/lib/schaleDBClient'
+
+interface Props {
+  sortBy?: Extract<
+    keyof Student,
+    keyof {
+      [K in keyof Required<Student> as Required<Student>[K] extends number
+        ? K
+        : never]: Required<Student>[K]
+    }
+  >
+}
+
+const { sortBy: SortBy = 'DefaultOrder' } = Astro.props as Props
+
+let studentsData: Students = await getStudentsData()
+
+studentsData = studentsData.sort((a, b) => {
+  return (a[SortBy] ?? 0) - (b[SortBy] ?? 0)
+})
+---
+
+<div class="grid" id="studentGrid">
+  {
+    studentsData.length > 0 ? (
+      studentsData.map(({ Name, CharacterVoice }) => (
+        <StudentCard name={Name} voiceActor={CharacterVoice} data-name={Name} />
+      ))
+    ) : (
+      <p>No students available</p>
+    )
+  }
+</div>
+
+<style>
+  .grid {
+    margin-block-start: 1rem;
+    display: grid;
+    justify-content: center;
+    place-items: center;
+    width: 100%;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    font-size: 16px;
+
+    /*iPad mini6は193dpi以上で変化    ratio2が対象*/
+    @media (min-resolution: 160dpi), (-webkit-min-device-pixel-ratio: 2) {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      font-size: 20px;
+      font-family: 'Kosugi Maru', sans-serif;
+    }
+
+    /*iPhone13 miniは289dpi以上で変化 ratio2と3の両方が対象？*/
+    @media (min-resolution: 250dpi), (-webkit-min-device-pixel-ratio: 3) {
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 8px;
+      font-size: 16px;
+      font-family: 'Kosugi Maru', sans-serif;
+    }
+  }
+</style>
