@@ -1,14 +1,25 @@
 ---
 import { doesFileExist } from '@/lib/fileOperations'
+import type { Student } from '@/lib/interfaces'
 import path from 'node:path'
 
-const { name, voiceActor } = Astro.props as { name: string; voiceActor: string }
+type StudentName = Student['Name']
+type VoiceActor = Student['CharacterVoice']
 
-const formatName = (name: string): string => {
-  return name.includes('（') ? '\u00A0' + name : name
+const { name, voiceActor } = Astro.props as {
+  name: StudentName
+  voiceActor: VoiceActor
 }
 
-const formatVoiceActor = (voiceActor: string): string => {
+const formatName = (name: StudentName): string => {
+  if (name.includes('（')) {
+    return '\u00A0' + name
+  } else {
+    return '\u00A0' + name + '\u00A0'
+  }
+}
+
+const formatVoiceActor = (voiceActor: VoiceActor): string => {
   return `\u00A0\u00A0CV.${voiceActor}\u00A0\u00A0`
 }
 
@@ -17,7 +28,12 @@ const formattedName = formatName(name) + (audioExists ? '' : '🚫')
 const formattedVoiceActor = formatVoiceActor(voiceActor)
 ---
 
-<div class="grid-item" data-name={name} tabindex="0">
+<div
+  class="grid-item"
+  data-name={name}
+  tabindex={audioExists ? '0' : '-1'}
+  data-no-playable={!audioExists || null}
+>
   <div class="image-container">
     <img
       src={doesFileExist(path.join('.', 'public/image'), `${name}.webp`)
@@ -33,22 +49,13 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
   <div class="name-container">
     <div class="name">{formattedName}</div>
   </div>
-  {
-    audioExists && (
-      <audio
-        id={`audio-${name}`}
-        src={`/audio/${name}.mp3`}
-        preload="none"
-        hidden
-      />
-    )
-  }
 </div>
 
 <script>
+  import type { FittyInstance } from 'fitty'
   import fitty from 'fitty'
 
-  function getFontSize(selector: string) {
+  function getFontSize(selector: string): number {
     const element = document.querySelector(selector)
     if (element) {
       const style = window.getComputedStyle(element)
@@ -57,75 +64,132 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     return 16
   }
 
-  function setupFitty(selector: string) {
-    const maxFontSize = getFontSize(selector)
-    fitty(selector, {
-      minSize: 8,
-      maxSize: maxFontSize,
-      multiLine: true,
+  function setupFitty() {
+    const selectors = ['.name', '.voice-actor']
+    const instances = selectors.map((selector) => {
+      const maxFontSize = getFontSize(selector)
+
+      return fitty(selector, {
+        minSize: 8,
+        maxSize: maxFontSize,
+        multiLine: true,
+      })
     })
+    return instances
   }
 
+  let fittyInstances: FittyInstance[][] = []
+
   document.addEventListener('DOMContentLoaded', () => {
-    setupFitty('.name')
-    setupFitty('.voice-actor')
+    fittyInstances = setupFitty()
   })
 
   let devicePixelRatio = window.devicePixelRatio
   window.addEventListener('resize', () => {
     if (window.devicePixelRatio !== devicePixelRatio) {
       devicePixelRatio = window.devicePixelRatio
-      setupFitty('.name')
-      setupFitty('.voice-actor')
+
+      fittyInstances.forEach((instances) => {
+        instances.forEach((instance) => instance.unsubscribe())
+      })
+
+      fittyInstances = setupFitty()
     }
   })
 </script>
 
 <script>
-  let activeAudioPlayer: HTMLAudioElement | null = null
+  let sharedAudioPlayer: HTMLAudioElement | null = null
+  let currentlyPlayingName: string | null = null
+
+  document.addEventListener('DOMContentLoaded', () => {
+    sharedAudioPlayer = document.createElement('audio')
+    sharedAudioPlayer.hidden = true
+    document.body.appendChild(sharedAudioPlayer)
+    sharedAudioPlayer.addEventListener('ended', resetAudio)
+    setupAudioEventListeners()
+    document.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement | null
+      if (!target) {
+        return
+      }
+      if (!target.closest('.grid-item') && currentlyPlayingName) {
+        resetAudio()
+      }
+    })
+  })
 
   function playAudio(name: string) {
-    const audioPlayer = document.getElementById(
-      `audio-${name}`,
-    ) as HTMLAudioElement
-    const imgElement = document.querySelector(
-      `.grid-item[data-name="${name}"] img`,
-    )
-
-    if (activeAudioPlayer && activeAudioPlayer !== audioPlayer) {
-      resetAudio(activeAudioPlayer)
+    if (!sharedAudioPlayer) {
+      return
     }
 
-    activeAudioPlayer = audioPlayer
-
-    audioPlayer.currentTime = 0
-    audioPlayer.play()
-    if (imgElement) {
-      imgElement.classList.add('playing')
+    const gridItem = document.querySelector(`.grid-item[data-name="${name}"]`)
+    if (!gridItem || gridItem.hasAttribute('data-no-playable')) {
+      return
     }
 
-    audioPlayer.onended = () => resetAudio(audioPlayer)
+    const imgElement = gridItem.querySelector('img')
+
+    if (currentlyPlayingName) {
+      resetAudio()
+    }
+
+    currentlyPlayingName = name
+    sharedAudioPlayer.src = `/audio/${name}.mp3`
+    sharedAudioPlayer.currentTime = 0
+    sharedAudioPlayer.load()
+    const playPromise = sharedAudioPlayer.play()
+
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          if (imgElement) {
+            imgElement.classList.add('playing')
+          }
+        })
+        .catch((error) => {
+          console.error('音声再生エラー:', error)
+          resetAudio()
+        })
+    }
   }
 
-  function resetAudio(audioPlayer: HTMLAudioElement) {
-    audioPlayer.pause()
-    audioPlayer.currentTime = 0
+  function resetAudio() {
+    if (!sharedAudioPlayer || !currentlyPlayingName) {
+      return
+    }
+
+    sharedAudioPlayer.pause()
+    sharedAudioPlayer.currentTime = 0
+
     const imgElement = document.querySelector(
-      `.grid-item[data-name="${audioPlayer.id.replace('audio-', '')}"] img`,
+      `.grid-item[data-name="${currentlyPlayingName}"] img`,
     )
     if (imgElement) {
       imgElement.classList.remove('playing')
     }
-    activeAudioPlayer = null
+    currentlyPlayingName = null
   }
 
-  const gridElement = document.querySelector('.grid')
-  if (gridElement) {
+  function setupAudioEventListeners() {
+    const gridElement = document.querySelector('.grid')
+    if (!gridElement) {
+      return
+    }
+
     gridElement.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement | null
-      if (!target) return
+      if (!target) {
+        return
+      }
       const gridItem = target.closest('.grid-item')
-      if (!gridItem) return
+      if (!gridItem) {
+        return
+      }
+      if (gridItem.hasAttribute('data-no-playable')) {
+        return
+      }
       const name = (gridItem as HTMLElement).dataset.name
       if (name) {
         playAudio(name)
@@ -134,11 +198,15 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 
     gridElement.addEventListener('keydown', (e: Event) => {
       const event = e as KeyboardEvent
-      const target = event.target as HTMLElement | null
-      if (!target) return
       if (event.key === 'Enter') {
+        const target = event.target as HTMLElement | null
+        if (!target) {
+          return
+        }
         const gridItem = target.closest('.grid-item')
-        if (!gridItem) return
+        if (!gridItem || gridItem.hasAttribute('data-no-playable')) {
+          return
+        }
         const name = (gridItem as HTMLElement).dataset.name
         if (name) {
           playAudio(name)
@@ -162,6 +230,9 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     width: 100%;
     border-radius: 8px;
     outline: none;
+  }
+  .grid-item[data-no-playable] {
+    cursor: default;
   }
 
   .grid-item:focus-visible {
@@ -211,6 +282,7 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    will-change: transform, box-shadow; /* GPUアクセラレーションのヒント */
   }
 
   img.playing {
@@ -218,20 +290,21 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
   }
 
   @keyframes box-shadow-blink {
-    0% {
+    0%,
+    100% {
       box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.3);
     }
     50% {
       box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.7);
-    }
-    100% {
-      box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.3);
     }
   }
 
   @media (hover: hover) {
     .image-container:hover {
       transform: scale(1.05);
+    }
+    .grid-item[data-no-playable] .image-container:hover {
+      transform: none;
     }
   }
 
