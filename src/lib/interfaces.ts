@@ -3,6 +3,8 @@ export interface SpreadsheetConfig {
   sheetName: string
 }
 
+export type CostumeList = Student['Costume'][]
+
 export type Students = Student[]
 
 export interface Student {
