@@ -1,4 +1,7 @@
+import webmanifest from 'astro-webmanifest';
 import { defineConfig } from 'astro/config';
+import serviceWorker from 'astrojs-service-worker';
+
 import PublicQuizCopier from './src/integrations/publicQuizCopier.ts';
 import { BASE_PATH, CUSTOM_DOMAIN } from './src/server-constants';
 
@@ -27,5 +30,14 @@ export default defineConfig({
   devToolbar: {
     enabled: false,
   },
-  integrations: [PublicQuizCopier()],
+  integrations: [
+    PublicQuizCopier(),
+    serviceWorker(),
+    webmanifest({
+      name: 'ブルーアーカイブ タイトルコールクイズ',
+      short_name: 'タイトルコール',
+      description: 'ブルーアーカイブのタイトルコールクイズ',
+      display: 'standalone',
+    }),
+  ],
 });
