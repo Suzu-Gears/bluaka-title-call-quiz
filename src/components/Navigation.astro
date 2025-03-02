@@ -1,0 +1,72 @@
+---
+import { getStaticPaths } from '@/pages/[slug].astro'
+
+const staticPaths = await getStaticPaths()
+---
+
+<nav>
+  <h2>クイズ一覧</h2>
+  <ul>
+    {
+      staticPaths.map(({ params, props }) => (
+        <li class="card">
+          <a href={`/${params.slug}`} tabindex="0">
+            <strong>{props.title}</strong>
+            <p>{props.description}</p>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<style>
+  nav {
+    margin-block-start: 1rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 1rem;
+  }
+  h2 {
+    margin: 0;
+    padding: 0;
+  }
+  ul {
+    font-family: 'Kosugi Maru', sans-serif;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  li {
+    margin-block-start: 1rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 1rem;
+    transition: box-shadow 0.3s ease;
+  }
+  @media (hover: hover) {
+    li:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+  li:has(a:focus-visible) {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+  a {
+    text-decoration: none;
+    color: #007bff;
+  }
+  a:focus {
+    outline: none;
+  }
+  strong {
+    display: block;
+    font-size: 1.2rem;
+  }
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #555;
+  }
+</style>
