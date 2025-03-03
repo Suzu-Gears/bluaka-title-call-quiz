@@ -1,0 +1,30 @@
+---
+import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <slot name="inside-head" />
+
+    <GoogleAnalytics />
+  </head>
+  <body>
+    <slot name="main" />
+  </body>
+</html>
+
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+  }
+</style>
