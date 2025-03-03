@@ -1,5 +1,5 @@
 ---
-import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
+import Layout from '@/layouts/Layout.astro'
 import { getQuizOptionsJson } from '@/lib/getSpreadSheetJSON'
 import type { QuizParam, QuizParams } from '@/lib/interfaces'
 import { generateQuiz } from '@/lib/quizUtils'
@@ -36,15 +36,10 @@ await generateQuiz(quizParam)
 const slug = Astro.params.slug
 ---
 
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
+<Layout>
+  <Fragment slot="inside-head">
     <meta name="description" content={Astro.props.description} />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title id="page-title">{Astro.props.title}</title>
     <script>
       function resetTitle() {
@@ -101,9 +96,9 @@ const slug = Astro.params.slug
     </script>
     <script defer="defer" src={`/${slug}/player-config.js`}></script>
     <script defer="defer" src={`/${slug}/app/player.js`}></script>
-    <GoogleAnalytics />
-  </head>
-  <body data-title={Astro.props.title} data-slug={slug}>
+  </Fragment>
+
+  <Fragment slot="main" data-title={Astro.props.title} data-slug={slug}>
     <div id="root"></div>
     <button class="additional-button back-to-home" onclick="goToHome()"
       >生徒一覧へ戻る</button
@@ -112,8 +107,8 @@ const slug = Astro.params.slug
       class="additional-button clear-storage"
       onclick="clearLocalStorage()">達成率リセット</button
     >
-  </body>
-</html>
+  </Fragment>
+</Layout>
 
 <style>
   .additional-button {
