@@ -1,19 +1,15 @@
 ---
 import Footer from '@/components/Footer.astro'
-import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
 import Header from '@/components/Header.astro'
 import Navigation from '@/components/Navigation.astro'
 import CharacterGrid from '@/components/StudentGrid.astro'
+import Layout from '@/layouts/Layout.astro'
 
 const sortBy = 'NameSortOrder'
 ---
 
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
+<Layout>
+  <Fragment slot="inside-head">
     <title>ブルアカタイトルコールクイズ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,20 +17,20 @@ const sortBy = 'NameSortOrder'
       href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap"
       rel="stylesheet"
     />
-    <GoogleAnalytics />
-  </head>
-  <body>
+  </Fragment>
+
+  <div class="main" slot="main">
     <Header />
     <div class="content">
       <Navigation />
       <CharacterGrid sortBy={sortBy} />
     </div>
     <Footer />
-  </body>
-</html>
+  </div>
+</Layout>
 
 <style>
-  body {
+  .main {
     margin: 0;
     padding: 0;
     background-color: #f4fcfd;
