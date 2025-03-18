@@ -1,5 +1,13 @@
 ---
 import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
+
+const {
+  title = 'ブルアカタイトルコールクイズ',
+  description = 'ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。',
+} = Astro.props
+
+const siteTitle = title
+const siteDescription = description
 ---
 
 <html lang="ja">
@@ -7,6 +15,8 @@ import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <meta charset="utf-8" />
+    <title>{siteTitle}</title>
+    <meta name="description" content={siteDescription} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
