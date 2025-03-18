@@ -1,17 +1,54 @@
 ---
 import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
+import { BASE_PATH } from '@/server-constants'
+import path from 'path'
+
+const {
+  title = 'ブルアカタイトルコールクイズ',
+  description = 'ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。',
+  slug = '/',
+} = Astro.props
+
+const getStaticFilePath = (filePath: string): string => {
+  return path.join(BASE_PATH, filePath)
+}
+
+const getNavLink = (nav: string) => {
+  if ((!nav || nav === '/') && BASE_PATH) {
+    return path.join(BASE_PATH, '') + '/'
+  }
+  return path.join(BASE_PATH, nav)
+}
+
+const siteTitle = title
+const siteDescription = description
+const siteURL = new URL(getNavLink(slug), Astro.site).toString()
+const siteOGImage = new URL(getStaticFilePath('/og-image.png'), Astro.site)
+const squareOGImage = new URL(getStaticFilePath('/icon-mask.png'), Astro.site)
 ---
 
-<html lang="ja">
+<html lang="ja" prefix="og: https://ogp.me/ns#">
   <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
+    <meta charset="utf-8" />
+    <title>{siteTitle}</title>
+    <meta name="description" content={siteDescription} />
+    <link rel="canonical" href={siteURL} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <meta property="og:url" content={siteURL} />
+    <meta property="og:title" content={siteTitle} />
+    <meta property="og:description" content={siteDescription} />
+    <meta property="og:site_name" content="ブルアカタイトルコールクイズ" />
+    <meta property="og:image" content={siteOGImage} />
+    <meta name="twitter:title" content={siteTitle} />
+    <meta name="twitter:description" content={siteDescription} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:image" content={squareOGImage} />
 
     <slot name="inside-head" />
 

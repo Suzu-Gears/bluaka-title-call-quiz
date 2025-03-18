@@ -11,7 +11,7 @@ const getSite = function () {
   }
 
   if (process.env.CF_PAGES) {
-    if (process.env.CF_PAGES_BRANCH !== 'main') {
+    if (process.env.CF_PAGES_BRANCH !== 'production') {
       return new URL(BASE_PATH, process.env.CF_PAGES_URL).toString();
     }
 
