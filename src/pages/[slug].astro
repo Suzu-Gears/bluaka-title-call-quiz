@@ -33,29 +33,32 @@ const quizParam: QuizParam = {
 
 await generateQuiz(quizParam)
 
+const title = Astro.props.title
 const slug = Astro.params.slug
 ---
 
-<Layout>
+<Layout
+  title={Astro.props.title}
+  description={Astro.props.description}
+  slug={Astro.params.slug}
+>
   <Fragment slot="inside-head">
-    <meta name="description" content={Astro.props.description} />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title id="page-title">{Astro.props.title}</title>
-    <script>
-      function resetTitle() {
-        const titleElement = document.getElementById('page-title')
-        const newTitle = document.body.dataset.title
-        if (titleElement && titleElement.textContent !== newTitle) {
-          titleElement.textContent = newTitle ?? ''
+    <script define:vars={{ title }}>
+      function ensureCorrectTitle() {
+        const expectedTitle = title
+        if (document.title !== expectedTitle) {
+          document.title = expectedTitle ?? ''
         }
       }
-      const titleObserver = new MutationObserver(resetTitle)
+      const titleObserver = new MutationObserver(ensureCorrectTitle)
       const titleElement = document.querySelector('title')
       if (titleElement) {
-        titleObserver.observe(titleElement, {
+        titleObserver.observe(document.head, {
           childList: true,
         })
       }
+      ensureCorrectTitle()
     </script>
     <script define:vars={{ slug }}>
       if ('caches' in window) {
