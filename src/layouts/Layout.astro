@@ -1,13 +1,24 @@
 ---
 import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
+import { BASE_PATH } from '@/server-constants'
+import path from 'path'
 
 const {
   title = 'ブルアカタイトルコールクイズ',
   description = 'ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。',
+  slug = '/',
 } = Astro.props
+
+const getNavLink = (nav: string) => {
+  if ((!nav || nav === '/') && BASE_PATH) {
+    return path.join(BASE_PATH, '') + '/'
+  }
+  return path.join(BASE_PATH, nav)
+}
 
 const siteTitle = title
 const siteDescription = description
+const siteURL = new URL(getNavLink(slug), Astro.site).toString()
 ---
 
 <html lang="ja">
@@ -17,6 +28,7 @@ const siteDescription = description
     <meta charset="utf-8" />
     <title>{siteTitle}</title>
     <meta name="description" content={siteDescription} />
+    <link rel="canonical" href={siteURL} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
