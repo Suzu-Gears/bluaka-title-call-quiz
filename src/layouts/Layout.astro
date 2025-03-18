@@ -1,5 +1,6 @@
 ---
 import GoogleAnalytics from '@/components/GoogleAnalytics.astro'
+import GoogleSiteVerification from '@/components/GoogleSiteVerification.astro'
 import { BASE_PATH } from '@/server-constants'
 import path from 'path'
 
@@ -53,6 +54,7 @@ const squareOGImage = new URL(getStaticFilePath('/icon-mask.png'), Astro.site)
     <slot name="inside-head" />
 
     <GoogleAnalytics />
+    <GoogleSiteVerification />
   </head>
   <body>
     <slot name="main" />
