@@ -18,3 +18,4 @@ export const R2_ENDPOINT = env.R2_ENDPOINT || ''
 export const R2_BUCKET_NAME = env.R2_BUCKET_NAME || ''
 
 export const PUBLIC_GA_TRACKING_ID = env.PUBLIC_GA_TRACKING_ID || ''
+export const PUBLIC_GS_VERIFICATION_ID = env.PUBLIC_GS_VERIFICATION_ID || ''
