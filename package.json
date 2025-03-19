@@ -1,7 +1,7 @@
 {
   "name": "bluaka-title-call-quiz",
   "type": "module",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "scripts": {
     "dev": "astro dev",
     "build": "npm run cache:fetch && astro build",
@@ -13,6 +13,7 @@
     "test": "tsx --env-file=.env ./src/lib/test.ts"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.3.0",
     "@aws-sdk/client-s3": "^3.758.0",
     "@fontsource/kosugi-maru": "^5.2.5",
     "app-root-path": "^3.1.0",
