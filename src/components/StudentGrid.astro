@@ -1,4 +1,6 @@
 ---
+import '@fontsource/kosugi-maru'
+
 import StudentCard from '@/components/StudentCard.astro'
 import type { Student, Students } from '@/lib/interfaces'
 import { getStudentsData } from '@/lib/schaleDBClient'
@@ -45,6 +47,7 @@ studentsData = studentsData.sort((a, b) => {
     gap: 8px;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     font-size: 16px;
+    font-family: sans-serif;
 
     /*iPad mini6は193dpi以上で変化    ratio2が対象*/
     @media (min-resolution: 160dpi), (-webkit-min-device-pixel-ratio: 2) {

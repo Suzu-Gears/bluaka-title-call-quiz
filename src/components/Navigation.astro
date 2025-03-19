@@ -1,4 +1,6 @@
 ---
+import '@fontsource/kosugi-maru'
+
 import { getStaticPaths } from '@/pages/[slug].astro'
 
 const staticPaths = await getStaticPaths()
@@ -63,10 +65,12 @@ const staticPaths = await getStaticPaths()
   strong {
     display: block;
     font-size: 1.2rem;
+    line-height: 1.5em;
   }
   p {
     margin: 0;
     font-size: 0.9rem;
     color: #555;
+    line-height: 1em;
   }
 </style>
