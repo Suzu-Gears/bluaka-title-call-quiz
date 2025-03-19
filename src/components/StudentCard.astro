@@ -1,7 +1,9 @@
 ---
+import '@fontsource/kosugi-maru'
+import path from 'node:path'
+
 import { doesFileExist } from '@/lib/fileOperations'
 import type { Student } from '@/lib/interfaces'
-import path from 'node:path'
 
 type StudentName = Student['Name']
 type VoiceActor = Student['CharacterVoice']
@@ -325,5 +327,6 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
       transparent 80% 100%
     );
     font-weight: 700;
+    font-family: 'Kosugi Maru', sans-serif;
   }
 </style>
