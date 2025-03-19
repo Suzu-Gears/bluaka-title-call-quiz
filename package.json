@@ -13,6 +13,7 @@
     "test": "tsx --env-file=.env ./src/lib/test.ts"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.3.0",
     "@aws-sdk/client-s3": "^3.758.0",
     "@fontsource/kosugi-maru": "^5.2.5",
     "app-root-path": "^3.1.0",
