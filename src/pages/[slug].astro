@@ -154,10 +154,59 @@ const slug = Astro.params.slug
     })
   }
 
+  function getAudioFileName() {
+    const questionStatement = document.getElementById('question-statement')
+    if (questionStatement) {
+      const audioElement = questionStatement.querySelector('audio')
+      if (audioElement) {
+        const src = audioElement.src
+        const fileName = src.substring(
+          src.lastIndexOf('/') + 1,
+          src.lastIndexOf('.'),
+        )
+        return decodeURI(fileName)
+      }
+    }
+    return null
+  }
+
+  function insertImage(fileName) {
+    const img = document.createElement('img')
+    img.src = `/image/${fileName}.webp`
+    img.alt = 'Image'
+    img.style.width = '100px'
+    img.style.aspectRatio = '1/1'
+    img.style.objectFit = 'cover'
+    img.style.borderRadius = '8px'
+
+    const targetElement = document.querySelector(
+      '[class*="MuiStack-root"][class*="choices-wrapper"]',
+    )
+    if (targetElement) {
+      targetElement.appendChild(img)
+    }
+  }
+
+  function showAnswerImage() {
+    const nextQuestionButton = document.getElementById('next-question-button')
+    const showResultButton = document.getElementById('show-result-button')
+    const resultPageButton = document.getElementById('result-page-button')
+
+    if (nextQuestionButton || showResultButton || resultPageButton) {
+      const fileName = getAudioFileName()
+      if (fileName) {
+        if (!document.querySelector(`img[src="/image/${fileName}.webp"]`)) {
+          insertImage(fileName)
+        }
+      }
+    }
+  }
+
   checkAndToggleButtons()
 
   const observer = new MutationObserver(() => {
     checkAndToggleButtons()
+    showAnswerImage()
   })
 
   observer.observe(document.body, { childList: true, subtree: true })
