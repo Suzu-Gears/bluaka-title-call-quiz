@@ -1,4 +1,3 @@
-import sitemap from '@astrojs/sitemap';
 import webmanifest from 'astro-webmanifest';
 import { defineConfig } from 'astro/config';
 import serviceWorker from 'astrojs-service-worker';
@@ -32,7 +31,6 @@ export default defineConfig({
     enabled: false,
   },
   integrations: [
-    sitemap(),
     PublicQuizCopier(),
     serviceWorker(),
     webmanifest({
