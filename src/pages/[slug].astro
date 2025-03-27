@@ -171,18 +171,15 @@ const slug = Astro.params.slug
     return null
   }
 
-  function insertImage(fileName) {
+  function insertImage(filePath, targetElement) {
     const img = document.createElement('img')
-    img.src = `/image/${fileName}.webp`
+    img.src = filePath
     img.alt = 'Image'
     img.style.width = '100px'
     img.style.aspectRatio = '1/1'
     img.style.objectFit = 'cover'
     img.style.borderRadius = '8px'
 
-    const targetElement = document.querySelector(
-      '[class*="MuiStack-root"][class*="choices-wrapper"]',
-    )
     if (targetElement) {
       targetElement.appendChild(img)
     }
@@ -196,10 +193,35 @@ const slug = Astro.params.slug
     if (nextQuestionButton || showResultButton || resultPageButton) {
       const fileName = getAudioFileName()
       if (fileName) {
-        if (!document.querySelector(`img[src="/image/${fileName}.webp"]`)) {
-          insertImage(fileName)
+        const targetElement = document.querySelector(
+          '[class*="MuiStack-root"][class*="choices-wrapper"]',
+        )
+        const filePath = `/image/${fileName}.webp`
+        if (
+          targetElement &&
+          !document.querySelector(`img[src="${filePath}"]`)
+        ) {
+          insertImage(filePath, targetElement)
         }
       }
+    }
+  }
+
+  function showKokonaStamp() {
+    const targetElement = document.querySelector(
+      '[class*="MuiTypography-root"][class*="MuiTypography-body"][id="result-message-body"]',
+    )
+    const scoreElement = document.querySelector(
+      '[class*="MuiTypography-root"][class*="MuiTypography-h5"][class*="ResultSummary-score"]',
+    )
+    const filePath = '/kokona-stamp.png'
+    if (
+      scoreElement &&
+      scoreElement.textContent.trim() === '100' &&
+      targetElement &&
+      !document.querySelector(`img[src="${filePath}"]`)
+    ) {
+      insertImage(filePath, targetElement)
     }
   }
 
@@ -208,6 +230,7 @@ const slug = Astro.params.slug
   const observer = new MutationObserver(() => {
     checkAndToggleButtons()
     showAnswerImage()
+    showKokonaStamp()
   })
 
   observer.observe(document.body, { childList: true, subtree: true })
