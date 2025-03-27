@@ -44,6 +44,7 @@ const slug = Astro.params.slug
 >
   <Fragment slot="inside-head">
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="robots" content="noindex" />
     <script define:vars={{ title }}>
       function ensureCorrectTitle() {
         const expectedTitle = title
