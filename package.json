@@ -1,7 +1,7 @@
 {
   "name": "bluaka-title-call-quiz",
   "type": "module",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "scripts": {
     "dev": "astro dev",
     "build": "npm run cache:fetch && astro build",
@@ -10,6 +10,7 @@
     "cache:fetch": "tsx ./src/scripts/downloadPublic.ts",
     "local-cache:fetch": "tsx --env-file=.env ./src/scripts/downloadPublic.ts",
     "local-cache:purge": "tsx ./src/scripts/purgeCache.ts",
+    "remote-quiz-cache:purge": "tsx --env-file=.env ./src/scripts/purgeRemoteQuizCache.ts",
     "test": "tsx --env-file=.env ./src/lib/test.ts"
   },
   "dependencies": {
