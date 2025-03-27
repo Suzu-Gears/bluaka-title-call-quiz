@@ -207,11 +207,30 @@ const slug = Astro.params.slug
     }
   }
 
+  function showKokonaStamp() {
+    const targetElement = document.querySelector(
+      '[class*="MuiTypography-root"][class*="MuiTypography-body"][id="result-message-body"]',
+    )
+    const scoreElement = document.querySelector(
+      '[class*="MuiTypography-root"][class*="MuiTypography-h5"][class*="ResultSummary-score"]',
+    )
+    const filePath = '/kokona-stamp.png'
+    if (
+      scoreElement &&
+      scoreElement.textContent.trim() === '100' &&
+      targetElement &&
+      !document.querySelector(`img[src="${filePath}"]`)
+    ) {
+      insertImage(filePath, targetElement)
+    }
+  }
+
   checkAndToggleButtons()
 
   const observer = new MutationObserver(() => {
     checkAndToggleButtons()
     showAnswerImage()
+    showKokonaStamp()
   })
 
   observer.observe(document.body, { childList: true, subtree: true })
