@@ -51,6 +51,16 @@ export async function getQuizGeneratorZIP(
 
   await page.goto(quizGeneratorURL)
 
+  try {
+    const agreeBtn = await page.waitForSelector('#terms-agree-button', {
+      timeout: 3000,
+    })
+    if (agreeBtn) {
+      await agreeBtn.click()
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  } catch {}
+
   await page.evaluate(() => {
     document.querySelectorAll('iframe[loading="lazy"]').forEach((iframe) => {
       iframe.setAttribute('loading', 'eager')
