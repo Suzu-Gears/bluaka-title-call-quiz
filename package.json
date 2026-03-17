@@ -3,10 +3,9 @@
   "type": "module",
   "version": "1.5.2",
   "scripts": {
-    "dev": "astro dev",
-    "build": "npm run cache:fetch && astro build",
-    "preview": "astro preview",
-    "astro": "astro",
+    "dev": "vite",
+    "build": "npm run cache:fetch && vite build",
+    "preview": "vite preview",
     "cache:fetch": "tsx ./src/scripts/downloadPublic.ts",
     "local-cache:fetch": "tsx --env-file=.env ./src/scripts/downloadPublic.ts",
     "local-cache:purge": "tsx ./src/scripts/purgeCache.ts",
@@ -17,9 +16,6 @@
     "@aws-sdk/client-s3": "^3.758.0",
     "@fontsource/kosugi-maru": "^5.2.5",
     "app-root-path": "^3.1.0",
-    "astro": "^5.5.5",
-    "astro-webmanifest": "^1.0.0",
-    "astrojs-service-worker": "^2.0.0",
     "fitty": "^2.4.2",
     "puppeteer": "^24.2.1",
     "unzipper": "^0.12.3"
@@ -28,10 +24,9 @@
     "@types/node": "^22.13.4",
     "@types/unzipper": "^0.10.10",
     "prettier": "^3.5.1",
-    "prettier-plugin-astro": "^0.14.1",
-    "prettier-plugin-astro-organize-imports": "^0.4.11",
     "prettier-plugin-organize-imports": "^4.1.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vite": "^7.1.7"
   }
 }

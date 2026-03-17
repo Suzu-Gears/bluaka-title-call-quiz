@@ -1,0 +1,142 @@
+body {
+  margin: 0;
+}
+
+.main {
+  background-color: #f4fcfd;
+  font-family: 'Kosugi Maru', sans-serif;
+}
+
+header {
+  width: 100%;
+  padding: 1.5rem 0;
+  text-align: center;
+  background-color: #1e88e5;
+  color: white;
+}
+
+.content {
+  margin: 0 auto;
+  padding-inline: 1rem;
+  max-width: 1080px;
+}
+
+.page-switch {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 720px;
+}
+
+.page-switch button,
+button,
+select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.45rem 0.6rem;
+}
+
+.page-switch .is-active {
+  color: #fff;
+  background: #1e88e5;
+  border-color: #1e88e5;
+}
+
+.grid {
+  margin-block-start: 1rem;
+  display: grid;
+  justify-content: center;
+  place-items: center;
+  width: 100%;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.controls-row {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.grid-item {
+  margin-block-start: 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  width: 100%;
+}
+
+.image-container {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 110%;
+}
+
+.image-container img {
+  width: 100%;
+  aspect-ratio: 1/1.1;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.voice-actor-container {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 18%;
+  background-color: rgb(28 42 65 / 70%);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-actor {
+  color: #fff;
+  font-size: 0.8em;
+  font-weight: 700;
+}
+
+.name-container {
+  margin-top: 0.35rem;
+}
+
+.quiz-section {
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 720px;
+  box-sizing: border-box;
+  border: 1px solid #ddd;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #fff;
+}
+
+.quiz-controls,
+.quiz-filter-fieldset,
+.quiz-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quiz-choices {
+  margin-top: 1rem;
+}
+
+.quiz-choice-button.correct {
+  background: #0d9848;
+  color: #fff;
+}
+
+footer {
+  margin-block-start: 2rem;
+}
