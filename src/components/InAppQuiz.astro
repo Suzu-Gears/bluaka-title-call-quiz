@@ -687,7 +687,7 @@ const costumeHints = Object.fromEntries(
     gap: 0.5rem;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
-  .quiz-choice-button {
+  :global(.quiz-choice-button) {
     border: 1px solid #d3d9e1;
     border-radius: 0.75rem;
     background: #fff;
@@ -698,14 +698,14 @@ const costumeHints = Object.fromEntries(
     gap: 0.4rem;
     cursor: pointer;
   }
-  .quiz-choice-button img {
+  :global(.quiz-choice-button img) {
     width: min(100%, var(--quiz-image-max-width));
     aspect-ratio: 1 / 1.1;
     object-fit: cover;
     border-radius: 0.5rem;
     margin-inline: auto;
   }
-  .quiz-choice-button span {
+  :global(.quiz-choice-button span) {
     font-weight: 700;
     color: #2f3a46;
   }
@@ -730,11 +730,11 @@ const costumeHints = Object.fromEntries(
     margin: 0;
     font-weight: 700;
   }
-  button.correct {
+  :global(button.correct) {
     background: #0d9848;
     color: #fff;
   }
-  button.wrong-selected {
+  :global(button.wrong-selected) {
     background: #ffe7e7;
   }
   #quiz-proficiency-text {
