@@ -255,4 +255,30 @@ studentsData = studentsData.sort((a, b) => {
   .sort-direction-button:hover {
     background: #d9ebff;
   }
+  @media (max-width: 900px) {
+    .controls-row {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .search-wrapper,
+    .sort-wrapper,
+    .category-filter-fieldset {
+      width: 100%;
+    }
+    .search-wrapper {
+      display: flex;
+    }
+    .student-filter-input {
+      flex: 1;
+      min-width: 0;
+    }
+    .category-filter-fieldset {
+      flex-wrap: wrap;
+    }
+    .category-filter-fieldset legend {
+      float: none;
+      width: 100%;
+      margin-right: 0;
+    }
+  }
 </style>

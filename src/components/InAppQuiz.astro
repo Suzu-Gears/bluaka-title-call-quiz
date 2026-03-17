@@ -558,6 +558,7 @@ const costumeHints = Object.fromEntries(
     margin-top: 1rem;
     width: 100%;
     max-width: 720px;
+    box-sizing: border-box;
     border: 1px solid #ddd;
     border-radius: 1rem;
     padding: 1rem;
@@ -583,6 +584,7 @@ const costumeHints = Object.fromEntries(
   }
   .quiz-question-count-wrapper {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
     margin-top: 0.5rem;
@@ -590,6 +592,7 @@ const costumeHints = Object.fromEntries(
   .quiz-name-answer-form {
     margin-top: 0.75rem;
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
   .quiz-name-answer-form[hidden] {
@@ -618,5 +621,10 @@ const costumeHints = Object.fromEntries(
     display: block;
     margin-top: 0.75rem;
     color: #555;
+  }
+  @media (max-width: 480px) {
+    .quiz-section {
+      padding: 0.75rem;
+    }
   }
 </style>
