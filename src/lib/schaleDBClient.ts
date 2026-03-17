@@ -38,7 +38,10 @@ async function getSchaleDB(): Promise<Record<string, any>> {
       const data = await fetchSchaleDB()
       saveJSON(schaledbFilePath, data)
     } catch (error) {
-      console.error('Failed to fetch SchaleDB. Continue with empty dataset.', error)
+      console.error(
+        'Failed to fetch SchaleDB data. Continuing with empty dataset.',
+        error,
+      )
       return []
     }
   }

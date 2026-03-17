@@ -62,7 +62,7 @@ studentsData = studentsData.sort((a, b) => {
     }
     const cards = [...studentGrid.querySelectorAll('.grid-item')]
     const key =
-      sortMode === 'name-order' ? 'nameSortOrder' : ('defaultOrder' as const)
+      sortMode === 'name-order' ? 'nameSortOrder' : 'defaultOrder'
     cards.sort((a, b) => {
       const aValue = Number((a as HTMLElement).dataset[key] ?? 0)
       const bValue = Number((b as HTMLElement).dataset[key] ?? 0)

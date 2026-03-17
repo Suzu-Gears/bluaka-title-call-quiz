@@ -45,8 +45,8 @@ import Layout from '@/layouts/Layout.astro'
         }
       })
 
-      switchButtons.forEach((nextButton) =>
-        nextButton.classList.toggle('is-active', nextButton === button),
+      switchButtons.forEach((switchButton) =>
+        switchButton.classList.toggle('is-active', switchButton === button),
       )
     })
   })

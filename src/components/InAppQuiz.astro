@@ -14,7 +14,11 @@ const playableNames = students
   .map(({ Name }) => Name)
 ---
 
-<section aria-label="クイズ" class="quiz-section">
+<section
+  aria-label="クイズ"
+  class="quiz-section"
+  data-playable-names={JSON.stringify(playableNames)}
+>
   <h2>クイズ</h2>
   <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
   <div class="quiz-controls">
@@ -24,10 +28,14 @@ const playableNames = students
   <div class="quiz-choices" id="quiz-choices"></div>
 </section>
 
-<script define:vars={{ playableNames }} type="module">
+<script type="module">
+  const quizSection = document.querySelector('.quiz-section')
+  const playableNames = JSON.parse(
+    quizSection?.getAttribute('data-playable-names') ?? '[]',
+  )
   const shuffleArray = (values) => {
     const next = [...values]
-    for (let i = next.length - 1; i > 0; i -= 1) {
+    for (let i = next.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[next[i], next[j]] = [next[j], next[i]]
     }

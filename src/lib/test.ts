@@ -11,19 +11,19 @@ const deterministicRandom = () => 0
 
 {
   const choices = buildChoices(
-    'アロナ',
-    ['アロナ', 'シロコ', 'ホシノ', 'セリカ', 'ノノミ'],
+    'correct',
+    ['correct', 'choice1', 'choice2', 'choice3', 'choice4'],
     4,
     deterministicRandom,
   )
   assert.equal(choices.length, 4)
-  assert.ok(choices.includes('アロナ'))
+  assert.ok(choices.includes('correct'))
   assert.equal(new Set(choices).size, 4)
 }
 
 {
   assert.throws(
-    () => buildChoices('アロナ', ['アロナ', 'シロコ'], 4),
+    () => buildChoices('correct', ['correct', 'choice1'], 4),
     /Not enough candidates/,
   )
 }
