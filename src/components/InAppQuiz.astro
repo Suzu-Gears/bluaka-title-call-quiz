@@ -3,36 +3,73 @@ import path from 'node:path'
 
 import { doesFileExist } from '@/lib/fileOperations'
 import { getStudentsData } from '@/lib/schaleDBClient'
+import { filterCandidates } from '@/lib/quizProgress'
 
 const students = await getStudentsData()
-const playableNames = students
+const baseCandidates = students
   .filter(
-    ({ Name, IsCollaboration }) =>
-      !IsCollaboration &&
-      doesFileExist(path.join('.', 'public/audio'), `${Name}.mp3`),
+    ({ Name }) => doesFileExist(path.join('.', 'public/audio'), `${Name}.mp3`),
   )
-  .map(({ Name }) => Name)
+  .map(({ Name, Costume, IsCollaboration }) => ({
+    name: Name,
+    costume: Costume ?? '',
+    isCollaboration: Boolean(IsCollaboration),
+  }))
+
+const normalOnlyNames = filterCandidates(baseCandidates, 'normal-only').map(
+  ({ name }) => name,
+)
+const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
+  ({ name }) => name,
+)
 ---
 
 <section
   aria-label="クイズ"
   class="quiz-section"
-  data-playable-names={JSON.stringify(playableNames)}
+  data-candidate-groups={JSON.stringify({
+    'normal-only': normalOnlyNames,
+    'all-students': allStudentsNames,
+  })}
 >
   <h2>クイズ</h2>
+  <label for="quiz-filter-mode">
+    出題対象
+    <select id="quiz-filter-mode">
+      <option value="normal-only">通常の生徒のみ</option>
+      <option value="all-students">別衣装を含む全生徒</option>
+    </select>
+  </label>
   <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
   <div class="quiz-controls">
     <button id="quiz-start-button" type="button">開始</button>
     <button id="quiz-play-audio-button" type="button" disabled>もう一度再生</button>
+    <button id="quiz-export-progress-button" type="button">進捗エクスポート</button>
+    <button id="quiz-import-progress-button" type="button">進捗インポート</button>
   </div>
   <div class="quiz-choices" id="quiz-choices"></div>
+  <small id="quiz-proficiency-text"></small>
 </section>
 
 <script type="module">
+  const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
+  const LEGACY_STORAGE_KEYS = [
+    'bluaka-title-call-quiz.proficiency.v1',
+    'bluaka-title-call-quiz.proficiency',
+    'quizProficiency',
+  ]
+
   const quizSection = document.querySelector('.quiz-section')
-  const playableNames = JSON.parse(
-    quizSection?.getAttribute('data-playable-names') ?? '[]',
+  const candidateGroups = JSON.parse(
+    quizSection?.getAttribute('data-candidate-groups') ?? '{}',
   )
+
+  const getCandidateNames = () => {
+    const filterMode = filterSelect?.value ?? 'normal-only'
+    const names = candidateGroups[filterMode]
+    return Array.isArray(names) ? names : []
+  }
+
   const shuffleArray = (values) => {
     const next = [...values]
     for (let i = next.length - 1; i > 0; i--) {
@@ -50,15 +87,133 @@ const playableNames = students
 
   const startButton = document.getElementById('quiz-start-button')
   const replayButton = document.getElementById('quiz-play-audio-button')
+  const exportButton = document.getElementById('quiz-export-progress-button')
+  const importButton = document.getElementById('quiz-import-progress-button')
+  const filterSelect = document.getElementById('quiz-filter-mode')
   const statusText = document.getElementById('quiz-status')
+  const proficiencyText = document.getElementById('quiz-proficiency-text')
   const choicesRoot = document.getElementById('quiz-choices')
-  const totalQuestions = Math.min(10, playableNames.length)
 
   let askedNames = []
   let currentAnswer = ''
   let score = 0
   let questionNumber = 0
   let currentAudio = null
+  let proficiencyMap = {}
+  let activeNames = getCandidateNames()
+  let totalQuestions = Math.min(10, activeNames.length)
+
+  const normalizeMap = (rawMap) => {
+    const result = {}
+    if (!rawMap || typeof rawMap !== 'object') {
+      return result
+    }
+    Object.entries(rawMap).forEach(([name, entry]) => {
+      if (!entry || typeof entry !== 'object') {
+        return
+      }
+      const correct = Number(entry.correct)
+      const attempts = Number(entry.attempts)
+      if (!Number.isFinite(correct) || !Number.isFinite(attempts)) {
+        return
+      }
+      result[name] = {
+        correct: Math.max(0, Math.floor(correct)),
+        attempts: Math.max(0, Math.floor(attempts)),
+      }
+    })
+    return result
+  }
+
+  const migrateLegacyMap = (rawMap) => {
+    const normalized = normalizeMap(rawMap)
+    if (Object.keys(normalized).length > 0) {
+      return normalized
+    }
+    const result = {}
+    if (!rawMap || typeof rawMap !== 'object') {
+      return result
+    }
+    Object.entries(rawMap).forEach(([name, value]) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const correct = Math.max(0, Math.floor(value))
+        result[name] = { correct, attempts: correct }
+      }
+    })
+    return result
+  }
+
+  const ensureStudentEntries = (map) => {
+    const next = { ...map }
+    Object.values(candidateGroups)
+      .flat()
+      .forEach((name) => {
+        if (!next[name]) {
+          next[name] = { correct: 0, attempts: 0 }
+        }
+      })
+    return next
+  }
+
+  const saveProficiency = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(proficiencyMap))
+  }
+
+  const loadProficiency = () => {
+    const currentRaw = localStorage.getItem(STORAGE_KEY)
+    if (currentRaw) {
+      proficiencyMap = ensureStudentEntries(normalizeMap(JSON.parse(currentRaw)))
+      saveProficiency()
+      return
+    }
+
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
+      const legacyRaw = localStorage.getItem(legacyKey)
+      if (!legacyRaw) {
+        continue
+      }
+      proficiencyMap = ensureStudentEntries(
+        migrateLegacyMap(JSON.parse(legacyRaw)),
+      )
+      saveProficiency()
+      localStorage.removeItem(legacyKey)
+      statusText.textContent = '旧セーブデータを移行しました。'
+      return
+    }
+    proficiencyMap = ensureStudentEntries({})
+    saveProficiency()
+  }
+
+  const calculateAccuracy = (entry) => {
+    if (!entry || entry.attempts <= 0) {
+      return 0
+    }
+    return Math.round((entry.correct / entry.attempts) * 1000) / 10
+  }
+
+  const updateProficiencyText = () => {
+    const entry = proficiencyMap[currentAnswer]
+    const accuracy = calculateAccuracy(entry)
+    proficiencyText.textContent = currentAnswer
+      ? `${currentAnswer} の正答率: ${accuracy}% (${entry.correct}/${entry.attempts})`
+      : ''
+  }
+
+  const recordAnswer = (studentName, isCorrect) => {
+    const entry = proficiencyMap[studentName] ?? { correct: 0, attempts: 0 }
+    entry.attempts += 1
+    if (isCorrect) {
+      entry.correct += 1
+    }
+    proficiencyMap[studentName] = entry
+    saveProficiency()
+    updateProficiencyText()
+  }
+
+  const refreshFilterState = () => {
+    activeNames = getCandidateNames()
+    totalQuestions = Math.min(10, activeNames.length)
+  }
 
   const stopAudio = () => {
     if (currentAudio) {
@@ -79,13 +234,14 @@ const playableNames = students
 
   const renderQuestion = () => {
     choicesRoot.innerHTML = ''
-    const available = playableNames.filter((name) => !askedNames.includes(name))
+    const available = activeNames.filter((name) => !askedNames.includes(name))
     if (available.length === 0 || questionNumber >= totalQuestions) {
       stopAudio()
       currentAnswer = ''
       replayButton.disabled = true
       statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
       startButton.textContent = 'もう一度'
+      updateProficiencyText()
       return
     }
 
@@ -95,8 +251,9 @@ const playableNames = students
     statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
     replayButton.disabled = false
     playCurrentAudio()
+    updateProficiencyText()
 
-    const choices = buildChoices(currentAnswer, playableNames)
+    const choices = buildChoices(currentAnswer, activeNames)
     choices.forEach((name) => {
       const button = document.createElement('button')
       button.type = 'button'
@@ -106,6 +263,7 @@ const playableNames = students
         if (isCorrect) {
           score += 1
         }
+        recordAnswer(currentAnswer, isCorrect)
         statusText.textContent = isCorrect
           ? '正解！'
           : `不正解… 正解は「${currentAnswer}」`
@@ -122,9 +280,10 @@ const playableNames = students
   }
 
   startButton?.addEventListener('click', () => {
-    if (playableNames.length < 4) {
+    refreshFilterState()
+    if (activeNames.length < 4) {
       statusText.textContent =
-        'クイズを開始できません。音声付き生徒データを4件以上用意してください。'
+        'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。'
       return
     }
     askedNames = []
@@ -136,6 +295,47 @@ const playableNames = students
   })
 
   replayButton?.addEventListener('click', playCurrentAudio)
+  filterSelect?.addEventListener('change', () => {
+    refreshFilterState()
+    statusText.textContent = '出題対象を変更しました。「開始」を押してください。'
+  })
+
+  exportButton?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(proficiencyMap, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'bluaka-quiz-proficiency.json'
+    link.click()
+    URL.revokeObjectURL(url)
+  })
+
+  importButton?.addEventListener('click', () => {
+    const raw = window.prompt(
+      '移行するJSONを貼り付けてください（エクスポート済みデータ）',
+    )
+    if (!raw) {
+      return
+    }
+    try {
+      const parsed = JSON.parse(raw)
+      const imported = ensureStudentEntries(migrateLegacyMap(parsed))
+      proficiencyMap = {
+        ...proficiencyMap,
+        ...imported,
+      }
+      saveProficiency()
+      statusText.textContent = '進捗データをインポートしました。'
+      updateProficiencyText()
+    } catch {
+      statusText.textContent = 'JSONの解析に失敗しました。形式を確認してください。'
+    }
+  })
+
+  loadProficiency()
+  refreshFilterState()
 </script>
 
 <style>
@@ -150,6 +350,7 @@ const playableNames = students
   }
   .quiz-controls {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
   .quiz-choices {
@@ -160,5 +361,10 @@ const playableNames = students
   button.correct {
     background: #0d9848;
     color: #fff;
+  }
+  #quiz-proficiency-text {
+    display: block;
+    margin-top: 0.75rem;
+    color: #555;
   }
 </style>
