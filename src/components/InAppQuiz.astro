@@ -16,30 +16,48 @@ const baseCandidates = students
     isCollaboration: Boolean(IsCollaboration),
   }))
 
-const normalOnlyNames = filterCandidates(baseCandidates, 'normal-only').map(
-  ({ name }) => name,
-)
-const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
-  ({ name }) => name,
-)
+const normalNames = filterCandidates(baseCandidates, {
+  includeNormal: true,
+  includeCostume: false,
+  includeCollaboration: false,
+}).map(({ name }) => name)
+const costumeNames = filterCandidates(baseCandidates, {
+  includeNormal: false,
+  includeCostume: true,
+  includeCollaboration: false,
+}).map(({ name }) => name)
+const collaborationNames = filterCandidates(baseCandidates, {
+  includeNormal: false,
+  includeCostume: false,
+  includeCollaboration: true,
+}).map(({ name }) => name)
 ---
 
 <section
   aria-label="クイズ"
   class="quiz-section"
   data-candidate-groups={JSON.stringify({
-    'normal-only': normalOnlyNames,
-    'all-students': allStudentsNames,
+    normal: normalNames,
+    costume: costumeNames,
+    collaboration: collaborationNames,
   })}
 >
   <h2>クイズ</h2>
-  <label for="quiz-filter-mode">
-    出題対象
-    <select id="quiz-filter-mode">
-      <option value="normal-only">通常の生徒のみ</option>
-      <option value="all-students">別衣装を含む全生徒</option>
-    </select>
-  </label>
+  <fieldset class="quiz-filter-fieldset">
+    <legend>出題対象</legend>
+    <label>
+      <input id="quiz-filter-normal" type="checkbox" checked />
+      通常
+    </label>
+    <label>
+      <input id="quiz-filter-costume" type="checkbox" />
+      別衣装
+    </label>
+    <label>
+      <input id="quiz-filter-collaboration" type="checkbox" />
+      コラボ生徒
+    </label>
+  </fieldset>
   <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
   <div class="quiz-controls">
     <button id="quiz-start-button" type="button">開始</button>
@@ -64,10 +82,22 @@ const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
     quizSection?.getAttribute('data-candidate-groups') ?? '{}',
   )
 
+  const normalFilter = document.getElementById('quiz-filter-normal')
+  const costumeFilter = document.getElementById('quiz-filter-costume')
+  const collaborationFilter = document.getElementById('quiz-filter-collaboration')
+
   const getCandidateNames = () => {
-    const filterMode = filterSelect?.value ?? 'normal-only'
-    const names = candidateGroups[filterMode]
-    return Array.isArray(names) ? names : []
+    const selected = new Set()
+    if (normalFilter?.checked) {
+      ;(candidateGroups.normal ?? []).forEach((name) => selected.add(name))
+    }
+    if (costumeFilter?.checked) {
+      ;(candidateGroups.costume ?? []).forEach((name) => selected.add(name))
+    }
+    if (collaborationFilter?.checked) {
+      ;(candidateGroups.collaboration ?? []).forEach((name) => selected.add(name))
+    }
+    return [...selected]
   }
 
   const shuffleArray = (values) => {
@@ -89,7 +119,6 @@ const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
   const replayButton = document.getElementById('quiz-play-audio-button')
   const exportButton = document.getElementById('quiz-export-progress-button')
   const importButton = document.getElementById('quiz-import-progress-button')
-  const filterSelect = document.getElementById('quiz-filter-mode')
   const statusText = document.getElementById('quiz-status')
   const proficiencyText = document.getElementById('quiz-proficiency-text')
   const choicesRoot = document.getElementById('quiz-choices')
@@ -298,9 +327,11 @@ const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
   })
 
   replayButton?.addEventListener('click', playCurrentAudio)
-  filterSelect?.addEventListener('change', () => {
-    refreshFilterState()
-    statusText.textContent = '出題対象を変更しました。「開始」を押してください。'
+  ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
+    checkbox?.addEventListener('change', () => {
+      refreshFilterState()
+      statusText.textContent = '出題対象を変更しました。「開始」を押してください。'
+    })
   })
 
   exportButton?.addEventListener('click', () => {
@@ -355,6 +386,19 @@ const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+  .quiz-filter-fieldset {
+    margin: 0;
+    border: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .quiz-filter-fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
   }
   .quiz-choices {
     margin-top: 1rem;

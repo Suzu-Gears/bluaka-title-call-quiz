@@ -1,6 +1,10 @@
 import type { Student } from '@/lib/interfaces'
 
-export type QuizFilterMode = 'normal-only' | 'all-students'
+export interface QuizFilterOptions {
+  includeNormal: boolean
+  includeCostume: boolean
+  includeCollaboration: boolean
+}
 
 export interface QuizCandidate {
   name: Student['Name']
@@ -17,16 +21,16 @@ export type ProficiencyMap = Record<string, ProficiencyEntry>
 
 export function filterCandidates(
   candidates: readonly QuizCandidate[],
-  mode: QuizFilterMode,
+  options: QuizFilterOptions,
 ): QuizCandidate[] {
   return candidates.filter((candidate) => {
     if (candidate.isCollaboration) {
-      return false
+      return options.includeCollaboration
     }
-    if (mode === 'normal-only') {
-      return !candidate.costume
+    if (candidate.costume) {
+      return options.includeCostume
     }
-    return true
+    return options.includeNormal
   })
 }
 

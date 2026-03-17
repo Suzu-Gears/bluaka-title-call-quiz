@@ -42,12 +42,20 @@ const deterministicRandom = () => 0
     { name: 'B', costume: '', isCollaboration: true },
   ]
   assert.deepEqual(
-    filterCandidates(candidates, 'normal-only').map(({ name }) => name),
+    filterCandidates(candidates, {
+      includeNormal: true,
+      includeCostume: false,
+      includeCollaboration: false,
+    }).map(({ name }) => name),
     ['A'],
   )
   assert.deepEqual(
-    filterCandidates(candidates, 'all-students').map(({ name }) => name),
-    ['A', 'A(衣装)'],
+    filterCandidates(candidates, {
+      includeNormal: false,
+      includeCostume: true,
+      includeCollaboration: true,
+    }).map(({ name }) => name),
+    ['A(衣装)', 'B'],
   )
 }
 

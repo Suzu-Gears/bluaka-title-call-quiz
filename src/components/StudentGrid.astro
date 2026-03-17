@@ -32,6 +32,9 @@ studentsData = studentsData.sort((a, b) => {
       <option value="default-order">実装順</option>
       <option value="name-order">名前順</option>
     </select>
+    <button id="student-sort-direction" class="sort-direction-button" type="button">
+      昇順
+    </button>
   </label>
   {
     studentsData.length > 0 ? (
@@ -55,8 +58,12 @@ studentsData = studentsData.sort((a, b) => {
     'student-sort-select',
   ) as HTMLSelectElement | null
   const studentGrid = document.getElementById('studentGrid')
+  const sortDirectionButton = document.getElementById(
+    'student-sort-direction',
+  ) as HTMLButtonElement | null
+  let sortDirection: 'asc' | 'desc' = 'asc'
 
-  const sortCards = (sortMode: string) => {
+  const sortCards = (sortMode: string, direction: 'asc' | 'desc') => {
     if (!studentGrid) {
       return
     }
@@ -66,13 +73,20 @@ studentsData = studentsData.sort((a, b) => {
     cards.sort((a, b) => {
       const aValue = Number((a as HTMLElement).dataset[key] ?? 0)
       const bValue = Number((b as HTMLElement).dataset[key] ?? 0)
-      return aValue - bValue
+      return direction === 'asc' ? aValue - bValue : bValue - aValue
     })
     cards.forEach((card) => studentGrid.appendChild(card))
   }
 
   sortSelect?.addEventListener('change', () => {
-    sortCards(sortSelect.value)
+    sortCards(sortSelect.value, sortDirection)
+  })
+  sortDirectionButton?.addEventListener('click', () => {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+    sortDirectionButton.textContent = sortDirection === 'asc' ? '昇順' : '降順'
+    if (sortSelect) {
+      sortCards(sortSelect.value, sortDirection)
+    }
   })
 </script>
 
@@ -111,5 +125,17 @@ studentsData = studentsData.sort((a, b) => {
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9em;
+  }
+  .sort-direction-button {
+    border: 1px solid #1e88e5;
+    border-radius: 999px;
+    background: #e8f2fe;
+    color: #0d5ea8;
+    font-size: 0.9em;
+    padding: 0.25rem 0.7rem;
+    cursor: pointer;
+  }
+  .sort-direction-button:hover {
+    background: #d9ebff;
   }
 </style>
