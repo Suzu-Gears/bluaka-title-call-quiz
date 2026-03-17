@@ -627,6 +627,7 @@ const costumeHints = Object.fromEntries(
 
 <style>
   .quiz-section {
+    --quiz-image-max-width: 108px;
     margin-top: 1rem;
     width: 100%;
     max-width: 720px;
@@ -698,7 +699,7 @@ const costumeHints = Object.fromEntries(
     cursor: pointer;
   }
   .quiz-choice-button img {
-    width: min(100%, 84px);
+    width: min(100%, var(--quiz-image-max-width));
     aspect-ratio: 1 / 1.1;
     object-fit: cover;
     border-radius: 0.5rem;
@@ -719,7 +720,7 @@ const costumeHints = Object.fromEntries(
     display: none;
   }
   .quiz-answer-feedback img {
-    width: min(120px, 100%);
+    width: min(var(--quiz-image-max-width), 100%);
     aspect-ratio: 1 / 1.1;
     object-fit: cover;
     border-radius: 0.75rem;
