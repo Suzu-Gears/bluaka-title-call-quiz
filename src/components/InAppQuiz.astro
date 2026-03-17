@@ -89,6 +89,7 @@ const costumeHints = Object.fromEntries(
   <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
   <div class="quiz-controls">
     <button id="quiz-start-button" type="button">開始</button>
+    <button id="quiz-next-button" type="button" disabled>次へ</button>
     <button id="quiz-play-audio-button" type="button" disabled>もう一度再生</button>
     <button id="quiz-export-progress-button" type="button">進捗エクスポート</button>
     <button id="quiz-import-progress-button" type="button">進捗インポート</button>
@@ -101,8 +102,12 @@ const costumeHints = Object.fromEntries(
       autocomplete="off"
       placeholder="生徒名を入力"
     />
-    <button type="submit">回答する</button>
+      <button type="submit">回答する</button>
   </form>
+  <div id="quiz-answer-feedback" class="quiz-answer-feedback" hidden>
+    <img id="quiz-answer-image" alt="" />
+    <p id="quiz-answer-name"></p>
+  </div>
   <small id="quiz-costume-hint-text"></small>
   <small id="quiz-proficiency-text"></small>
 </section>
@@ -111,7 +116,6 @@ const costumeHints = Object.fromEntries(
   const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
   const QUIZ_MODE_NAME_INPUT = 'name-input'
   const DEFAULT_QUESTION_COUNT = 10
-  const QUESTION_TRANSITION_DELAY_MS = 900
 
   const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
   const LEGACY_STORAGE_KEYS = [
@@ -171,6 +175,7 @@ const costumeHints = Object.fromEntries(
   }
 
   const startButton = document.getElementById('quiz-start-button')
+  const nextButton = document.getElementById('quiz-next-button')
   const replayButton = document.getElementById('quiz-play-audio-button')
   const exportButton = document.getElementById('quiz-export-progress-button')
   const importButton = document.getElementById('quiz-import-progress-button')
@@ -181,6 +186,9 @@ const costumeHints = Object.fromEntries(
   const nameAnswerForm = document.getElementById('quiz-name-answer-form')
   const nameAnswerInput = document.getElementById('quiz-name-answer-input')
   const nameAnswerSubmit = nameAnswerForm?.querySelector('button[type="submit"]')
+  const answerFeedback = document.getElementById('quiz-answer-feedback')
+  const answerImage = document.getElementById('quiz-answer-image')
+  const answerName = document.getElementById('quiz-answer-name')
 
   let askedNames = []
   let currentAnswer = ''
@@ -192,6 +200,8 @@ const costumeHints = Object.fromEntries(
   let proficiencyMap = {}
   let activeNames = getCandidateNames()
   let totalQuestions = Math.min(DEFAULT_QUESTION_COUNT, activeNames.length)
+  let hasAnsweredCurrentQuestion = false
+  const allCandidateNames = new Set(Object.values(candidateGroups).flat())
 
   const normalizeMap = (rawMap) => {
     const result = {}
@@ -363,18 +373,57 @@ const costumeHints = Object.fromEntries(
     }
   }
 
-  const playCurrentAudio = () => {
-    if (!currentAnswer) {
+  const playAudioForName = (studentName) => {
+    if (!studentName) {
       return
     }
-    if (!activeNames.includes(currentAnswer)) {
+    if (!allCandidateNames.has(studentName)) {
       return
     }
     stopAudio()
-    currentAudio = new Audio(`/audio/${encodeURIComponent(currentAnswer)}.mp3`)
+    currentAudio = new Audio(`/audio/${encodeURIComponent(studentName)}.mp3`)
     currentAudio.play().catch(() => {
       statusText.textContent = '音声を再生できませんでした。もう一度お試しください。'
     })
+  }
+
+  const playCurrentAudio = () => {
+    if (!activeNames.includes(currentAnswer)) {
+      return
+    }
+    playAudioForName(currentAnswer)
+  }
+
+  const updateAnswerFeedback = (name) => {
+    if (!answerFeedback || !answerImage || !answerName || !name) {
+      return
+    }
+    answerImage.src = `/image/${encodeURIComponent(name)}.webp`
+    answerImage.onerror = () => {
+      answerImage.src = '/default-student-image.webp'
+    }
+    answerName.textContent = name
+    answerFeedback.hidden = false
+  }
+
+  const hideAnswerFeedback = () => {
+    if (answerFeedback) {
+      answerFeedback.hidden = true
+    }
+  }
+
+  const finalizeAnswer = (isCorrect) => {
+    if (isCorrect) {
+      score += 1
+    }
+    shouldShowCurrentAnswerStats = true
+    hasAnsweredCurrentQuestion = true
+    recordAnswer(currentAnswer, isCorrect)
+    statusText.textContent = isCorrect ? '正解！' : `不正解… 正解は「${currentAnswer}」`
+    updateAnswerFeedback(currentAnswer)
+    if (nextButton) {
+      nextButton.disabled = false
+    }
   }
 
   const renderQuestion = () => {
@@ -384,9 +433,14 @@ const costumeHints = Object.fromEntries(
       stopAudio()
       currentAnswer = ''
       shouldShowCurrentAnswerStats = false
+      hasAnsweredCurrentQuestion = false
       replayButton.disabled = true
+      if (nextButton) {
+        nextButton.disabled = true
+      }
       statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
       startButton.textContent = 'もう一度'
+      hideAnswerFeedback()
       updateCostumeHintText()
       updateProficiencyText()
       return
@@ -397,7 +451,12 @@ const costumeHints = Object.fromEntries(
     questionNumber += 1
     statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
     shouldShowCurrentAnswerStats = false
+    hasAnsweredCurrentQuestion = false
     replayButton.disabled = false
+    if (nextButton) {
+      nextButton.disabled = true
+    }
+    hideAnswerFeedback()
     playCurrentAudio()
     updateCostumeHintText()
     updateProficiencyText()
@@ -411,24 +470,34 @@ const costumeHints = Object.fromEntries(
       choices.forEach((name) => {
         const button = document.createElement('button')
         button.type = 'button'
-        button.textContent = name
+        button.className = 'quiz-choice-button'
+        button.dataset.choiceName = name
+        const image = document.createElement('img')
+        image.src = `/image/${encodeURIComponent(name)}.webp`
+        image.alt = ''
+        image.onerror = () => {
+          image.src = '/default-student-image.webp'
+        }
+        const label = document.createElement('span')
+        label.textContent = name
+        button.appendChild(image)
+        button.appendChild(label)
         button.addEventListener('click', () => {
-          const isCorrect = name === currentAnswer
-          if (isCorrect) {
-            score += 1
+          if (hasAnsweredCurrentQuestion) {
+            playAudioForName(name)
+            return
           }
-          shouldShowCurrentAnswerStats = true
-          recordAnswer(currentAnswer, isCorrect)
-          statusText.textContent = isCorrect
-            ? '正解！'
-            : `不正解… 正解は「${currentAnswer}」`
+          const isCorrect = name === currentAnswer
+          finalizeAnswer(isCorrect)
           choicesRoot.querySelectorAll('button').forEach((choiceButton) => {
-            choiceButton.disabled = true
-            if (choiceButton.textContent === currentAnswer) {
+            const choiceName = choiceButton.dataset.choiceName
+            if (choiceName === currentAnswer) {
               choiceButton.classList.add('correct')
             }
+            if (!isCorrect && choiceName === name) {
+              choiceButton.classList.add('wrong-selected')
+            }
           })
-          setTimeout(renderQuestion, QUESTION_TRANSITION_DELAY_MS)
         })
         choicesRoot.appendChild(button)
       })
@@ -468,7 +537,18 @@ const costumeHints = Object.fromEntries(
     score = 0
     questionNumber = 0
     shouldShowCurrentAnswerStats = false
+    hideAnswerFeedback()
+    if (nextButton) {
+      nextButton.disabled = true
+    }
     startButton.textContent = 'リスタート'
+    renderQuestion()
+  })
+
+  nextButton?.addEventListener('click', () => {
+    if (!hasAnsweredCurrentQuestion) {
+      return
+    }
     renderQuestion()
   })
 
@@ -500,17 +580,9 @@ const costumeHints = Object.fromEntries(
     const answer = normalizeAnswer(nameAnswerInput.value)
     const correctAnswer = normalizeAnswer(currentAnswer)
     const isCorrect = answer.length > 0 && answer === correctAnswer
-    if (isCorrect) {
-      score += 1
-    }
-    shouldShowCurrentAnswerStats = true
-    recordAnswer(currentAnswer, isCorrect)
-    statusText.textContent = isCorrect
-      ? '正解！'
-      : `不正解… 正解は「${currentAnswer}」`
+    finalizeAnswer(isCorrect)
     nameAnswerInput.disabled = true
     nameAnswerSubmit.disabled = true
-    setTimeout(renderQuestion, QUESTION_TRANSITION_DELAY_MS)
   })
 
   exportButton?.addEventListener('click', () => {
@@ -612,10 +684,56 @@ const costumeHints = Object.fromEntries(
     margin-top: 1rem;
     display: grid;
     gap: 0.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  .quiz-choice-button {
+    border: 1px solid #d3d9e1;
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 0.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    cursor: pointer;
+  }
+  .quiz-choice-button img {
+    width: 100%;
+    aspect-ratio: 1 / 1.1;
+    object-fit: cover;
+    border-radius: 0.5rem;
+  }
+  .quiz-choice-button span {
+    font-weight: 700;
+    color: #2f3a46;
+  }
+  .quiz-answer-feedback {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .quiz-answer-feedback[hidden] {
+    display: none;
+  }
+  .quiz-answer-feedback img {
+    width: min(200px, 100%);
+    aspect-ratio: 1 / 1.1;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    border: 1px solid #d3d9e1;
+  }
+  .quiz-answer-feedback p {
+    margin: 0;
+    font-weight: 700;
   }
   button.correct {
     background: #0d9848;
     color: #fff;
+  }
+  button.wrong-selected {
+    background: #ffe7e7;
   }
   #quiz-proficiency-text {
     display: block;
