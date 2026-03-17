@@ -31,11 +31,6 @@ const collaborationNames = filterCandidates(baseCandidates, {
   includeCostume: false,
   includeCollaboration: true,
 }).map(({ name }) => name)
-const allStudentsNames = filterCandidates(baseCandidates, {
-  includeNormal: true,
-  includeCostume: true,
-  includeCollaboration: false,
-}).map(({ name }) => name)
 const costumeHints = Object.fromEntries(
   baseCandidates.map(({ name, costume }) => [name, costume ?? '']),
 )
@@ -48,7 +43,6 @@ const costumeHints = Object.fromEntries(
     normal: normalNames,
     costume: costumeNames,
     collaboration: collaborationNames,
-    allStudents: allStudentsNames,
   })}
   data-costume-hints={JSON.stringify(costumeHints)}
 >
@@ -75,13 +69,6 @@ const costumeHints = Object.fromEntries(
       コラボ生徒
     </label>
   </fieldset>
-  <label id="quiz-name-mode-wrapper" for="quiz-name-filter-mode" hidden>
-    名前入力の出題対象
-    <select id="quiz-name-filter-mode">
-      <option value="normal-only">通常生徒のみ</option>
-      <option value="all-students">別衣装を含む全生徒</option>
-    </select>
-  </label>
   <label class="quiz-question-count-wrapper" for="quiz-question-count-preset">
     問題数
     <select id="quiz-question-count-preset">
@@ -145,13 +132,10 @@ const costumeHints = Object.fromEntries(
   const normalFilter = document.getElementById('quiz-filter-normal')
   const costumeFilter = document.getElementById('quiz-filter-costume')
   const collaborationFilter = document.getElementById('quiz-filter-collaboration')
-  const filterFieldset = document.querySelector('.quiz-filter-fieldset')
-  const nameModeWrapper = document.getElementById('quiz-name-mode-wrapper')
-  const nameFilterMode = document.getElementById('quiz-name-filter-mode')
   const questionCountPreset = document.getElementById('quiz-question-count-preset')
   const questionCountCustom = document.getElementById('quiz-question-count-custom')
 
-  const getMultipleChoiceCandidates = () => {
+  const getCandidateNames = () => {
     const selected = new Set()
     if (normalFilter?.checked) {
       ;(candidateGroups.normal ?? []).forEach((name) => selected.add(name))
@@ -163,11 +147,6 @@ const costumeHints = Object.fromEntries(
       ;(candidateGroups.collaboration ?? []).forEach((name) => selected.add(name))
     }
     return [...selected]
-  }
-  const getNameInputCandidates = () => {
-    return nameFilterMode?.value === 'all-students'
-      ? [...(candidateGroups.allStudents ?? [])]
-      : [...(candidateGroups.normal ?? [])]
   }
   const normalizeAnswer = (value) => {
     return String(value ?? '')
@@ -211,10 +190,7 @@ const costumeHints = Object.fromEntries(
   let questionNumber = 0
   let currentAudio = null
   let proficiencyMap = {}
-  let activeNames =
-    currentMode === QUIZ_MODE_NAME_INPUT
-      ? getNameInputCandidates()
-      : getMultipleChoiceCandidates()
+  let activeNames = getCandidateNames()
   let totalQuestions = Math.min(DEFAULT_QUESTION_COUNT, activeNames.length)
 
   const normalizeMap = (rawMap) => {
@@ -350,12 +326,6 @@ const costumeHints = Object.fromEntries(
   const updateModeUI = () => {
     currentMode = quizModeSelect?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
     const isNameInputMode = currentMode === QUIZ_MODE_NAME_INPUT
-    if (filterFieldset) {
-      filterFieldset.hidden = isNameInputMode
-    }
-    if (nameModeWrapper) {
-      nameModeWrapper.hidden = !isNameInputMode
-    }
     if (isNameInputMode) {
       choicesRoot.hidden = true
       if (nameAnswerForm) {
@@ -381,10 +351,7 @@ const costumeHints = Object.fromEntries(
   }
 
   const refreshFilterState = () => {
-    activeNames =
-      currentMode === QUIZ_MODE_NAME_INPUT
-        ? getNameInputCandidates()
-        : getMultipleChoiceCandidates()
+    activeNames = getCandidateNames()
     totalQuestions = getSelectedQuestionCount(activeNames.length)
   }
 
@@ -510,11 +477,6 @@ const costumeHints = Object.fromEntries(
     updateModeUI()
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
-  })
-  nameFilterMode?.addEventListener('change', () => {
-    refreshFilterState()
-    statusText.textContent =
-      '名前入力の出題対象を変更しました。「開始」を押してください。'
   })
   questionCountPreset?.addEventListener('change', () => {
     updateQuestionCountFieldVisibility()
