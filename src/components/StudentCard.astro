@@ -11,6 +11,8 @@ type VoiceActor = Student['CharacterVoice']
 const { name, voiceActor } = Astro.props as {
   name: StudentName
   voiceActor: VoiceActor
+  defaultOrder: Student['DefaultOrder']
+  nameSortOrder: Student['NameSortOrder']
 }
 
 const formatName = (name: StudentName): string => {
@@ -33,6 +35,8 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 <div
   class="grid-item"
   data-name={name}
+  data-default-order={Astro.props.defaultOrder}
+  data-name-sort-order={Astro.props.nameSortOrder ?? Astro.props.defaultOrder}
   tabindex={audioExists ? '0' : '-1'}
   data-no-playable={!audioExists || null}
 >

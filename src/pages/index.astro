@@ -1,23 +1,56 @@
 ---
 import Footer from '@/components/Footer.astro'
 import Header from '@/components/Header.astro'
-import Navigation from '@/components/Navigation.astro'
+import InAppQuiz from '@/components/InAppQuiz.astro'
 import CharacterGrid from '@/components/StudentGrid.astro'
 import Layout from '@/layouts/Layout.astro'
-
-const sortBy = 'NameSortOrder'
 ---
 
 <Layout>
   <div class="main" slot="main">
     <Header />
     <div class="content">
-      <Navigation />
-      <CharacterGrid sortBy={sortBy} />
+      <div class="page-switch">
+        <button type="button" data-view-target="card-list" class="is-active">
+          カード一覧
+        </button>
+        <button type="button" data-view-target="quiz-view">クイズ</button>
+      </div>
+      <section id="card-list">
+        <CharacterGrid />
+      </section>
+      <section id="quiz-view" hidden>
+        <InAppQuiz />
+      </section>
     </div>
     <Footer />
   </div>
 </Layout>
+
+<script is:inline>
+  const switchButtons = document.querySelectorAll('[data-view-target]')
+  const allViews = ['card-list', 'quiz-view']
+
+  switchButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-view-target')
+      if (!targetId) {
+        return
+      }
+
+      allViews.forEach((viewId) => {
+        const view = document.getElementById(viewId)
+        if (view) {
+          view.hidden = viewId !== targetId
+        }
+      })
+
+      switchButtons.forEach((nextButton) =>
+        nextButton.classList.toggle('is-active', nextButton === button),
+      )
+    })
+  })
+</script>
 
 <style>
   .main {
@@ -37,5 +70,28 @@ const sortBy = 'NameSortOrder'
     flex-direction: column;
     justify-content: center;
     align-items: center;
+  }
+  .page-switch {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 720px;
+  }
+  .page-switch button {
+    border: 1px solid #ddd;
+    border-radius: 999px;
+    background: #fff;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+  }
+  .page-switch .is-active {
+    color: #fff;
+    background: #1e88e5;
+    border-color: #1e88e5;
+  }
+  #card-list,
+  #quiz-view {
+    width: 100%;
   }
 </style>

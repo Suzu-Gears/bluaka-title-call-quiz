@@ -26,16 +26,55 @@ studentsData = studentsData.sort((a, b) => {
 ---
 
 <div class="grid" id="studentGrid">
+  <label class="sort-wrapper" for="student-sort-select">
+    並べ替え
+    <select id="student-sort-select">
+      <option value="default-order">実装順</option>
+      <option value="name-order">名前順</option>
+    </select>
+  </label>
   {
     studentsData.length > 0 ? (
-      studentsData.map(({ Name, CharacterVoice }) => (
-        <StudentCard name={Name} voiceActor={CharacterVoice} data-name={Name} />
+      studentsData.map(({ Name, CharacterVoice, DefaultOrder, NameSortOrder }) => (
+        <StudentCard
+          name={Name}
+          voiceActor={CharacterVoice}
+          defaultOrder={DefaultOrder}
+          nameSortOrder={NameSortOrder}
+          data-name={Name}
+        />
       ))
     ) : (
       <p>No students available</p>
     )
   }
 </div>
+
+<script>
+  const sortSelect = document.getElementById(
+    'student-sort-select',
+  ) as HTMLSelectElement | null
+  const studentGrid = document.getElementById('studentGrid')
+
+  const sortCards = (sortMode: string) => {
+    if (!studentGrid) {
+      return
+    }
+    const cards = [...studentGrid.querySelectorAll('.grid-item')]
+    const key =
+      sortMode === 'name-order' ? 'nameSortOrder' : ('defaultOrder' as const)
+    cards.sort((a, b) => {
+      const aValue = Number((a as HTMLElement).dataset[key] ?? 0)
+      const bValue = Number((b as HTMLElement).dataset[key] ?? 0)
+      return aValue - bValue
+    })
+    cards.forEach((card) => studentGrid.appendChild(card))
+  }
+
+  sortSelect?.addEventListener('change', () => {
+    sortCards(sortSelect.value)
+  })
+</script>
 
 <style>
   .grid {
@@ -64,5 +103,13 @@ studentsData = studentsData.sort((a, b) => {
       font-size: 16px;
       font-family: 'Kosugi Maru', sans-serif;
     }
+  }
+  .sort-wrapper {
+    grid-column: 1 / -1;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9em;
   }
 </style>

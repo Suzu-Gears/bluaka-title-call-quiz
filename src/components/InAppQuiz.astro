@@ -1,0 +1,156 @@
+---
+import path from 'node:path'
+
+import { doesFileExist } from '@/lib/fileOperations'
+import { getStudentsData } from '@/lib/schaleDBClient'
+
+const students = await getStudentsData()
+const playableNames = students
+  .filter(
+    ({ Name, IsCollaboration }) =>
+      !IsCollaboration &&
+      doesFileExist(path.join('.', 'public/audio'), `${Name}.mp3`),
+  )
+  .map(({ Name }) => Name)
+---
+
+<section aria-label="クイズ" class="quiz-section">
+  <h2>クイズ</h2>
+  <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
+  <div class="quiz-controls">
+    <button id="quiz-start-button" type="button">開始</button>
+    <button id="quiz-play-audio-button" type="button" disabled>もう一度再生</button>
+  </div>
+  <div class="quiz-choices" id="quiz-choices"></div>
+</section>
+
+<script define:vars={{ playableNames }} type="module">
+  const shuffleArray = (values) => {
+    const next = [...values]
+    for (let i = next.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[next[i], next[j]] = [next[j], next[i]]
+    }
+    return next
+  }
+
+  const buildChoices = (correctName, allNames) => {
+    const distractors = allNames.filter((name) => name !== correctName)
+    const pickedDistractors = shuffleArray(distractors).slice(0, 3)
+    return shuffleArray([correctName, ...pickedDistractors])
+  }
+
+  const startButton = document.getElementById('quiz-start-button')
+  const replayButton = document.getElementById('quiz-play-audio-button')
+  const statusText = document.getElementById('quiz-status')
+  const choicesRoot = document.getElementById('quiz-choices')
+  const totalQuestions = Math.min(10, playableNames.length)
+
+  let askedNames = []
+  let currentAnswer = ''
+  let score = 0
+  let questionNumber = 0
+  let currentAudio = null
+
+  const stopAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause()
+      currentAudio.currentTime = 0
+      currentAudio = null
+    }
+  }
+
+  const playCurrentAudio = () => {
+    if (!currentAnswer) {
+      return
+    }
+    stopAudio()
+    currentAudio = new Audio(`/audio/${encodeURIComponent(currentAnswer)}.mp3`)
+    currentAudio.play().catch(() => {})
+  }
+
+  const renderQuestion = () => {
+    choicesRoot.innerHTML = ''
+    const available = playableNames.filter((name) => !askedNames.includes(name))
+    if (available.length === 0 || questionNumber >= totalQuestions) {
+      stopAudio()
+      currentAnswer = ''
+      replayButton.disabled = true
+      statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
+      startButton.textContent = 'もう一度'
+      return
+    }
+
+    currentAnswer = available[Math.floor(Math.random() * available.length)]
+    askedNames.push(currentAnswer)
+    questionNumber += 1
+    statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
+    replayButton.disabled = false
+    playCurrentAudio()
+
+    const choices = buildChoices(currentAnswer, playableNames)
+    choices.forEach((name) => {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.textContent = name
+      button.addEventListener('click', () => {
+        const isCorrect = name === currentAnswer
+        if (isCorrect) {
+          score += 1
+        }
+        statusText.textContent = isCorrect
+          ? '正解！'
+          : `不正解… 正解は「${currentAnswer}」`
+        choicesRoot.querySelectorAll('button').forEach((choiceButton) => {
+          choiceButton.disabled = true
+          if (choiceButton.textContent === currentAnswer) {
+            choiceButton.classList.add('correct')
+          }
+        })
+        setTimeout(renderQuestion, 900)
+      })
+      choicesRoot.appendChild(button)
+    })
+  }
+
+  startButton?.addEventListener('click', () => {
+    if (playableNames.length < 4) {
+      statusText.textContent =
+        'クイズを開始できません。音声付き生徒データを4件以上用意してください。'
+      return
+    }
+    askedNames = []
+    currentAnswer = ''
+    score = 0
+    questionNumber = 0
+    startButton.textContent = 'リスタート'
+    renderQuestion()
+  })
+
+  replayButton?.addEventListener('click', playCurrentAudio)
+</script>
+
+<style>
+  .quiz-section {
+    margin-top: 1rem;
+    width: 100%;
+    max-width: 720px;
+    border: 1px solid #ddd;
+    border-radius: 1rem;
+    padding: 1rem;
+    background: #fff;
+  }
+  .quiz-controls {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .quiz-choices {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+  button.correct {
+    background: #0d9848;
+    color: #fff;
+  }
+</style>
