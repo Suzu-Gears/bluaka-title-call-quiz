@@ -6,7 +6,9 @@ import {
   filterCandidates,
   mergeWithStudents,
   migrateLegacyProficiency,
+  normalizeQuizAnswer,
   normalizeProficiencyMap,
+  resolveQuestionCount,
 } from '@/lib/quizProgress'
 
 const deterministicRandom = () => 0
@@ -95,6 +97,18 @@ const deterministicRandom = () => 0
 {
   assert.equal(calculateAccuracy({ correct: 3, attempts: 4 }), 75)
   assert.equal(calculateAccuracy({ correct: 0, attempts: 0 }), 0)
+}
+
+{
+  assert.equal(normalizeQuizAnswer('  ｱｲﾘ  '), 'アイリ')
+  assert.equal(normalizeQuizAnswer('Ａ b　c'), 'abc')
+}
+
+{
+  assert.equal(resolveQuestionCount(1, 30), 1)
+  assert.equal(resolveQuestionCount(20, 10), 10)
+  assert.equal(resolveQuestionCount(0, 5), 5)
+  assert.equal(resolveQuestionCount(Number.NaN, 8), 8)
 }
 
 console.log('All quiz tests passed.')

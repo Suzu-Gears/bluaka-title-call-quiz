@@ -94,3 +94,25 @@ export function calculateAccuracy(entry?: ProficiencyEntry): number {
   }
   return Math.round((entry.correct / entry.attempts) * 1000) / 10
 }
+
+export function normalizeQuizAnswer(value: string): string {
+  return String(value ?? '')
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .toLowerCase()
+}
+
+export function resolveQuestionCount(
+  rawValue: number,
+  maxQuestions: number,
+  fallback = 10,
+): number {
+  if (maxQuestions <= 0) {
+    return 0
+  }
+  const parsed = Math.floor(Number(rawValue))
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return Math.max(1, Math.min(fallback, maxQuestions))
+  }
+  return Math.max(1, Math.min(parsed, maxQuestions))
+}

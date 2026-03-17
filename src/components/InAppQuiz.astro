@@ -31,6 +31,14 @@ const collaborationNames = filterCandidates(baseCandidates, {
   includeCostume: false,
   includeCollaboration: true,
 }).map(({ name }) => name)
+const allStudentsNames = filterCandidates(baseCandidates, {
+  includeNormal: true,
+  includeCostume: true,
+  includeCollaboration: false,
+}).map(({ name }) => name)
+const costumeHints = Object.fromEntries(
+  baseCandidates.map(({ name, costume }) => [name, costume ?? '']),
+)
 ---
 
 <section
@@ -40,9 +48,18 @@ const collaborationNames = filterCandidates(baseCandidates, {
     normal: normalNames,
     costume: costumeNames,
     collaboration: collaborationNames,
+    allStudents: allStudentsNames,
   })}
+  data-costume-hints={JSON.stringify(costumeHints)}
 >
   <h2>クイズ</h2>
+  <label for="quiz-mode-select">
+    出題方式
+    <select id="quiz-mode-select">
+      <option value="multiple-choice">4択</option>
+      <option value="name-input">名前入力</option>
+    </select>
+  </label>
   <fieldset class="quiz-filter-fieldset">
     <legend>出題対象</legend>
     <label>
@@ -58,6 +75,30 @@ const collaborationNames = filterCandidates(baseCandidates, {
       コラボ生徒
     </label>
   </fieldset>
+  <label id="quiz-name-mode-wrapper" for="quiz-name-filter-mode" hidden>
+    名前入力の出題対象
+    <select id="quiz-name-filter-mode">
+      <option value="normal-only">通常生徒のみ</option>
+      <option value="all-students">別衣装を含む全生徒</option>
+    </select>
+  </label>
+  <label class="quiz-question-count-wrapper" for="quiz-question-count-preset">
+    問題数
+    <select id="quiz-question-count-preset">
+      <option value="1">1</option>
+      <option value="10" selected>10</option>
+      <option value="20">20</option>
+      <option value="custom">任意</option>
+    </select>
+    <input
+      id="quiz-question-count-custom"
+      type="number"
+      min="1"
+      step="1"
+      placeholder="任意"
+      hidden
+    />
+  </label>
   <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
   <div class="quiz-controls">
     <button id="quiz-start-button" type="button">開始</button>
@@ -66,6 +107,16 @@ const collaborationNames = filterCandidates(baseCandidates, {
     <button id="quiz-import-progress-button" type="button">進捗インポート</button>
   </div>
   <div class="quiz-choices" id="quiz-choices"></div>
+  <form id="quiz-name-answer-form" class="quiz-name-answer-form" hidden>
+    <input
+      id="quiz-name-answer-input"
+      type="text"
+      autocomplete="off"
+      placeholder="生徒名を入力"
+    />
+    <button type="submit">回答する</button>
+  </form>
+  <small id="quiz-costume-hint-text"></small>
   <small id="quiz-proficiency-text"></small>
 </section>
 
@@ -81,12 +132,21 @@ const collaborationNames = filterCandidates(baseCandidates, {
   const candidateGroups = JSON.parse(
     quizSection?.getAttribute('data-candidate-groups') ?? '{}',
   )
+  const costumeHints = JSON.parse(
+    quizSection?.getAttribute('data-costume-hints') ?? '{}',
+  )
 
+  const quizModeSelect = document.getElementById('quiz-mode-select')
   const normalFilter = document.getElementById('quiz-filter-normal')
   const costumeFilter = document.getElementById('quiz-filter-costume')
   const collaborationFilter = document.getElementById('quiz-filter-collaboration')
+  const filterFieldset = document.querySelector('.quiz-filter-fieldset')
+  const nameModeWrapper = document.getElementById('quiz-name-mode-wrapper')
+  const nameFilterMode = document.getElementById('quiz-name-filter-mode')
+  const questionCountPreset = document.getElementById('quiz-question-count-preset')
+  const questionCountCustom = document.getElementById('quiz-question-count-custom')
 
-  const getCandidateNames = () => {
+  const getMultipleChoiceCandidates = () => {
     const selected = new Set()
     if (normalFilter?.checked) {
       ;(candidateGroups.normal ?? []).forEach((name) => selected.add(name))
@@ -98,6 +158,17 @@ const collaborationNames = filterCandidates(baseCandidates, {
       ;(candidateGroups.collaboration ?? []).forEach((name) => selected.add(name))
     }
     return [...selected]
+  }
+  const getNameInputCandidates = () => {
+    return nameFilterMode?.value === 'all-students'
+      ? [...(candidateGroups.allStudents ?? [])]
+      : [...(candidateGroups.normal ?? [])]
+  }
+  const normalizeAnswer = (value) => {
+    return String(value ?? '')
+      .normalize('NFKC')
+      .replace(/\s+/g, '')
+      .toLowerCase()
   }
 
   const shuffleArray = (values) => {
@@ -121,15 +192,24 @@ const collaborationNames = filterCandidates(baseCandidates, {
   const importButton = document.getElementById('quiz-import-progress-button')
   const statusText = document.getElementById('quiz-status')
   const proficiencyText = document.getElementById('quiz-proficiency-text')
+  const costumeHintText = document.getElementById('quiz-costume-hint-text')
   const choicesRoot = document.getElementById('quiz-choices')
+  const nameAnswerForm = document.getElementById('quiz-name-answer-form')
+  const nameAnswerInput = document.getElementById('quiz-name-answer-input')
+  const nameAnswerSubmit = nameAnswerForm?.querySelector('button[type="submit"]')
 
   let askedNames = []
   let currentAnswer = ''
+  let currentMode = quizModeSelect?.value ?? 'multiple-choice'
+  let shouldShowCurrentAnswerStats = false
   let score = 0
   let questionNumber = 0
   let currentAudio = null
   let proficiencyMap = {}
-  let activeNames = getCandidateNames()
+  let activeNames =
+    currentMode === 'name-input'
+      ? getNameInputCandidates()
+      : getMultipleChoiceCandidates()
   let totalQuestions = Math.min(10, activeNames.length)
 
   const normalizeMap = (rawMap) => {
@@ -223,7 +303,7 @@ const collaborationNames = filterCandidates(baseCandidates, {
   const updateProficiencyText = () => {
     const entry = proficiencyMap[currentAnswer]
     const accuracy = calculateAccuracy(entry)
-    proficiencyText.textContent = currentAnswer
+    proficiencyText.textContent = currentAnswer && shouldShowCurrentAnswerStats
       ? `${currentAnswer} の正答率: ${accuracy}% (${entry.correct}/${entry.attempts})`
       : ''
   }
@@ -239,9 +319,68 @@ const collaborationNames = filterCandidates(baseCandidates, {
     updateProficiencyText()
   }
 
+  const updateQuestionCountFieldVisibility = () => {
+    if (!questionCountCustom) {
+      return
+    }
+    questionCountCustom.hidden = questionCountPreset?.value !== 'custom'
+  }
+
+  const getSelectedQuestionCount = (maxQuestions) => {
+    if (maxQuestions <= 0) {
+      return 0
+    }
+    const presetValue = questionCountPreset?.value ?? '10'
+    const rawValue =
+      presetValue === 'custom'
+        ? Number(questionCountCustom?.value ?? '')
+        : Number(presetValue)
+    const parsed = Math.floor(Number(rawValue))
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return Math.max(1, Math.min(10, maxQuestions))
+    }
+    return Math.max(1, Math.min(parsed, maxQuestions))
+  }
+
+  const updateModeUI = () => {
+    currentMode = quizModeSelect?.value ?? 'multiple-choice'
+    const isNameInputMode = currentMode === 'name-input'
+    if (filterFieldset) {
+      filterFieldset.hidden = isNameInputMode
+    }
+    if (nameModeWrapper) {
+      nameModeWrapper.hidden = !isNameInputMode
+    }
+    if (isNameInputMode) {
+      choicesRoot.hidden = true
+      if (nameAnswerForm) {
+        nameAnswerForm.hidden = false
+      }
+    } else {
+      choicesRoot.hidden = false
+      if (nameAnswerForm) {
+        nameAnswerForm.hidden = true
+      }
+    }
+  }
+
+  const updateCostumeHintText = () => {
+    if (currentMode !== 'name-input' || !currentAnswer) {
+      costumeHintText.textContent = ''
+      return
+    }
+    const costumeName = String(costumeHints[currentAnswer] ?? '').trim()
+    costumeHintText.textContent = costumeName
+      ? `ヒント: ${costumeName}`
+      : ''
+  }
+
   const refreshFilterState = () => {
-    activeNames = getCandidateNames()
-    totalQuestions = Math.min(10, activeNames.length)
+    activeNames =
+      currentMode === 'name-input'
+        ? getNameInputCandidates()
+        : getMultipleChoiceCandidates()
+    totalQuestions = getSelectedQuestionCount(activeNames.length)
   }
 
   const stopAudio = () => {
@@ -272,9 +411,11 @@ const collaborationNames = filterCandidates(baseCandidates, {
     if (available.length === 0 || questionNumber >= totalQuestions) {
       stopAudio()
       currentAnswer = ''
+      shouldShowCurrentAnswerStats = false
       replayButton.disabled = true
       statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
       startButton.textContent = 'もう一度'
+      updateCostumeHintText()
       updateProficiencyText()
       return
     }
@@ -283,39 +424,69 @@ const collaborationNames = filterCandidates(baseCandidates, {
     askedNames.push(currentAnswer)
     questionNumber += 1
     statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
+    shouldShowCurrentAnswerStats = false
     replayButton.disabled = false
     playCurrentAudio()
+    updateCostumeHintText()
     updateProficiencyText()
 
-    const choices = buildChoices(currentAnswer, activeNames)
-    choices.forEach((name) => {
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.textContent = name
-      button.addEventListener('click', () => {
-        const isCorrect = name === currentAnswer
-        if (isCorrect) {
-          score += 1
-        }
-        recordAnswer(currentAnswer, isCorrect)
-        statusText.textContent = isCorrect
-          ? '正解！'
-          : `不正解… 正解は「${currentAnswer}」`
-        choicesRoot.querySelectorAll('button').forEach((choiceButton) => {
-          choiceButton.disabled = true
-          if (choiceButton.textContent === currentAnswer) {
-            choiceButton.classList.add('correct')
+    if (currentMode === 'multiple-choice') {
+      choicesRoot.hidden = false
+      if (nameAnswerForm) {
+        nameAnswerForm.hidden = true
+      }
+      const choices = buildChoices(currentAnswer, activeNames)
+      choices.forEach((name) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.textContent = name
+        button.addEventListener('click', () => {
+          const isCorrect = name === currentAnswer
+          if (isCorrect) {
+            score += 1
           }
+          shouldShowCurrentAnswerStats = true
+          recordAnswer(currentAnswer, isCorrect)
+          statusText.textContent = isCorrect
+            ? '正解！'
+            : `不正解… 正解は「${currentAnswer}」`
+          choicesRoot.querySelectorAll('button').forEach((choiceButton) => {
+            choiceButton.disabled = true
+            if (choiceButton.textContent === currentAnswer) {
+              choiceButton.classList.add('correct')
+            }
+          })
+          setTimeout(renderQuestion, 900)
         })
-        setTimeout(renderQuestion, 900)
+        choicesRoot.appendChild(button)
       })
-      choicesRoot.appendChild(button)
-    })
+      return
+    }
+
+    choicesRoot.hidden = true
+    if (nameAnswerForm) {
+      nameAnswerForm.hidden = false
+    }
+    if (nameAnswerInput) {
+      nameAnswerInput.value = ''
+      nameAnswerInput.disabled = false
+      nameAnswerInput.focus()
+    }
+    if (nameAnswerSubmit) {
+      nameAnswerSubmit.disabled = false
+    }
   }
 
   startButton?.addEventListener('click', () => {
+    updateModeUI()
+    updateQuestionCountFieldVisibility()
     refreshFilterState()
-    if (activeNames.length < 4) {
+    if (activeNames.length < 1) {
+      statusText.textContent =
+        'クイズを開始できません。選択中の条件で生徒データを1件以上用意してください。'
+      return
+    }
+    if (currentMode === 'multiple-choice' && activeNames.length < 4) {
       statusText.textContent =
         'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。'
       return
@@ -324,16 +495,55 @@ const collaborationNames = filterCandidates(baseCandidates, {
     currentAnswer = ''
     score = 0
     questionNumber = 0
+    shouldShowCurrentAnswerStats = false
     startButton.textContent = 'リスタート'
     renderQuestion()
   })
 
   replayButton?.addEventListener('click', playCurrentAudio)
+  quizModeSelect?.addEventListener('change', () => {
+    updateModeUI()
+    refreshFilterState()
+    statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
+  })
+  nameFilterMode?.addEventListener('change', () => {
+    refreshFilterState()
+    statusText.textContent =
+      '名前入力の出題対象を変更しました。「開始」を押してください。'
+  })
+  questionCountPreset?.addEventListener('change', () => {
+    updateQuestionCountFieldVisibility()
+    refreshFilterState()
+    statusText.textContent = '問題数を変更しました。「開始」を押してください。'
+  })
+  questionCountCustom?.addEventListener('input', () => {
+    refreshFilterState()
+  })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox?.addEventListener('change', () => {
       refreshFilterState()
       statusText.textContent = '出題対象を変更しました。「開始」を押してください。'
     })
+  })
+  nameAnswerForm?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    if (!currentAnswer || !nameAnswerInput || !nameAnswerSubmit) {
+      return
+    }
+    const answer = normalizeAnswer(nameAnswerInput.value)
+    const correctAnswer = normalizeAnswer(currentAnswer)
+    const isCorrect = answer.length > 0 && answer === correctAnswer
+    if (isCorrect) {
+      score += 1
+    }
+    shouldShowCurrentAnswerStats = true
+    recordAnswer(currentAnswer, isCorrect)
+    statusText.textContent = isCorrect
+      ? '正解！'
+      : `不正解… 正解は「${currentAnswer}」`
+    nameAnswerInput.disabled = true
+    nameAnswerSubmit.disabled = true
+    setTimeout(renderQuestion, 900)
   })
 
   exportButton?.addEventListener('click', () => {
@@ -371,6 +581,8 @@ const collaborationNames = filterCandidates(baseCandidates, {
   })
 
   loadProficiency()
+  updateModeUI()
+  updateQuestionCountFieldVisibility()
   refreshFilterState()
 </script>
 
@@ -401,6 +613,30 @@ const collaborationNames = filterCandidates(baseCandidates, {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+  }
+  .quiz-question-count-wrapper {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .quiz-name-answer-form {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .quiz-name-answer-form[hidden] {
+    display: none;
+  }
+  #quiz-name-answer-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.45rem 0.6rem;
+  }
+  #quiz-costume-hint-text {
+    display: block;
+    margin-top: 0.5rem;
+    color: #444;
   }
   .quiz-choices {
     margin-top: 1rem;
