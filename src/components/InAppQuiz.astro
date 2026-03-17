@@ -698,10 +698,11 @@ const costumeHints = Object.fromEntries(
     cursor: pointer;
   }
   .quiz-choice-button img {
-    width: 100%;
+    width: min(100%, 84px);
     aspect-ratio: 1 / 1.1;
     object-fit: cover;
     border-radius: 0.5rem;
+    margin-inline: auto;
   }
   .quiz-choice-button span {
     font-weight: 700;
@@ -718,7 +719,7 @@ const costumeHints = Object.fromEntries(
     display: none;
   }
   .quiz-answer-feedback img {
-    width: min(200px, 100%);
+    width: min(120px, 100%);
     aspect-ratio: 1 / 1.1;
     object-fit: cover;
     border-radius: 0.75rem;
