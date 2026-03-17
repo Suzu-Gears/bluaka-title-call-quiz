@@ -180,6 +180,8 @@ function extractProperties(data: any): Students {
 
 async function jsonToCsv(data: Students, filePath: string): Promise<void> {
   if (data.length === 0) {
+    // ネットワーク不達などで生徒データが空のときも、出力ファイルを必ず生成して
+    // 後続処理のファイル存在前提を満たす。
     fs.writeFileSync(filePath, '')
     return
   }

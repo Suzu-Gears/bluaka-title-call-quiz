@@ -227,6 +227,9 @@ const allStudentsNames = filterCandidates(baseCandidates, 'all-students').map(
     if (!currentAnswer) {
       return
     }
+    if (!activeNames.includes(currentAnswer)) {
+      return
+    }
     stopAudio()
     currentAudio = new Audio(`/audio/${encodeURIComponent(currentAnswer)}.mp3`)
     currentAudio.play().catch(() => {})
