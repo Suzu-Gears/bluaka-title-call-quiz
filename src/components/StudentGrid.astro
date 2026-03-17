@@ -66,6 +66,8 @@ studentsData = studentsData.sort((a, b) => {
 </div>
 
 <script>
+  import { normalizeQuizAnswer } from '@/lib/quizProgress'
+
   const sortSelect = document.getElementById(
     'student-sort-select',
   ) as HTMLSelectElement | null
@@ -93,18 +95,11 @@ studentsData = studentsData.sort((a, b) => {
     cards.forEach((card) => studentGrid.appendChild(card))
   }
 
-  const normalizeFilterText = (value: string) => {
-    return String(value ?? '')
-      .normalize('NFKC')
-      .replace(/\s+/g, '')
-      .toLowerCase()
-  }
-
   const filterCards = (rawInput: string) => {
     if (!studentGrid) {
       return
     }
-    const normalized = normalizeFilterText(rawInput)
+    const normalized = normalizeQuizAnswer(rawInput)
     const cards = [...studentGrid.querySelectorAll('.grid-item')]
     cards.forEach((card) => {
       const searchKey = String((card as HTMLElement).dataset.searchKey ?? '')
