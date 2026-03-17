@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 
 import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import {
+  buildStudentSearchKey,
   calculateAccuracy,
   filterCandidates,
   mergeWithStudents,
@@ -102,6 +103,13 @@ const deterministicRandom = () => 0
 {
   assert.equal(normalizeQuizAnswer('  ｱｲﾘ  '), 'アイリ')
   assert.equal(normalizeQuizAnswer('Ａ b　c'), 'abc')
+}
+
+{
+  assert.equal(
+    buildStudentSearchKey('  ｱｲﾘ  ', '　イベント 衣装  '),
+    'アイリ\tイベント衣装',
+  )
 }
 
 {

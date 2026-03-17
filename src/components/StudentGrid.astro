@@ -3,6 +3,7 @@ import '@fontsource/kosugi-maru'
 
 import StudentCard from '@/components/StudentCard.astro'
 import type { Student, Students } from '@/lib/interfaces'
+import { buildStudentSearchKey } from '@/lib/quizProgress'
 import { getStudentsData } from '@/lib/schaleDBClient'
 
 interface Props {
@@ -26,6 +27,16 @@ studentsData = studentsData.sort((a, b) => {
 ---
 
 <div class="grid" id="studentGrid">
+  <label class="search-wrapper" for="student-filter-input">
+    フィルター
+    <input
+      id="student-filter-input"
+      class="student-filter-input"
+      type="text"
+      placeholder="生徒名または衣装名"
+      autocomplete="off"
+    />
+  </label>
   <label class="sort-wrapper" for="student-sort-select">
     並べ替え
     <select id="student-sort-select">
@@ -38,13 +49,14 @@ studentsData = studentsData.sort((a, b) => {
   </label>
   {
     studentsData.length > 0 ? (
-      studentsData.map(({ Name, CharacterVoice, DefaultOrder, NameSortOrder }) => (
+      studentsData.map(({ Name, Costume, CharacterVoice, DefaultOrder, NameSortOrder }) => (
         <StudentCard
           name={Name}
+          costume={Costume}
           voiceActor={CharacterVoice}
           defaultOrder={DefaultOrder}
           nameSortOrder={NameSortOrder}
-          data-name={Name}
+          searchKey={buildStudentSearchKey(Name, Costume)}
         />
       ))
     ) : (
@@ -58,6 +70,9 @@ studentsData = studentsData.sort((a, b) => {
     'student-sort-select',
   ) as HTMLSelectElement | null
   const studentGrid = document.getElementById('studentGrid')
+  const filterInput = document.getElementById(
+    'student-filter-input',
+  ) as HTMLInputElement | null
   const sortDirectionButton = document.getElementById(
     'student-sort-direction',
   ) as HTMLButtonElement | null
@@ -78,6 +93,26 @@ studentsData = studentsData.sort((a, b) => {
     cards.forEach((card) => studentGrid.appendChild(card))
   }
 
+  const normalizeFilterText = (value: string) => {
+    return String(value ?? '')
+      .normalize('NFKC')
+      .replace(/\s+/g, '')
+      .toLowerCase()
+  }
+
+  const filterCards = (rawInput: string) => {
+    if (!studentGrid) {
+      return
+    }
+    const normalized = normalizeFilterText(rawInput)
+    const cards = [...studentGrid.querySelectorAll('.grid-item')]
+    cards.forEach((card) => {
+      const searchKey = String((card as HTMLElement).dataset.searchKey ?? '')
+      ;(card as HTMLElement).style.display =
+        !normalized || searchKey.includes(normalized) ? '' : 'none'
+    })
+  }
+
   sortSelect?.addEventListener('change', () => {
     sortCards(sortSelect.value, sortDirection)
   })
@@ -87,6 +122,9 @@ studentsData = studentsData.sort((a, b) => {
     if (sortSelect) {
       sortCards(sortSelect.value, sortDirection)
     }
+  })
+  filterInput?.addEventListener('input', () => {
+    filterCards(filterInput.value)
   })
 </script>
 
@@ -117,6 +155,18 @@ studentsData = studentsData.sort((a, b) => {
       font-size: 16px;
       font-family: 'Kosugi Maru', sans-serif;
     }
+  }
+  .search-wrapper {
+    grid-column: 1 / -1;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9em;
+  }
+  .student-filter-input {
+    min-width: 12rem;
+    padding: 0.45rem 0.6rem;
   }
   .sort-wrapper {
     grid-column: 1 / -1;

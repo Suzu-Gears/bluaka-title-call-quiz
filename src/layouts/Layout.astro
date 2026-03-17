@@ -72,4 +72,20 @@ const squareOGImage = new URL(getStaticFilePath('/icon-mask.png'), Astro.site)
     margin: 0;
     padding: 0;
   }
+  :global(select) {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9em;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  :global(select:hover) {
+    border-color: #999;
+  }
+  :global(select:focus-visible) {
+    outline: 2px solid #1e88e5;
+    outline-offset: 2px;
+  }
 </style>

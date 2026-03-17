@@ -104,6 +104,10 @@ export function normalizeQuizAnswer(value: string): string {
     .toLowerCase()
 }
 
+export function buildStudentSearchKey(name: string, costume?: string): string {
+  return `${normalizeQuizAnswer(name)}\t${normalizeQuizAnswer(costume ?? '')}`
+}
+
 export function resolveQuestionCount(
   rawValue: number,
   maxQuestions: number,
