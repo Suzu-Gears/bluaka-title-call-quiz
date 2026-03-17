@@ -7,6 +7,7 @@ import { getStudentsData } from '@/lib/schaleDBClient'
 
 const projectRoot = appRoot.path
 const dataFolderPath = path.join(projectRoot, 'public/data')
+fs.mkdirSync(dataFolderPath, { recursive: true })
 
 export async function getCostumeList(): Promise<CostumeList> {
   const studentData = await getStudentsData()
@@ -178,6 +179,12 @@ function extractProperties(data: any): Students {
 }
 
 async function jsonToCsv(data: Students, filePath: string): Promise<void> {
+  if (data.length === 0) {
+    // ネットワーク不達などで生徒データが空のときも、出力ファイルを必ず生成して
+    // 後続処理のファイル存在前提を満たす。
+    fs.writeFileSync(filePath, '')
+    return
+  }
   const headers = Object.keys(data[0]).join(',')
   const rows = data.map((student) => Object.values(student).join(','))
   const csvContent = [headers, ...rows].join('\n')

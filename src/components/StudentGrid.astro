@@ -3,6 +3,7 @@ import '@fontsource/kosugi-maru'
 
 import StudentCard from '@/components/StudentCard.astro'
 import type { Student, Students } from '@/lib/interfaces'
+import { normalizeQuizAnswer, resolveStudentCategory } from '@/lib/quizProgress'
 import { getStudentsData } from '@/lib/schaleDBClient'
 
 interface Props {
@@ -26,16 +27,147 @@ studentsData = studentsData.sort((a, b) => {
 ---
 
 <div class="grid" id="studentGrid">
+  <div class="controls-row">
+    <label class="search-wrapper" for="student-filter-input">
+      名前フィルター
+      <input
+        id="student-filter-input"
+        class="student-filter-input"
+        type="text"
+        placeholder="生徒名"
+        autocomplete="off"
+      />
+    </label>
+    <fieldset class="category-filter-fieldset">
+      <legend>表示対象</legend>
+      <label>
+        <input id="student-filter-normal" type="checkbox" checked />
+        通常生徒
+      </label>
+      <label>
+        <input id="student-filter-costume" type="checkbox" checked />
+        別衣装
+      </label>
+      <label>
+        <input id="student-filter-collaboration" type="checkbox" checked />
+        コラボ
+      </label>
+    </fieldset>
+    <label class="sort-wrapper" for="student-sort-select">
+      並べ替え
+      <select id="student-sort-select">
+        <option value="default-order">実装順</option>
+        <option value="name-order">名前順</option>
+      </select>
+      <button id="student-sort-direction" class="sort-direction-button" type="button">
+        昇順
+      </button>
+    </label>
+  </div>
   {
     studentsData.length > 0 ? (
-      studentsData.map(({ Name, CharacterVoice }) => (
-        <StudentCard name={Name} voiceActor={CharacterVoice} data-name={Name} />
-      ))
+      studentsData.map(
+        ({
+          Name,
+          Costume,
+          IsCollaboration,
+          CharacterVoice,
+          DefaultOrder,
+          NameSortOrder,
+        }) => (
+          <StudentCard
+            name={Name}
+            voiceActor={CharacterVoice}
+            defaultOrder={DefaultOrder}
+            nameSortOrder={NameSortOrder}
+            nameSearchKey={normalizeQuizAnswer(Name)}
+            filterCategory={resolveStudentCategory(Costume, IsCollaboration)}
+          />
+        ),
+      )
     ) : (
       <p>No students available</p>
     )
   }
 </div>
+
+<script>
+  import { normalizeQuizAnswer } from '@/lib/quizProgress'
+
+  const sortSelect = document.getElementById(
+    'student-sort-select',
+  ) as HTMLSelectElement | null
+  const studentGrid = document.getElementById('studentGrid')
+  const filterInput = document.getElementById(
+    'student-filter-input',
+  ) as HTMLInputElement | null
+  const normalFilter = document.getElementById(
+    'student-filter-normal',
+  ) as HTMLInputElement | null
+  const costumeFilter = document.getElementById(
+    'student-filter-costume',
+  ) as HTMLInputElement | null
+  const collaborationFilter = document.getElementById(
+    'student-filter-collaboration',
+  ) as HTMLInputElement | null
+  const sortDirectionButton = document.getElementById(
+    'student-sort-direction',
+  ) as HTMLButtonElement | null
+  let sortDirection: 'asc' | 'desc' = 'asc'
+
+  const sortCards = (sortMode: string, direction: 'asc' | 'desc') => {
+    if (!studentGrid) {
+      return
+    }
+    const cards = [...studentGrid.querySelectorAll('.grid-item')]
+    const key =
+      sortMode === 'name-order' ? 'nameSortOrder' : 'defaultOrder'
+    cards.sort((a, b) => {
+      const aValue = Number((a as HTMLElement).dataset[key] ?? 0)
+      const bValue = Number((b as HTMLElement).dataset[key] ?? 0)
+      return direction === 'asc' ? aValue - bValue : bValue - aValue
+    })
+    cards.forEach((card) => studentGrid.appendChild(card))
+  }
+
+  const filterCards = (rawInput: string) => {
+    if (!studentGrid) {
+      return
+    }
+    const normalized = normalizeQuizAnswer(rawInput)
+    const cards = [...studentGrid.querySelectorAll('.grid-item')]
+    cards.forEach((card) => {
+      const cardElement = card as HTMLElement
+      const nameKey = String(cardElement.dataset.nameKey ?? '')
+      const category = cardElement.dataset.filterCategory
+      const categoryEnabled =
+        (category === 'normal' && Boolean(normalFilter?.checked)) ||
+        (category === 'costume' && Boolean(costumeFilter?.checked)) ||
+        (category === 'collaboration' && Boolean(collaborationFilter?.checked))
+      cardElement.style.display =
+        (!normalized || nameKey.includes(normalized)) && categoryEnabled ? '' : 'none'
+    })
+  }
+
+  sortSelect?.addEventListener('change', () => {
+    sortCards(sortSelect.value, sortDirection)
+  })
+  sortDirectionButton?.addEventListener('click', () => {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+    sortDirectionButton.textContent = sortDirection === 'asc' ? '昇順' : '降順'
+    if (sortSelect) {
+      sortCards(sortSelect.value, sortDirection)
+    }
+  })
+  filterInput?.addEventListener('input', () => {
+    filterCards(filterInput.value)
+  })
+  ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
+    checkbox?.addEventListener('change', () => {
+      filterCards(filterInput?.value ?? '')
+    })
+  })
+</script>
 
 <style>
   .grid {
@@ -63,6 +195,90 @@ studentsData = studentsData.sort((a, b) => {
       gap: 8px;
       font-size: 16px;
       font-family: 'Kosugi Maru', sans-serif;
+    }
+  }
+  .controls-row {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .search-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9em;
+  }
+  .student-filter-input {
+    min-width: 10rem;
+    padding: 0.45rem 0.6rem;
+  }
+  .category-filter-fieldset {
+    margin: 0;
+    border: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9em;
+  }
+  .category-filter-fieldset legend {
+    margin-right: 0.25rem;
+    padding: 0;
+    float: left;
+  }
+  .category-filter-fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+  }
+  .sort-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9em;
+  }
+  .sort-direction-button {
+    border: 1px solid #1e88e5;
+    border-radius: 999px;
+    background: #e8f2fe;
+    color: #0d5ea8;
+    font-size: 0.9em;
+    padding: 0.25rem 0.7rem;
+    cursor: pointer;
+  }
+  .sort-direction-button:hover {
+    background: #d9ebff;
+  }
+  @media (max-width: 900px) {
+    .controls-row {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .search-wrapper,
+    .sort-wrapper,
+    .category-filter-fieldset {
+      width: 100%;
+    }
+    .search-wrapper {
+      display: flex;
+    }
+    .student-filter-input {
+      flex: 1;
+      min-width: 0;
+    }
+    .category-filter-fieldset {
+      flex-wrap: wrap;
+    }
+    .category-filter-fieldset legend {
+      float: none;
+      width: 100%;
+      margin-right: 0;
     }
   }
 </style>

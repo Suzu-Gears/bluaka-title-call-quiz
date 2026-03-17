@@ -8,9 +8,13 @@ import type { Student } from '@/lib/interfaces'
 type StudentName = Student['Name']
 type VoiceActor = Student['CharacterVoice']
 
-const { name, voiceActor } = Astro.props as {
+const { name, voiceActor, nameSearchKey, filterCategory } = Astro.props as {
   name: StudentName
   voiceActor: VoiceActor
+  defaultOrder: Student['DefaultOrder']
+  nameSortOrder: Student['NameSortOrder']
+  nameSearchKey?: string
+  filterCategory?: 'normal' | 'costume' | 'collaboration'
 }
 
 const formatName = (name: StudentName): string => {
@@ -33,6 +37,10 @@ const formattedVoiceActor = formatVoiceActor(voiceActor)
 <div
   class="grid-item"
   data-name={name}
+  data-name-key={nameSearchKey ?? ''}
+  data-filter-category={filterCategory ?? 'normal'}
+  data-default-order={Astro.props.defaultOrder}
+  data-name-sort-order={Astro.props.nameSortOrder ?? Astro.props.defaultOrder}
   tabindex={audioExists ? '0' : '-1'}
   data-no-playable={!audioExists || null}
 >
