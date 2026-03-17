@@ -102,8 +102,9 @@ studentsData = studentsData.sort((a, b) => {
     const normalized = normalizeQuizAnswer(rawInput)
     const cards = [...studentGrid.querySelectorAll('.grid-item')]
     cards.forEach((card) => {
-      const searchKey = String((card as HTMLElement).dataset.searchKey ?? '')
-      ;(card as HTMLElement).style.display =
+      const cardElement = card as HTMLElement
+      const searchKey = String(cardElement.dataset.searchKey ?? '')
+      cardElement.style.display =
         !normalized || searchKey.includes(normalized) ? '' : 'none'
     })
   }
