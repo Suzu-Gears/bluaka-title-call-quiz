@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 
 import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import {
-  buildStudentSearchKey,
   calculateAccuracy,
   filterCandidates,
   mergeWithStudents,
   migrateLegacyProficiency,
   normalizeQuizAnswer,
   normalizeProficiencyMap,
+  resolveStudentCategory,
   resolveQuestionCount,
 } from '@/lib/quizProgress'
 
@@ -106,10 +106,9 @@ const deterministicRandom = () => 0
 }
 
 {
-  assert.equal(
-    buildStudentSearchKey('  ｱｲﾘ  ', '　イベント 衣装  '),
-    'アイリ\tイベント衣装',
-  )
+  assert.equal(resolveStudentCategory('', false), 'normal')
+  assert.equal(resolveStudentCategory('イベント衣装', false), 'costume')
+  assert.equal(resolveStudentCategory('', true), 'collaboration')
 }
 
 {

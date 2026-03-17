@@ -104,8 +104,17 @@ export function normalizeQuizAnswer(value: string): string {
     .toLowerCase()
 }
 
-export function buildStudentSearchKey(name: string, costume?: string): string {
-  return `${normalizeQuizAnswer(name)}\t${normalizeQuizAnswer(costume ?? '')}`
+export function resolveStudentCategory(
+  costume?: string,
+  isCollaboration?: boolean,
+): 'normal' | 'costume' | 'collaboration' {
+  if (isCollaboration) {
+    return 'collaboration'
+  }
+  if (costume) {
+    return 'costume'
+  }
+  return 'normal'
 }
 
 export function resolveQuestionCount(

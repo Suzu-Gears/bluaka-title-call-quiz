@@ -3,7 +3,7 @@ import '@fontsource/kosugi-maru'
 
 import StudentCard from '@/components/StudentCard.astro'
 import type { Student, Students } from '@/lib/interfaces'
-import { buildStudentSearchKey } from '@/lib/quizProgress'
+import { normalizeQuizAnswer, resolveStudentCategory } from '@/lib/quizProgress'
 import { getStudentsData } from '@/lib/schaleDBClient'
 
 interface Props {
@@ -27,38 +27,64 @@ studentsData = studentsData.sort((a, b) => {
 ---
 
 <div class="grid" id="studentGrid">
-  <label class="search-wrapper" for="student-filter-input">
-    フィルター
-    <input
-      id="student-filter-input"
-      class="student-filter-input"
-      type="text"
-      placeholder="生徒名または衣装名"
-      autocomplete="off"
-    />
-  </label>
-  <label class="sort-wrapper" for="student-sort-select">
-    並べ替え
-    <select id="student-sort-select">
-      <option value="default-order">実装順</option>
-      <option value="name-order">名前順</option>
-    </select>
-    <button id="student-sort-direction" class="sort-direction-button" type="button">
-      昇順
-    </button>
-  </label>
+  <div class="controls-row">
+    <label class="search-wrapper" for="student-filter-input">
+      名前フィルター
+      <input
+        id="student-filter-input"
+        class="student-filter-input"
+        type="text"
+        placeholder="生徒名"
+        autocomplete="off"
+      />
+    </label>
+    <fieldset class="category-filter-fieldset">
+      <legend>表示対象</legend>
+      <label>
+        <input id="student-filter-normal" type="checkbox" checked />
+        通常生徒
+      </label>
+      <label>
+        <input id="student-filter-costume" type="checkbox" checked />
+        別衣装
+      </label>
+      <label>
+        <input id="student-filter-collaboration" type="checkbox" checked />
+        コラボ
+      </label>
+    </fieldset>
+    <label class="sort-wrapper" for="student-sort-select">
+      並べ替え
+      <select id="student-sort-select">
+        <option value="default-order">実装順</option>
+        <option value="name-order">名前順</option>
+      </select>
+      <button id="student-sort-direction" class="sort-direction-button" type="button">
+        昇順
+      </button>
+    </label>
+  </div>
   {
     studentsData.length > 0 ? (
-      studentsData.map(({ Name, Costume, CharacterVoice, DefaultOrder, NameSortOrder }) => (
-        <StudentCard
-          name={Name}
-          costume={Costume}
-          voiceActor={CharacterVoice}
-          defaultOrder={DefaultOrder}
-          nameSortOrder={NameSortOrder}
-          searchKey={buildStudentSearchKey(Name, Costume)}
-        />
-      ))
+      studentsData.map(
+        ({
+          Name,
+          Costume,
+          IsCollaboration,
+          CharacterVoice,
+          DefaultOrder,
+          NameSortOrder,
+        }) => (
+          <StudentCard
+            name={Name}
+            voiceActor={CharacterVoice}
+            defaultOrder={DefaultOrder}
+            nameSortOrder={NameSortOrder}
+            nameSearchKey={normalizeQuizAnswer(Name)}
+            filterCategory={resolveStudentCategory(Costume, IsCollaboration)}
+          />
+        ),
+      )
     ) : (
       <p>No students available</p>
     )
@@ -74,6 +100,15 @@ studentsData = studentsData.sort((a, b) => {
   const studentGrid = document.getElementById('studentGrid')
   const filterInput = document.getElementById(
     'student-filter-input',
+  ) as HTMLInputElement | null
+  const normalFilter = document.getElementById(
+    'student-filter-normal',
+  ) as HTMLInputElement | null
+  const costumeFilter = document.getElementById(
+    'student-filter-costume',
+  ) as HTMLInputElement | null
+  const collaborationFilter = document.getElementById(
+    'student-filter-collaboration',
   ) as HTMLInputElement | null
   const sortDirectionButton = document.getElementById(
     'student-sort-direction',
@@ -103,9 +138,14 @@ studentsData = studentsData.sort((a, b) => {
     const cards = [...studentGrid.querySelectorAll('.grid-item')]
     cards.forEach((card) => {
       const cardElement = card as HTMLElement
-      const searchKey = String(cardElement.dataset.searchKey ?? '')
+      const nameKey = String(cardElement.dataset.nameKey ?? '')
+      const category = cardElement.dataset.filterCategory
+      const categoryEnabled =
+        (category === 'normal' && Boolean(normalFilter?.checked)) ||
+        (category === 'costume' && Boolean(costumeFilter?.checked)) ||
+        (category === 'collaboration' && Boolean(collaborationFilter?.checked))
       cardElement.style.display =
-        !normalized || searchKey.includes(normalized) ? '' : 'none'
+        (!normalized || nameKey.includes(normalized)) && categoryEnabled ? '' : 'none'
     })
   }
 
@@ -121,6 +161,11 @@ studentsData = studentsData.sort((a, b) => {
   })
   filterInput?.addEventListener('input', () => {
     filterCards(filterInput.value)
+  })
+  ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
+    checkbox?.addEventListener('change', () => {
+      filterCards(filterInput?.value ?? '')
+    })
   })
 </script>
 
@@ -152,22 +197,48 @@ studentsData = studentsData.sort((a, b) => {
       font-family: 'Kosugi Maru', sans-serif;
     }
   }
-  .search-wrapper {
+  .controls-row {
     grid-column: 1 / -1;
-    justify-self: end;
+    justify-self: stretch;
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .search-wrapper {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9em;
   }
   .student-filter-input {
-    min-width: 12rem;
+    min-width: 10rem;
     padding: 0.45rem 0.6rem;
   }
+  .category-filter-fieldset {
+    margin: 0;
+    border: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9em;
+  }
+  .category-filter-fieldset legend {
+    margin-right: 0.25rem;
+    padding: 0;
+    float: left;
+  }
+  .category-filter-fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+  }
   .sort-wrapper {
-    grid-column: 1 / -1;
-    justify-self: end;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9em;
