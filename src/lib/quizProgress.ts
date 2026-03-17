@@ -1,5 +1,7 @@
 import type { Student } from '@/lib/interfaces'
 
+const DEFAULT_QUESTION_COUNT = 10
+
 export interface QuizFilterOptions {
   includeNormal: boolean
   includeCostume: boolean
@@ -105,7 +107,7 @@ export function normalizeQuizAnswer(value: string): string {
 export function resolveQuestionCount(
   rawValue: number,
   maxQuestions: number,
-  fallback = 10,
+  fallback = DEFAULT_QUESTION_COUNT,
 ): number {
   if (maxQuestions <= 0) {
     return 0

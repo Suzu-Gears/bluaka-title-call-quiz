@@ -121,6 +121,11 @@ const costumeHints = Object.fromEntries(
 </section>
 
 <script type="module">
+  const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
+  const QUIZ_MODE_NAME_INPUT = 'name-input'
+  const DEFAULT_QUESTION_COUNT = 10
+  const QUESTION_TRANSITION_DELAY_MS = 900
+
   const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
   const LEGACY_STORAGE_KEYS = [
     'bluaka-title-call-quiz.proficiency.v1',
@@ -200,17 +205,17 @@ const costumeHints = Object.fromEntries(
 
   let askedNames = []
   let currentAnswer = ''
-  let currentMode = quizModeSelect?.value ?? 'multiple-choice'
+  let currentMode = quizModeSelect?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
   let shouldShowCurrentAnswerStats = false
   let score = 0
   let questionNumber = 0
   let currentAudio = null
   let proficiencyMap = {}
   let activeNames =
-    currentMode === 'name-input'
+    currentMode === QUIZ_MODE_NAME_INPUT
       ? getNameInputCandidates()
       : getMultipleChoiceCandidates()
-  let totalQuestions = Math.min(10, activeNames.length)
+  let totalQuestions = Math.min(DEFAULT_QUESTION_COUNT, activeNames.length)
 
   const normalizeMap = (rawMap) => {
     const result = {}
@@ -337,14 +342,14 @@ const costumeHints = Object.fromEntries(
         : Number(presetValue)
     const parsed = Math.floor(Number(rawValue))
     if (!Number.isFinite(parsed) || parsed < 1) {
-      return Math.max(1, Math.min(10, maxQuestions))
+      return Math.max(1, Math.min(DEFAULT_QUESTION_COUNT, maxQuestions))
     }
     return Math.max(1, Math.min(parsed, maxQuestions))
   }
 
   const updateModeUI = () => {
-    currentMode = quizModeSelect?.value ?? 'multiple-choice'
-    const isNameInputMode = currentMode === 'name-input'
+    currentMode = quizModeSelect?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
+    const isNameInputMode = currentMode === QUIZ_MODE_NAME_INPUT
     if (filterFieldset) {
       filterFieldset.hidden = isNameInputMode
     }
@@ -365,7 +370,7 @@ const costumeHints = Object.fromEntries(
   }
 
   const updateCostumeHintText = () => {
-    if (currentMode !== 'name-input' || !currentAnswer) {
+    if (currentMode !== QUIZ_MODE_NAME_INPUT || !currentAnswer) {
       costumeHintText.textContent = ''
       return
     }
@@ -377,7 +382,7 @@ const costumeHints = Object.fromEntries(
 
   const refreshFilterState = () => {
     activeNames =
-      currentMode === 'name-input'
+      currentMode === QUIZ_MODE_NAME_INPUT
         ? getNameInputCandidates()
         : getMultipleChoiceCandidates()
     totalQuestions = getSelectedQuestionCount(activeNames.length)
@@ -430,7 +435,7 @@ const costumeHints = Object.fromEntries(
     updateCostumeHintText()
     updateProficiencyText()
 
-    if (currentMode === 'multiple-choice') {
+    if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE) {
       choicesRoot.hidden = false
       if (nameAnswerForm) {
         nameAnswerForm.hidden = true
@@ -456,7 +461,7 @@ const costumeHints = Object.fromEntries(
               choiceButton.classList.add('correct')
             }
           })
-          setTimeout(renderQuestion, 900)
+          setTimeout(renderQuestion, QUESTION_TRANSITION_DELAY_MS)
         })
         choicesRoot.appendChild(button)
       })
@@ -486,7 +491,7 @@ const costumeHints = Object.fromEntries(
         'クイズを開始できません。選択中の条件で生徒データを1件以上用意してください。'
       return
     }
-    if (currentMode === 'multiple-choice' && activeNames.length < 4) {
+    if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE && activeNames.length < 4) {
       statusText.textContent =
         'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。'
       return
@@ -543,7 +548,7 @@ const costumeHints = Object.fromEntries(
       : `不正解… 正解は「${currentAnswer}」`
     nameAnswerInput.disabled = true
     nameAnswerSubmit.disabled = true
-    setTimeout(renderQuestion, 900)
+    setTimeout(renderQuestion, QUESTION_TRANSITION_DELAY_MS)
   })
 
   exportButton?.addEventListener('click', () => {
