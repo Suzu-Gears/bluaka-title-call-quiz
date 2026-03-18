@@ -54,7 +54,7 @@ const setupPageSwitch = () => {
   })
 }
 
-const createCard = (student: Student) => {
+const createCard = (student: Student, hasAudio: boolean) => {
   const item = document.createElement('div')
   item.className = 'grid-item'
   item.tabIndex = 0
@@ -86,11 +86,13 @@ const createCard = (student: Student) => {
 
   const nameContainer = document.createElement('div')
   nameContainer.className = 'name-container'
+  item.dataset.hasAudio = String(hasAudio)
   const nameNode = document.createElement('div')
   nameNode.className = 'name'
-  nameNode.textContent = student.Name.includes('（')
+  const baseNameLabel = student.Name.includes('（')
     ? `\u00A0${student.Name}`
     : `\u00A0${student.Name}\u00A0`
+  nameNode.textContent = hasAudio ? baseNameLabel : `${baseNameLabel} 🔇`
   nameContainer.appendChild(nameNode)
 
   item.append(imageContainer, nameContainer)
@@ -116,14 +118,16 @@ const setupFitty = () => {
   )
 }
 
-const setupStudentGrid = (students: Student[]) => {
+const setupStudentGrid = (students: Student[], unavailableAudioNames: Set<string>) => {
   const grid = document.getElementById('studentGrid')
   if (!grid) return
 
   students
     .slice()
     .sort((a, b) => (a.DefaultOrder ?? 0) - (b.DefaultOrder ?? 0))
-    .forEach((student) => grid.appendChild(createCard(student)))
+    .forEach((student) =>
+      grid.appendChild(createCard(student, !unavailableAudioNames.has(student.Name))),
+    )
 
   const sortSelect = document.getElementById(
     'student-sort-select',
@@ -214,6 +218,9 @@ const setupStudentGrid = (students: Student[]) => {
     if (!sharedAudioPlayer) return
     const gridItem = document.querySelector(`.grid-item[data-name="${name}"]`)
     if (!gridItem) return
+    if (gridItem instanceof HTMLElement && gridItem.dataset.hasAudio === 'false') {
+      return
+    }
     const image = gridItem.querySelector('img')
     if (currentlyPlayingName) {
       resetAudio()
@@ -546,10 +553,22 @@ const setupQuiz = (students: Student[]) => {
       return 0
     }
     const presetValue = questionCountPreset.value
-    const rawValue = presetValue === 'custom'
+    const rawValue = presetValue === 'all'
+      ? maxQuestions
+      : presetValue === 'custom'
       ? Number(questionCountCustom.value ?? '')
       : Number(presetValue)
     return resolveQuestionCount(rawValue, maxQuestions)
+  }
+
+  const updateAllQuestionOptionLabel = (maxQuestions: number) => {
+    const allOption = questionCountPreset.querySelector<HTMLOptionElement>(
+      'option[value="all"]',
+    )
+    if (!allOption) {
+      return
+    }
+    allOption.textContent = `${maxQuestions}(全部)`
   }
 
   const updateModeUI = () => {
@@ -572,6 +591,7 @@ const setupQuiz = (students: Student[]) => {
 
   const refreshFilterState = () => {
     activeNames = getCandidateNames()
+    updateAllQuestionOptionLabel(activeNames.length)
     totalQuestions = getSelectedQuestionCount(activeNames.length)
   }
 
@@ -881,12 +901,35 @@ const setFooterVersion = () => {
 }
 
 const bootstrap = async () => {
+  const hasAudioFile = async (studentName: string) => {
+    try {
+      const response = await fetch(`/audio/${encodeURIComponent(studentName)}.mp3`, {
+        method: 'HEAD',
+      })
+      const contentType = response.headers.get('content-type') ?? ''
+      return response.ok && contentType.startsWith('audio/')
+    } catch {
+      return false
+    }
+  }
+
   setupPageSwitch()
   setFooterVersion()
   const response = await fetch('/data/final.json', { cache: 'no-store' })
   const students = (await response.json()) as Student[]
-  setupStudentGrid(students)
-  setupQuiz(students)
+  const audioAvailability = await Promise.all(
+    students.map(async ({ Name }) => ({
+      name: Name,
+      hasAudio: await hasAudioFile(Name),
+    })),
+  )
+  const unavailableAudioNames = new Set(
+    audioAvailability
+      .filter(({ hasAudio }) => !hasAudio)
+      .map(({ name }) => name),
+  )
+  setupStudentGrid(students, unavailableAudioNames)
+  setupQuiz(students.filter(({ Name }) => !unavailableAudioNames.has(Name)))
 }
 
 bootstrap().catch(() => {
