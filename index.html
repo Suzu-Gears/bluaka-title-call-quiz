@@ -58,35 +58,54 @@
         </section>
         <section id="quiz-view" hidden>
           <section aria-label="クイズ" class="quiz-section">
-            <h2>クイズ</h2>
-            <label for="quiz-mode-select">出題方式
-              <select id="quiz-mode-select">
-                <option value="multiple-choice">4択</option>
-                <option value="name-input">名前入力</option>
-              </select>
-            </label>
-            <fieldset class="quiz-filter-fieldset">
-              <legend>出題対象</legend>
-              <label><input id="quiz-filter-normal" type="checkbox" checked />通常</label>
-              <label><input id="quiz-filter-costume" type="checkbox" />別衣装</label>
-              <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
-            </fieldset>
-            <label class="quiz-question-count-wrapper" for="quiz-question-count-preset">問題数
-              <select id="quiz-question-count-preset">
-                <option value="1">1</option>
-                <option value="10" selected>10</option>
-                <option value="20">20</option>
-                <option value="custom">任意</option>
-              </select>
-              <input id="quiz-question-count-custom" type="number" min="1" step="1" placeholder="任意" hidden />
-            </label>
+            <div class="quiz-header-row">
+              <h2>クイズ</h2>
+              <div class="quiz-menu">
+                <button
+                  id="quiz-menu-button"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="quiz-menu-panel"
+                >
+                  メニュー
+                </button>
+                <div id="quiz-menu-panel" class="quiz-menu-panel" role="menu" hidden>
+                  <button id="quiz-menu-restart-button" type="button" role="menuitem" disabled>リスタート</button>
+                  <button id="quiz-menu-reset-screen-button" type="button" role="menuitem">最初の画面に戻る</button>
+                  <button id="quiz-export-progress-button" type="button" role="menuitem">進捗エクスポート</button>
+                  <button id="quiz-import-progress-button" type="button" role="menuitem">進捗インポート</button>
+                </div>
+              </div>
+            </div>
+            <div id="quiz-setup-controls">
+              <label for="quiz-mode-select">出題方式
+                <select id="quiz-mode-select">
+                  <option value="multiple-choice">4択</option>
+                  <option value="name-input">名前入力</option>
+                </select>
+              </label>
+              <fieldset class="quiz-filter-fieldset">
+                <legend>出題対象</legend>
+                <label><input id="quiz-filter-normal" type="checkbox" checked />通常</label>
+                <label><input id="quiz-filter-costume" type="checkbox" />別衣装</label>
+                <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
+              </fieldset>
+              <label class="quiz-question-count-wrapper" for="quiz-question-count-preset">問題数
+                <select id="quiz-question-count-preset">
+                  <option value="1">1</option>
+                  <option value="10" selected>10</option>
+                  <option value="20">20</option>
+                  <option value="custom">任意</option>
+                </select>
+                <input id="quiz-question-count-custom" type="number" min="1" step="1" placeholder="任意" hidden />
+              </label>
+            </div>
             <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
             <div class="quiz-controls">
               <button id="quiz-start-button" type="button">開始</button>
               <button id="quiz-next-button" type="button" disabled>次へ</button>
               <button id="quiz-play-audio-button" type="button" disabled>もう一度再生</button>
-              <button id="quiz-export-progress-button" type="button">進捗エクスポート</button>
-              <button id="quiz-import-progress-button" type="button">進捗インポート</button>
             </div>
             <div class="quiz-choices" id="quiz-choices"></div>
             <form id="quiz-name-answer-form" class="quiz-name-answer-form" hidden>

@@ -296,6 +296,54 @@ h1 {
   background: #fff;
 }
 
+.quiz-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.quiz-header-row h2 {
+  margin: 0;
+}
+
+.quiz-menu {
+  position: relative;
+}
+
+#quiz-menu-button {
+  border: 1px solid #d5dbe3;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.35rem 0.8rem;
+}
+
+.quiz-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: 12rem;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.45rem;
+  border: 1px solid #d5dbe3;
+  border-radius: 0.6rem;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.quiz-menu-panel button {
+  width: 100%;
+  text-align: left;
+}
+
+#quiz-setup-controls {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
 .quiz-controls {
   display: flex;
   flex-wrap: wrap;

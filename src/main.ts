@@ -16,6 +16,7 @@ const DEFAULT_IMAGE = '/default-student-image.webp'
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
 const QUIZ_MODE_NAME_INPUT = 'name-input'
 const DEFAULT_QUESTION_COUNT = 10
+const INITIAL_STATUS_TEXT = '「開始」を押すとクイズを開始します。'
 const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
 const LEGACY_STORAGE_KEYS = [
   'bluaka-title-call-quiz.proficiency.v1',
@@ -306,6 +307,17 @@ const setupQuiz = (students: Student[]) => {
   const questionCountCustom = document.getElementById(
     'quiz-question-count-custom',
   ) as HTMLInputElement | null
+  const setupControls = document.getElementById('quiz-setup-controls')
+  const menuButton = document.getElementById(
+    'quiz-menu-button',
+  ) as HTMLButtonElement | null
+  const menuPanel = document.getElementById('quiz-menu-panel')
+  const menuRestartButton = document.getElementById(
+    'quiz-menu-restart-button',
+  ) as HTMLButtonElement | null
+  const menuResetScreenButton = document.getElementById(
+    'quiz-menu-reset-screen-button',
+  ) as HTMLButtonElement | null
 
   const startButton = document.getElementById(
     'quiz-start-button',
@@ -398,7 +410,27 @@ const setupQuiz = (students: Student[]) => {
   let activeNames = getCandidateNames()
   let totalQuestions = Math.min(DEFAULT_QUESTION_COUNT, activeNames.length)
   let hasAnsweredCurrentQuestion = false
+  let isQuizRunning = false
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
+
+  const setMenuOpen = (isOpen: boolean) => {
+    if (!menuPanel || !menuButton) {
+      return
+    }
+    menuPanel.hidden = !isOpen
+    menuButton.setAttribute('aria-expanded', String(isOpen))
+  }
+
+  const setQuizRunning = (running: boolean) => {
+    isQuizRunning = running
+    if (setupControls) {
+      setupControls.hidden = running
+    }
+    startButton.hidden = running
+    if (menuRestartButton) {
+      menuRestartButton.disabled = !running
+    }
+  }
 
   const normalizeMap = (rawMap: unknown): ProficiencyMap => {
     const result: ProficiencyMap = {}
@@ -582,6 +614,37 @@ const setupQuiz = (students: Student[]) => {
     }
   }
 
+  const resetToStartScreen = () => {
+    stopAudio()
+    askedNames = []
+    currentAnswer = ''
+    score = 0
+    questionNumber = 0
+    shouldShowCurrentAnswerStats = false
+    hasAnsweredCurrentQuestion = false
+    choicesRoot.innerHTML = ''
+    choicesRoot.hidden = true
+    if (nameAnswerForm) {
+      nameAnswerForm.hidden = true
+    }
+    if (nameAnswerInput) {
+      nameAnswerInput.value = ''
+      nameAnswerInput.disabled = false
+    }
+    if (nameAnswerSubmit) {
+      nameAnswerSubmit.disabled = false
+    }
+    hideAnswerFeedback()
+    updateCostumeHintText()
+    updateProficiencyText()
+    statusText.textContent = INITIAL_STATUS_TEXT
+    replayButton.disabled = true
+    nextButton.disabled = true
+    startButton.textContent = '開始'
+    setQuizRunning(false)
+    setMenuOpen(false)
+  }
+
   const finalizeAnswer = (isCorrect: boolean) => {
     if (isCorrect) {
       score += 1
@@ -681,19 +744,19 @@ const setupQuiz = (students: Student[]) => {
     }
   }
 
-  startButton.addEventListener('click', () => {
+  const startQuiz = () => {
     updateModeUI()
     updateQuestionCountFieldVisibility()
     refreshFilterState()
     if (activeNames.length < 1) {
       statusText.textContent =
         'クイズを開始できません。選択中の条件で生徒データを1件以上用意してください。'
-      return
+      return false
     }
     if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE && activeNames.length < 4) {
       statusText.textContent =
         'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。'
-      return
+      return false
     }
     askedNames = []
     currentAnswer = ''
@@ -702,9 +765,13 @@ const setupQuiz = (students: Student[]) => {
     shouldShowCurrentAnswerStats = false
     hideAnswerFeedback()
     nextButton.disabled = true
+    setQuizRunning(true)
     startButton.textContent = 'リスタート'
     renderQuestion()
-  })
+    return true
+  }
+
+  startButton.addEventListener('click', startQuiz)
 
   nextButton.addEventListener('click', () => {
     if (!hasAnsweredCurrentQuestion) {
@@ -714,6 +781,30 @@ const setupQuiz = (students: Student[]) => {
   })
 
   replayButton.addEventListener('click', playCurrentAudio)
+  menuButton?.addEventListener('click', () => {
+    setMenuOpen(menuPanel?.hidden ?? true)
+  })
+  menuRestartButton?.addEventListener('click', () => {
+    if (!isQuizRunning) {
+      return
+    }
+    setMenuOpen(false)
+    startQuiz()
+  })
+  menuResetScreenButton?.addEventListener('click', resetToStartScreen)
+  document.addEventListener('click', (event) => {
+    if (!menuPanel || menuPanel.hidden) {
+      return
+    }
+    const target = event.target
+    if (!(target instanceof Node)) {
+      return
+    }
+    if (menuPanel.contains(target) || menuButton?.contains(target)) {
+      return
+    }
+    setMenuOpen(false)
+  })
   quizModeSelect.addEventListener('change', () => {
     updateModeUI()
     refreshFilterState()
@@ -779,6 +870,7 @@ const setupQuiz = (students: Student[]) => {
   updateModeUI()
   updateQuestionCountFieldVisibility()
   refreshFilterState()
+  setQuizRunning(false)
 }
 
 const setFooterVersion = () => {
