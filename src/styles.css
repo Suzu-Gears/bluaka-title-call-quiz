@@ -333,6 +333,10 @@ h1 {
   z-index: 10;
 }
 
+.quiz-menu-panel[hidden] {
+  display: none;
+}
+
 .quiz-menu-panel button {
   width: 100%;
   text-align: left;
@@ -342,6 +346,10 @@ h1 {
   margin-top: 0.75rem;
   display: grid;
   gap: 0.5rem;
+}
+
+#quiz-setup-controls[hidden] {
+  display: none;
 }
 
 .quiz-controls {
