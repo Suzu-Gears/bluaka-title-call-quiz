@@ -470,6 +470,11 @@ const setupQuiz = (students: Student[]) => {
       setupControls.hidden = running
     }
     startButton.hidden = running
+    if (!running) {
+      nextButton.hidden = true
+      replayButton.hidden = true
+      resultActions.hidden = true
+    }
     if (menuRestartButton) {
       menuRestartButton.disabled = !running
     }
