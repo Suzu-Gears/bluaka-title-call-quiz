@@ -114,15 +114,23 @@ export function buildNameInputSuggestions(
   rawInput: string,
   maxCount = 8,
 ): string[] {
+  const normalizeKanaForSearch = (value: string) =>
+    value.replace(/[ぁ-ゖ]/g, (char) =>
+      String.fromCharCode(char.charCodeAt(0) + 0x60),
+    )
+
   const normalizedInput = normalizeQuizAnswer(rawInput.trim())
   if (!normalizedInput) {
     return []
   }
+  const normalizedKanaInput = normalizeKanaForSearch(normalizedInput)
   const activeSet = new Set(activeNames)
   return [...allNames]
     .filter((name) => activeSet.has(name))
     .sort((a, b) => a.localeCompare(b, 'ja'))
-    .filter((name) => normalizeQuizAnswer(name).includes(normalizedInput))
+    .filter((name) =>
+      normalizeKanaForSearch(normalizeQuizAnswer(name)).includes(normalizedKanaInput),
+    )
     .slice(0, Math.max(0, maxCount))
 }
 

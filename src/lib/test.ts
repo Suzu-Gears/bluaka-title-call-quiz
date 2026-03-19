@@ -119,6 +119,10 @@ const deterministicRandom = () => 0
     buildNameInputSuggestions(['アリス'], ['アリス'], '   '),
     [],
   )
+  assert.deepEqual(
+    buildNameInputSuggestions(['アリス', 'アスナ'], ['アリス', 'アスナ'], 'あす'),
+    ['アスナ'],
+  )
 }
 
 {
