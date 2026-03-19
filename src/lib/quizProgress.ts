@@ -123,7 +123,7 @@ export function buildNameInputSuggestions(
     .filter((name) => activeSet.has(name))
     .sort((a, b) => a.localeCompare(b, 'ja'))
     .filter((name) => normalizeQuizAnswer(name).includes(normalizedInput))
-    .slice(0, Math.max(1, maxCount))
+    .slice(0, Math.max(0, maxCount))
 }
 
 export function resolveStudentCategory(
