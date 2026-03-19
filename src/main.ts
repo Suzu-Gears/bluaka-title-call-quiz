@@ -786,6 +786,11 @@ const setupQuiz = (students: Student[]) => {
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
     awaitingResult = false
+    choicesRoot.hidden = true
+    choicesRoot.innerHTML = ''
+    if (nameAnswerForm) {
+      nameAnswerForm.hidden = true
+    }
     statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
     startButton.textContent = 'もう一度'
     hideAnswerFeedback()
