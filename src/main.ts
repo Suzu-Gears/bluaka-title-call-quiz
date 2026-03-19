@@ -6,7 +6,9 @@ import {
   summarizeQuizResults,
   filterCandidates,
   normalizeQuizAnswer,
+  normalizeKanaForSearch,
   buildNameInputSuggestions,
+  isTransientNameInputQuery,
   resolveQuestionCount,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
@@ -18,6 +20,7 @@ const DEFAULT_IMAGE = '/default-student-image.webp'
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
 const QUIZ_MODE_NAME_INPUT = 'name-input'
 const QUIZ_MODE_NAME_INPUT_LUNATIC = 'name-input-lunatic'
+const MIN_NAME_SUGGESTION_OVERLAY_WIDTH = 220
 const DEFAULT_QUESTION_COUNT = 10
 const INITIAL_STATUS_TEXT = '「開始」を押すとクイズを開始します。'
 const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
@@ -42,6 +45,7 @@ type QuizResultEntry = {
 }
 
 let pageSwitchGuard: ((targetId: string) => boolean) | null = null
+let nameSuggestionOverlayListenersAttached = false
 
 const setPageSwitchGuard = (guard: ((targetId: string) => boolean) | null) => {
   pageSwitchGuard = guard
@@ -179,18 +183,31 @@ const setupStudentGrid = (students: Student[], unavailableAudioNames: Set<string
   }
 
   const filterCards = (input: string) => {
-    const normalized = normalizeQuizAnswer(input)
+    const normalized = normalizeKanaForSearch(normalizeQuizAnswer(input))
     grid.querySelectorAll<HTMLElement>('.grid-item').forEach((card) => {
       const category = card.dataset.filterCategory
       const categoryEnabled =
         (category === 'normal' && Boolean(normalFilter?.checked)) ||
         (category === 'costume' && Boolean(costumeFilter?.checked)) ||
         (category === 'collaboration' && Boolean(collaborationFilter?.checked))
-      const nameKey = String(card.dataset.nameKey ?? '')
+      const nameKey = normalizeKanaForSearch(String(card.dataset.nameKey ?? ''))
       card.style.display = (!normalized || nameKey.includes(normalized)) && categoryEnabled
         ? ''
         : 'none'
     })
+  }
+
+  let isComposingStudentFilter = false
+  let lastAppliedStudentFilter = filterInput?.value ?? ''
+  const applyStudentFilterInput = (
+    inputValue: string,
+    options: { force?: boolean } = {},
+  ) => {
+    if (!options.force && isTransientNameInputQuery(inputValue)) {
+      return
+    }
+    lastAppliedStudentFilter = inputValue
+    filterCards(inputValue)
   }
 
   sortSelect?.addEventListener('change', () => sortCards(sortSelect.value, sortDirection))
@@ -201,9 +218,22 @@ const setupStudentGrid = (students: Student[], unavailableAudioNames: Set<string
       sortCards(sortSelect.value, sortDirection)
     }
   })
-  filterInput?.addEventListener('input', () => filterCards(filterInput.value))
+  filterInput?.addEventListener('compositionstart', () => {
+    isComposingStudentFilter = true
+  })
+  filterInput?.addEventListener('compositionend', () => {
+    isComposingStudentFilter = false
+    applyStudentFilterInput(filterInput?.value ?? '', { force: true })
+  })
+  filterInput?.addEventListener('input', (event) => {
+    const inputEvent = event as InputEvent
+    if (isComposingStudentFilter || inputEvent.isComposing) {
+      return
+    }
+    applyStudentFilterInput(filterInput?.value ?? '')
+  })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
-    checkbox?.addEventListener('change', () => filterCards(filterInput?.value ?? ''))
+    checkbox?.addEventListener('change', () => filterCards(lastAppliedStudentFilter))
   })
 
   let fittyInstances: FittyInstance[] = setupFitty()
@@ -367,9 +397,13 @@ const setupQuiz = (students: Student[]) => {
   const nameAnswerForm = document.getElementById(
     'quiz-name-answer-form',
   ) as HTMLFormElement | null
+  const quizSection = document.querySelector<HTMLElement>('#quiz-view .quiz-section')
   const nameAnswerInput = document.getElementById(
     'quiz-name-answer-input',
   ) as HTMLInputElement | null
+  const nameAnswerSuggestionsOverlay = document.getElementById(
+    'quiz-name-answer-suggestions-overlay',
+  )
   const nameAnswerSuggestions = document.getElementById('quiz-name-answer-suggestions')
   const nameAnswerSubmit = nameAnswerForm?.querySelector<HTMLButtonElement>(
     'button[type="submit"]',
@@ -633,11 +667,37 @@ const setupQuiz = (students: Student[]) => {
   }
 
   const hideNameSuggestions = () => {
+    if (nameAnswerSuggestionsOverlay) {
+      nameAnswerSuggestionsOverlay.hidden = true
+    }
     if (!nameAnswerSuggestions) {
       return
     }
     nameAnswerSuggestions.innerHTML = ''
     nameAnswerSuggestions.hidden = true
+  }
+
+  const positionNameSuggestionsOverlay = () => {
+    if (
+      !nameAnswerSuggestionsOverlay ||
+      !nameAnswerInput ||
+      !quizSection ||
+      nameAnswerSuggestionsOverlay.hidden
+    ) {
+      return
+    }
+    const inputRect = nameAnswerInput.getBoundingClientRect()
+    const sectionRect = quizSection.getBoundingClientRect()
+    const relativeLeft = Math.max(0, inputRect.left - sectionRect.left)
+    const relativeTop = Math.max(0, inputRect.bottom - sectionRect.top)
+    const maxWidth = Math.max(
+      MIN_NAME_SUGGESTION_OVERLAY_WIDTH,
+      sectionRect.width - relativeLeft,
+    )
+    const overlayWidth = Math.max(inputRect.width, MIN_NAME_SUGGESTION_OVERLAY_WIDTH)
+    nameAnswerSuggestionsOverlay.style.top = `${relativeTop}px`
+    nameAnswerSuggestionsOverlay.style.left = `${relativeLeft}px`
+    nameAnswerSuggestionsOverlay.style.width = `${Math.min(overlayWidth, maxWidth)}px`
   }
 
   const showNameSuggestions = () => {
@@ -654,7 +714,19 @@ const setupQuiz = (students: Student[]) => {
       return
     }
     const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
+    const isTransientQuery = isTransientNameInputQuery(rawInput)
     if (matches.length === 0) {
+      if (
+        isTransientQuery &&
+        !nameAnswerSuggestions.hidden &&
+        nameAnswerSuggestions.childElementCount > 0
+      ) {
+        if (nameAnswerSuggestionsOverlay) {
+          nameAnswerSuggestionsOverlay.hidden = false
+          positionNameSuggestionsOverlay()
+        }
+        return
+      }
       hideNameSuggestions()
       return
     }
@@ -680,6 +752,10 @@ const setupQuiz = (students: Student[]) => {
       nameAnswerSuggestions.appendChild(button)
     })
     nameAnswerSuggestions.hidden = false
+    if (nameAnswerSuggestionsOverlay) {
+      nameAnswerSuggestionsOverlay.hidden = false
+      positionNameSuggestionsOverlay()
+    }
   }
 
   const stopAudio = () => {
@@ -1115,6 +1191,10 @@ const setupQuiz = (students: Student[]) => {
       hideNameSuggestions()
     }, 120)
   })
+  if (!nameSuggestionOverlayListenersAttached) {
+    window.addEventListener('resize', positionNameSuggestionsOverlay)
+    nameSuggestionOverlayListenersAttached = true
+  }
 
   loadProficiency()
   updateModeUI()
