@@ -9,20 +9,16 @@
     "cache:fetch": "tsx ./src/scripts/downloadPublic.ts",
     "local-cache:fetch": "tsx --env-file=.env ./src/scripts/downloadPublic.ts",
     "local-cache:purge": "tsx ./src/scripts/purgeCache.ts",
-    "remote-quiz-cache:purge": "tsx --env-file=.env ./src/scripts/purgeRemoteQuizCache.ts",
     "test": "tsx ./src/lib/test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
     "@fontsource/kosugi-maru": "^5.2.5",
     "app-root-path": "^3.1.0",
-    "fitty": "^2.4.2",
-    "puppeteer": "^24.2.1",
-    "unzipper": "^0.12.3"
+    "fitty": "^2.4.2"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
-    "@types/unzipper": "^0.10.10",
     "prettier": "^3.5.1",
     "prettier-plugin-organize-imports": "^4.1.0",
     "tsx": "^4.19.2",

@@ -2,46 +2,11 @@ import appRoot from 'app-root-path'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import type { CostumeList, Student, Students } from '@/lib/interfaces'
-import { getStudentsData } from '@/lib/schaleDBClient'
+import type { Student, Students } from '@/lib/interfaces'
 
 const projectRoot = appRoot.path
 const dataFolderPath = path.join(projectRoot, 'public/data')
 fs.mkdirSync(dataFolderPath, { recursive: true })
-
-export async function getCostumeList(): Promise<CostumeList> {
-  const studentData = await getStudentsData()
-  const sortedStudents = studentData.sort(
-    (a, b) => a.DefaultOrder - b.DefaultOrder,
-  )
-  const seenCostumes = new Set<string>()
-  const costumeList: CostumeList = []
-
-  for (const student of sortedStudents) {
-    const costume = student.Costume
-    if (costume && !seenCostumes.has(costume)) {
-      seenCostumes.add(costume)
-      costumeList.push(costume)
-    }
-  }
-  return costumeList
-}
-
-export async function getLatestCostumeStudent(): Promise<
-  Student['Name'] | null
-> {
-  const studentData = await getStudentsData()
-  const sortedStudents = studentData.sort(
-    (a, b) => b.DefaultOrder - a.DefaultOrder,
-  )
-
-  for (const student of sortedStudents) {
-    if (student.Costume) {
-      return student.Name
-    }
-  }
-  return null
-}
 
 export async function makeStudentsJson(
   data: Record<string, any>,

@@ -1,10 +1,3 @@
-export interface SpreadsheetConfig {
-  spreadsheetId: string
-  sheetName: string
-}
-
-export type CostumeList = Student['Costume'][]
-
 export type Students = Student[]
 
 export interface Student {
@@ -28,13 +21,4 @@ export interface Student {
   Costume?: string
   NameSortOrder?: number
   IsCollaboration?: boolean
-}
-
-export type QuizParams = QuizParam[]
-
-export interface QuizParam {
-  title: string
-  slug: string
-  description: string
-  option: string
 }

@@ -36,25 +36,23 @@ npm test
 
 ### その他のスクリプト
 
-| スクリプト | 内容 |
-|---|---|
-| `npm run cache:fetch` | Cloudflare R2 からアセット（音声・画像）をダウンロード |
-| `npm run local-cache:fetch` | `.env` ファイルを参照してローカルでキャッシュ取得 |
-| `npm run local-cache:purge` | ローカルキャッシュを削除 |
-| `npm run remote-quiz-cache:purge` | R2 上のクイズキャッシュを削除 |
+| スクリプト | 実行タイミング | 内容 |
+|---|---|---|
+| `npm run cache:fetch` | **サーバーサイド（CI）** | Cloudflare R2 からアセット（音声・画像）をダウンロード |
+| `npm run local-cache:fetch` | **サーバーサイド（ローカル）** | `.env` ファイルを参照してローカルでキャッシュ取得 |
+| `npm run local-cache:purge` | **サーバーサイド（ローカル）** | ローカルキャッシュを削除 |
 
 ---
 
 ## 2. ビルド時の処理の流れ
 
-`npm run build` は以下の順序で処理を行います。
+`npm run build` は以下の順序で処理を行います。すべて **サーバーサイド（Node.js）** で実行されます。
 
 ```
 npm run build
   └─ 1. npm run cache:fetch          (src/scripts/downloadPublic.ts)
   │     ├─ Cloudflare R2 から音声ファイル (public/audio/) をダウンロード
   │     ├─ Cloudflare R2 から画像ファイル (public/image/) をダウンロード
-  │     ├─ Cloudflare R2 からクイズデータ (tmp/) をダウンロード
   │     └─ SchaleDB から不足している音声・画像を補完ダウンロード
   │
   └─ 2. vite build
@@ -65,7 +63,7 @@ npm run build
         └─ __APP_VERSION__ を package.json のバージョンに置き換え
 ```
 
-### データファイルの生成
+### データファイルの生成（サーバーサイド）
 
 `src/lib/schaleDBClient.ts` がビルド前またはキャッシュ取得時に以下を行います：
 
@@ -75,53 +73,31 @@ npm run build
 
 この `final.json` はブラウザからも `fetch('/data/final.json')` でアクセスされ、カード一覧やクイズの元データとして使われます。
 
-### クイズ問題の生成 (`src/lib/quizEngine.ts`)
-
-`quizEngine.ts` は主にサーバーサイドのビルドスクリプト用です：
-
-1. `getSpreadSheetJSON.ts` でスプレッドシートからクイズパラメータを取得
-2. `makeQuestionText.ts` で問題文テキストファイル (`public/data/<slug>.txt`) を生成
-3. 外部の QuizGem サービスにテキストファイルを送信して ZIP を取得
-4. ZIP を解凍して `tmp/<slug>/` に展開し、`public/<slug>/` にコピー
-5. 差分がある場合のみ Cloudflare R2 の `quiz/<slug>/` フォルダを更新
-
 ---
 
 ## 3. ソースコード構成
 
 ```
 src/
-├── main.ts              # アプリのエントリーポイント（ブートストラップ）
-├── cardList.ts          # カード一覧のDOM構築・並び替え・フィルタ・音声再生
-├── quiz.ts              # クイズ画面のすべてのロジック
-├── styles.css           # 全体スタイルシート
-├── server-constants.ts  # 環境変数定数（サーバーサイド用）
+├── main.ts              # アプリのエントリーポイント（ブートストラップ）        [クライアントサイド]
+├── cardList.ts          # カード一覧のDOM構築・並び替え・フィルタ・音声再生      [クライアントサイド]
+├── quiz.ts              # クイズ画面のすべてのロジック                          [クライアントサイド]
+├── styles.css           # 全体スタイルシート                                     [クライアントサイド]
+├── server-constants.ts  # 環境変数定数                                          [サーバーサイド]
 │
 ├── lib/
-│   ├── interfaces.ts       # TypeScript インターフェース定義
-│   ├── quizProgress.ts     # クイズ共通ユーティリティ（候補フィルタ・正規化・習熟度）
-│   ├── quizEngine.ts       # クイズ生成ユーティリティ（shuffleArray・buildChoices）
-│   ├── quizUtils.ts        # クイズのサーバーサイド処理（問題生成・R2連携）
-│   ├── makeQuestionText.ts # 問題文テキストファイル生成
-│   ├── schaleDBClient.ts   # SchaleDB データ取得・音声・画像の補完ダウンロード
-│   ├── cloudflareR2Client.ts  # Cloudflare R2 の操作（upload/download/delete）
-│   ├── fileOperations.ts   # ファイルシステム操作のユーティリティ
-│   ├── getProjectVersion.ts # package.json バージョン取得
-│   ├── getQuizZIP.ts       # QuizGem サービスへの問題送信と ZIP 取得
-│   ├── getSpreadSheetJSON.ts # Google Spreadsheet からのデータ取得
-│   ├── jsonUtils.ts        # JSON データ整形ユーティリティ
-│   ├── unzip.ts            # ZIP ファイル展開
-│   └── test.ts             # ユニットテスト
+│   ├── interfaces.ts          # TypeScript インターフェース定義                  [共通]
+│   ├── quizProgress.ts        # クイズ共通ユーティリティ（候補フィルタ・正規化・習熟度）  [クライアントサイド]
+│   ├── quizEngine.ts          # shuffleArray・buildChoices などのクイズロジック  [クライアントサイド]
+│   ├── schaleDBClient.ts      # SchaleDB データ取得・音声・画像の補完ダウンロード [サーバーサイド]
+│   ├── cloudflareR2Client.ts  # Cloudflare R2 の操作（upload/download）         [サーバーサイド]
+│   ├── fileOperations.ts      # ファイルシステム操作のユーティリティ              [サーバーサイド]
+│   ├── jsonUtils.ts           # JSON データ整形ユーティリティ                    [サーバーサイド]
+│   └── test.ts                # ユニットテスト                                    [サーバーサイド]
 │
-├── scripts/
-│   ├── downloadPublic.ts       # ビルド前キャッシュ取得スクリプト
-│   ├── purgeCache.ts           # ローカルキャッシュ削除スクリプト
-│   └── purgeRemoteQuizCache.ts # R2 リモートキャッシュ削除スクリプト
-│
-├── components/   # Astro コンポーネント（移植前の遺産、現在は未使用）
-├── integrations/ # Astro インテグレーション（同上）
-├── layouts/      # Astro レイアウト（同上）
-└── pages/        # Astro ページ（同上）
+└── scripts/
+    ├── downloadPublic.ts  # ビルド前キャッシュ取得スクリプト  [サーバーサイド]
+    └── purgeCache.ts      # ローカルキャッシュ削除スクリプト  [サーバーサイド]
 ```
 
 ### エントリーポイントの役割分担
