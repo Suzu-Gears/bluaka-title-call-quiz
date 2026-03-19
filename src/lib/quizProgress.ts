@@ -116,6 +116,7 @@ export function buildNameInputSuggestions(
 ): string[] {
   const normalizeKanaForSearch = (value: string) =>
     value.replace(/[ぁ-ゖ]/g, (char) =>
+      // Hiragana(U+3041-U+3096) and Katakana(U+30A1-U+30F6) are offset by 0x60.
       String.fromCharCode(char.charCodeAt(0) + 0x60),
     )
 
