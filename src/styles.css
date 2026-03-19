@@ -464,6 +464,47 @@ h1 {
   padding: 0.45rem 0.6rem;
 }
 
+.quiz-name-answer-suggestions {
+  width: 100%;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.quiz-name-answer-suggestions[hidden] {
+  display: none;
+}
+
+.quiz-name-answer-suggestion {
+  width: 100%;
+  border: 1px solid #dce3ed;
+  border-radius: 0.55rem;
+  background: #fff;
+  padding: 0.35rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.quiz-name-answer-suggestion:not(:disabled):hover {
+  border-color: #9fc7ff;
+  background: #edf5ff;
+}
+
+.quiz-name-answer-suggestion img {
+  width: min(44px, 20vw);
+  aspect-ratio: 1 / 1.1;
+  object-fit: cover;
+  border-radius: 0.4rem;
+  border: 1px solid #d3d9e1;
+}
+
+.quiz-name-answer-suggestion span {
+  font-weight: 700;
+  color: #2f3a46;
+}
+
 #quiz-costume-hint-text {
   display: block;
   margin-top: 0.5rem;

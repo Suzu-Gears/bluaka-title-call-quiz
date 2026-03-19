@@ -83,6 +83,7 @@
                 <select id="quiz-mode-select">
                   <option value="multiple-choice">4択</option>
                   <option value="name-input">名前入力</option>
+                  <option value="name-input-lunatic">名前入力 (Lunatic)</option>
                 </select>
               </label>
               <fieldset class="quiz-filter-fieldset">
@@ -116,6 +117,7 @@
             <form id="quiz-name-answer-form" class="quiz-name-answer-form" hidden>
               <input id="quiz-name-answer-input" type="text" autocomplete="off" placeholder="生徒名を入力" />
               <button type="submit">回答する</button>
+              <div id="quiz-name-answer-suggestions" class="quiz-name-answer-suggestions" hidden></div>
             </form>
             <div id="quiz-answer-feedback" class="quiz-answer-feedback" hidden>
               <img id="quiz-answer-image" alt="" />

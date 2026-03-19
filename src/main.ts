@@ -6,6 +6,7 @@ import {
   summarizeQuizResults,
   filterCandidates,
   normalizeQuizAnswer,
+  buildNameInputSuggestions,
   resolveQuestionCount,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
@@ -16,6 +17,7 @@ declare const __APP_VERSION__: string
 const DEFAULT_IMAGE = '/default-student-image.webp'
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
 const QUIZ_MODE_NAME_INPUT = 'name-input'
+const QUIZ_MODE_NAME_INPUT_LUNATIC = 'name-input-lunatic'
 const DEFAULT_QUESTION_COUNT = 10
 const INITIAL_STATUS_TEXT = '「開始」を押すとクイズを開始します。'
 const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
@@ -359,6 +361,7 @@ const setupQuiz = (students: Student[]) => {
   const nameAnswerInput = document.getElementById(
     'quiz-name-answer-input',
   ) as HTMLInputElement | null
+  const nameAnswerSuggestions = document.getElementById('quiz-name-answer-suggestions')
   const nameAnswerSubmit = nameAnswerForm?.querySelector<HTMLButtonElement>(
     'button[type="submit"]',
   )
@@ -441,6 +444,7 @@ const setupQuiz = (students: Student[]) => {
   let resultEntries: QuizResultEntry[] = []
   let playAudioDelayTimer: number | null = null
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
+  const sortedCandidateNames = [...allCandidateNames].sort((a, b) => a.localeCompare(b, 'ja'))
 
   const setMenuOpen = (isOpen: boolean) => {
     if (!menuPanel || !menuButton) {
@@ -595,15 +599,20 @@ const setupQuiz = (students: Student[]) => {
 
   const updateModeUI = () => {
     currentMode = quizModeSelect.value
-    const isNameInputMode = currentMode === QUIZ_MODE_NAME_INPUT
+    const isNameInputMode =
+      currentMode === QUIZ_MODE_NAME_INPUT || currentMode === QUIZ_MODE_NAME_INPUT_LUNATIC
     choicesRoot.hidden = isNameInputMode
     if (nameAnswerForm) {
-      nameAnswerForm.hidden = !isNameInputMode
+      nameAnswerForm.hidden = !isNameInputMode || !isQuizRunning
     }
   }
 
   const updateCostumeHintText = () => {
-    if (currentMode !== QUIZ_MODE_NAME_INPUT || !currentAnswer) {
+    if (
+      (currentMode !== QUIZ_MODE_NAME_INPUT &&
+        currentMode !== QUIZ_MODE_NAME_INPUT_LUNATIC) ||
+      !currentAnswer
+    ) {
       costumeHintText.textContent = ''
       return
     }
@@ -615,6 +624,56 @@ const setupQuiz = (students: Student[]) => {
     activeNames = getCandidateNames()
     updateAllQuestionOptionLabel(activeNames.length)
     totalQuestions = getSelectedQuestionCount(activeNames.length)
+  }
+
+  const hideNameSuggestions = () => {
+    if (!nameAnswerSuggestions) {
+      return
+    }
+    nameAnswerSuggestions.innerHTML = ''
+    nameAnswerSuggestions.hidden = true
+  }
+
+  const showNameSuggestions = () => {
+    if (!nameAnswerSuggestions || !nameAnswerInput || !isQuizRunning) {
+      return
+    }
+    if (currentMode !== QUIZ_MODE_NAME_INPUT) {
+      hideNameSuggestions()
+      return
+    }
+    const rawInput = nameAnswerInput.value.trim()
+    if (!rawInput) {
+      hideNameSuggestions()
+      return
+    }
+    const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
+    if (matches.length === 0) {
+      hideNameSuggestions()
+      return
+    }
+    nameAnswerSuggestions.innerHTML = ''
+    matches.forEach((name) => {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'quiz-name-answer-suggestion'
+      const image = document.createElement('img')
+      image.src = `/image/${encodeURIComponent(name)}.webp`
+      image.alt = name
+      image.onerror = () => {
+        image.src = DEFAULT_IMAGE
+      }
+      const label = document.createElement('span')
+      label.textContent = name
+      button.append(image, label)
+      button.addEventListener('click', () => {
+        nameAnswerInput.value = name
+        hideNameSuggestions()
+        nameAnswerInput.focus()
+      })
+      nameAnswerSuggestions.appendChild(button)
+    })
+    nameAnswerSuggestions.hidden = false
   }
 
   const stopAudio = () => {
@@ -767,6 +826,7 @@ const setupQuiz = (students: Student[]) => {
       nameAnswerInput.value = ''
       nameAnswerInput.disabled = false
     }
+    hideNameSuggestions()
     if (nameAnswerSubmit) {
       nameAnswerSubmit.disabled = false
     }
@@ -817,6 +877,7 @@ const setupQuiz = (students: Student[]) => {
     if (nameAnswerForm) {
       nameAnswerForm.hidden = true
     }
+    hideNameSuggestions()
     statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
     startButton.textContent = 'もう一度'
     hideAnswerFeedback()
@@ -856,6 +917,7 @@ const setupQuiz = (students: Student[]) => {
       if (nameAnswerForm) {
         nameAnswerForm.hidden = true
       }
+      hideNameSuggestions()
       const choices = buildChoices(currentAnswer, activeNames)
       choices.forEach((name) => {
         const button = document.createElement('button')
@@ -902,6 +964,7 @@ const setupQuiz = (students: Student[]) => {
       nameAnswerInput.disabled = false
       nameAnswerInput.focus()
     }
+    hideNameSuggestions()
     if (nameAnswerSubmit) {
       nameAnswerSubmit.disabled = false
     }
@@ -1006,6 +1069,15 @@ const setupQuiz = (students: Student[]) => {
     finalizeAnswer(nameAnswerInput.value.trim(), isCorrect)
     nameAnswerInput.disabled = true
     nameAnswerSubmit.disabled = true
+    hideNameSuggestions()
+  })
+
+  nameAnswerInput?.addEventListener('input', showNameSuggestions)
+  nameAnswerInput?.addEventListener('focus', showNameSuggestions)
+  nameAnswerInput?.addEventListener('blur', () => {
+    window.setTimeout(() => {
+      hideNameSuggestions()
+    }, 120)
   })
 
   loadProficiency()

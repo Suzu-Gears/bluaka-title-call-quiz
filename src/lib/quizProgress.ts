@@ -108,6 +108,24 @@ export function normalizeQuizAnswer(value: string): string {
     .toLowerCase()
 }
 
+export function buildNameInputSuggestions(
+  allNames: readonly string[],
+  activeNames: readonly string[],
+  rawInput: string,
+  maxCount = 8,
+): string[] {
+  const normalizedInput = normalizeQuizAnswer(rawInput.trim())
+  if (!normalizedInput) {
+    return []
+  }
+  const activeSet = new Set(activeNames)
+  return [...allNames]
+    .filter((name) => activeSet.has(name))
+    .sort((a, b) => a.localeCompare(b, 'ja'))
+    .filter((name) => normalizeQuizAnswer(name).includes(normalizedInput))
+    .slice(0, Math.max(1, maxCount))
+}
+
 export function resolveStudentCategory(
   costume?: string,
   isCollaboration?: boolean,

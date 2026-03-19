@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import {
   calculateAccuracy,
+  buildNameInputSuggestions,
   filterCandidates,
   mergeWithStudents,
   migrateLegacyProficiency,
@@ -104,6 +105,20 @@ const deterministicRandom = () => 0
 {
   assert.equal(normalizeQuizAnswer('  ｱｲﾘ  '), 'アイリ')
   assert.equal(normalizeQuizAnswer('Ａ b　c'), 'abc')
+}
+
+{
+  const suggestions = buildNameInputSuggestions(
+    ['アリス', 'イオリ', 'アル', 'アスナ'],
+    ['アリス', 'アル', 'アスナ'],
+    'ア',
+    3,
+  )
+  assert.deepEqual(suggestions, ['アスナ', 'アリス', 'アル'])
+  assert.deepEqual(
+    buildNameInputSuggestions(['アリス'], ['アリス'], '   '),
+    [],
+  )
 }
 
 {
