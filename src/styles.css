@@ -550,11 +550,21 @@ h1 {
 
 #quiz-result-perfect-stamp {
   margin-top: 0.7rem;
-  width: min(220px, 100%);
+  width: min(150px, 65%);
   display: block;
 }
 
 #quiz-result-perfect-stamp[hidden] {
+  display: none;
+}
+
+#quiz-result-perfect-message {
+  margin: 0.45rem 0 0;
+  font-weight: 700;
+  color: #0d9848;
+}
+
+#quiz-result-perfect-message[hidden] {
   display: none;
 }
 

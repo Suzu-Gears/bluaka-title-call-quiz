@@ -372,6 +372,7 @@ const setupQuiz = (students: Student[]) => {
   const resultPerfectStamp = document.getElementById(
     'quiz-result-perfect-stamp',
   ) as HTMLImageElement | null
+  const resultPerfectMessage = document.getElementById('quiz-result-perfect-message')
   const resultList = document.getElementById('quiz-result-list')
 
   if (
@@ -437,6 +438,7 @@ const setupQuiz = (students: Student[]) => {
   let awaitingResult = false
   let isQuizRunning = false
   let resultEntries: QuizResultEntry[] = []
+  let playAudioDelayTimer: number | null = null
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
 
   const setMenuOpen = (isOpen: boolean) => {
@@ -615,6 +617,10 @@ const setupQuiz = (students: Student[]) => {
   }
 
   const stopAudio = () => {
+    if (playAudioDelayTimer !== null) {
+      window.clearTimeout(playAudioDelayTimer)
+      playAudioDelayTimer = null
+    }
     if (!currentAudio) return
     currentAudio.pause()
     currentAudio.currentTime = 0
@@ -634,7 +640,14 @@ const setupQuiz = (students: Student[]) => {
     if (!activeNames.includes(currentAnswer)) {
       return
     }
-    playAudioForName(currentAnswer)
+    if (playAudioDelayTimer !== null) {
+      window.clearTimeout(playAudioDelayTimer)
+      playAudioDelayTimer = null
+    }
+    playAudioDelayTimer = window.setTimeout(() => {
+      playAudioDelayTimer = null
+      playAudioForName(currentAnswer)
+    }, 500)
   }
 
   const updateAnswerFeedback = (name: string) => {
@@ -659,6 +672,9 @@ const setupQuiz = (students: Student[]) => {
     }
     if (resultPerfectStamp) {
       resultPerfectStamp.hidden = true
+    }
+    if (resultPerfectMessage) {
+      resultPerfectMessage.hidden = true
     }
     if (resultList) {
       resultList.innerHTML = ''
@@ -692,6 +708,9 @@ const setupQuiz = (students: Student[]) => {
 
     if (resultPerfectStamp) {
       resultPerfectStamp.hidden = !isPerfect
+    }
+    if (resultPerfectMessage) {
+      resultPerfectMessage.hidden = !isPerfect
     }
 
     resultList.innerHTML = ''
