@@ -373,6 +373,7 @@ const setupQuiz = (students: Student[]) => {
     'quiz-result-perfect-stamp',
   ) as HTMLImageElement | null
   const resultPerfectMessage = document.getElementById('quiz-result-perfect-message')
+  const resultPerfectRow = document.getElementById('quiz-result-perfect-row')
   const resultList = document.getElementById('quiz-result-list')
 
   if (
@@ -676,6 +677,9 @@ const setupQuiz = (students: Student[]) => {
     if (resultPerfectMessage) {
       resultPerfectMessage.hidden = true
     }
+    if (resultPerfectRow) {
+      resultPerfectRow.hidden = true
+    }
     if (resultList) {
       resultList.innerHTML = ''
     }
@@ -711,6 +715,9 @@ const setupQuiz = (students: Student[]) => {
     }
     if (resultPerfectMessage) {
       resultPerfectMessage.hidden = !isPerfect
+    }
+    if (resultPerfectRow) {
+      resultPerfectRow.hidden = !isPerfect
     }
 
     resultList.innerHTML = ''

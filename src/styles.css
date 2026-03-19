@@ -548,9 +548,19 @@ h1 {
   font-weight: 700;
 }
 
-#quiz-result-perfect-stamp {
+#quiz-result-perfect-row {
   margin-top: 0.7rem;
-  width: min(150px, 65%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#quiz-result-perfect-row[hidden] {
+  display: none;
+}
+
+#quiz-result-perfect-stamp {
+  width: min(75px, 32.5%);
   display: block;
 }
 
@@ -559,7 +569,7 @@ h1 {
 }
 
 #quiz-result-perfect-message {
-  margin: 0.45rem 0 0;
+  margin: 0;
   font-weight: 700;
   color: #0d9848;
 }
