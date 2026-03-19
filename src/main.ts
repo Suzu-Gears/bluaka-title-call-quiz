@@ -7,6 +7,7 @@ import {
   filterCandidates,
   normalizeQuizAnswer,
   buildNameInputSuggestions,
+  isTransientNameInputQuery,
   resolveQuestionCount,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
@@ -370,6 +371,9 @@ const setupQuiz = (students: Student[]) => {
   const nameAnswerInput = document.getElementById(
     'quiz-name-answer-input',
   ) as HTMLInputElement | null
+  const nameAnswerSuggestionsOverlay = document.getElementById(
+    'quiz-name-answer-suggestions-overlay',
+  )
   const nameAnswerSuggestions = document.getElementById('quiz-name-answer-suggestions')
   const nameAnswerSubmit = nameAnswerForm?.querySelector<HTMLButtonElement>(
     'button[type="submit"]',
@@ -633,11 +637,29 @@ const setupQuiz = (students: Student[]) => {
   }
 
   const hideNameSuggestions = () => {
+    if (nameAnswerSuggestionsOverlay) {
+      nameAnswerSuggestionsOverlay.hidden = true
+    }
     if (!nameAnswerSuggestions) {
       return
     }
     nameAnswerSuggestions.innerHTML = ''
     nameAnswerSuggestions.hidden = true
+  }
+
+  const positionNameSuggestionsOverlay = () => {
+    if (
+      !nameAnswerSuggestionsOverlay ||
+      !nameAnswerInput ||
+      nameAnswerSuggestionsOverlay.hidden
+    ) {
+      return
+    }
+    const inputRect = nameAnswerInput.getBoundingClientRect()
+    const overlayWidth = Math.max(inputRect.width, 220)
+    nameAnswerSuggestionsOverlay.style.top = `${inputRect.bottom + 4}px`
+    nameAnswerSuggestionsOverlay.style.left = `${inputRect.left}px`
+    nameAnswerSuggestionsOverlay.style.width = `${overlayWidth}px`
   }
 
   const showNameSuggestions = () => {
@@ -654,7 +676,19 @@ const setupQuiz = (students: Student[]) => {
       return
     }
     const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
+    const isTransientQuery = isTransientNameInputQuery(rawInput)
     if (matches.length === 0) {
+      if (
+        isTransientQuery &&
+        !nameAnswerSuggestions.hidden &&
+        nameAnswerSuggestions.childElementCount > 0
+      ) {
+        if (nameAnswerSuggestionsOverlay) {
+          nameAnswerSuggestionsOverlay.hidden = false
+          positionNameSuggestionsOverlay()
+        }
+        return
+      }
       hideNameSuggestions()
       return
     }
@@ -680,6 +714,10 @@ const setupQuiz = (students: Student[]) => {
       nameAnswerSuggestions.appendChild(button)
     })
     nameAnswerSuggestions.hidden = false
+    if (nameAnswerSuggestionsOverlay) {
+      nameAnswerSuggestionsOverlay.hidden = false
+      positionNameSuggestionsOverlay()
+    }
   }
 
   const stopAudio = () => {
@@ -1114,6 +1152,11 @@ const setupQuiz = (students: Student[]) => {
     window.setTimeout(() => {
       hideNameSuggestions()
     }, 120)
+  })
+  window.addEventListener('resize', positionNameSuggestionsOverlay)
+  window.addEventListener('scroll', positionNameSuggestionsOverlay, {
+    passive: true,
+    capture: true,
   })
 
   loadProficiency()

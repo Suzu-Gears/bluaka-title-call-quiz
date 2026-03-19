@@ -135,6 +135,16 @@ export function buildNameInputSuggestions(
     .slice(0, Math.max(0, maxCount))
 }
 
+export function isTransientNameInputQuery(rawInput: string): boolean {
+  const normalizedInput = normalizeQuizAnswer(rawInput.trim())
+  if (!normalizedInput) {
+    return false
+  }
+  const hasKana = /[ぁ-ゖァ-ヺ]/.test(normalizedInput)
+  const hasAsciiLetter = /[a-z]/.test(normalizedInput)
+  return hasKana && hasAsciiLetter
+}
+
 export function resolveStudentCategory(
   costume?: string,
   isCollaboration?: boolean,

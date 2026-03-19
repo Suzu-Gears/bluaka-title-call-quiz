@@ -466,12 +466,29 @@ h1 {
 }
 
 .quiz-name-answer-suggestions {
-  width: 100%;
+  width: min(100%, 560px);
+  margin-top: 0.35rem;
   display: grid;
   gap: 0.35rem;
+  max-height: min(40vh, 300px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
 }
 
 .quiz-name-answer-suggestions[hidden] {
+  display: none;
+}
+
+.quiz-name-answer-suggestions-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  z-index: 15;
+}
+
+.quiz-name-answer-suggestions-overlay[hidden] {
   display: none;
 }
 

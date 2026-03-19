@@ -5,6 +5,7 @@ import {
   calculateAccuracy,
   buildNameInputSuggestions,
   filterCandidates,
+  isTransientNameInputQuery,
   mergeWithStudents,
   migrateLegacyProficiency,
   normalizeQuizAnswer,
@@ -123,6 +124,9 @@ const deterministicRandom = () => 0
     buildNameInputSuggestions(['アリス', 'アスナ'], ['アリス', 'アスナ'], 'あす'),
     ['アスナ'],
   )
+  assert.equal(isTransientNameInputQuery('あｒ'), true)
+  assert.equal(isTransientNameInputQuery('アル'), false)
+  assert.equal(isTransientNameInputQuery('ar'), false)
 }
 
 {
