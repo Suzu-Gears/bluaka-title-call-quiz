@@ -19,6 +19,7 @@ const DEFAULT_IMAGE = '/default-student-image.webp'
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
 const QUIZ_MODE_NAME_INPUT = 'name-input'
 const QUIZ_MODE_NAME_INPUT_LUNATIC = 'name-input-lunatic'
+const MIN_NAME_SUGGESTION_OVERLAY_WIDTH = 220
 const DEFAULT_QUESTION_COUNT = 10
 const INITIAL_STATUS_TEXT = '「開始」を押すとクイズを開始します。'
 const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
@@ -43,6 +44,7 @@ type QuizResultEntry = {
 }
 
 let pageSwitchGuard: ((targetId: string) => boolean) | null = null
+let nameSuggestionOverlayListenersAttached = false
 
 const setPageSwitchGuard = (guard: ((targetId: string) => boolean) | null) => {
   pageSwitchGuard = guard
@@ -656,7 +658,7 @@ const setupQuiz = (students: Student[]) => {
       return
     }
     const inputRect = nameAnswerInput.getBoundingClientRect()
-    const overlayWidth = Math.max(inputRect.width, 220)
+    const overlayWidth = Math.max(inputRect.width, MIN_NAME_SUGGESTION_OVERLAY_WIDTH)
     nameAnswerSuggestionsOverlay.style.top = `${inputRect.bottom + 4}px`
     nameAnswerSuggestionsOverlay.style.left = `${inputRect.left}px`
     nameAnswerSuggestionsOverlay.style.width = `${overlayWidth}px`
@@ -1153,11 +1155,14 @@ const setupQuiz = (students: Student[]) => {
       hideNameSuggestions()
     }, 120)
   })
-  window.addEventListener('resize', positionNameSuggestionsOverlay)
-  window.addEventListener('scroll', positionNameSuggestionsOverlay, {
-    passive: true,
-    capture: true,
-  })
+  if (!nameSuggestionOverlayListenersAttached) {
+    window.addEventListener('resize', positionNameSuggestionsOverlay)
+    window.addEventListener('scroll', positionNameSuggestionsOverlay, {
+      passive: true,
+      capture: true,
+    })
+    nameSuggestionOverlayListenersAttached = true
+  }
 
   loadProficiency()
   updateModeUI()
