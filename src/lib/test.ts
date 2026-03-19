@@ -127,6 +127,7 @@ const deterministicRandom = () => 0
   assert.equal(isTransientNameInputQuery('あｒ'), true)
   assert.equal(isTransientNameInputQuery('アル'), false)
   assert.equal(isTransientNameInputQuery('ar'), false)
+  assert.equal(isTransientNameInputQuery('  あＲ  '), true)
 }
 
 {

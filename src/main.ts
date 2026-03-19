@@ -196,6 +196,19 @@ const setupStudentGrid = (students: Student[], unavailableAudioNames: Set<string
     })
   }
 
+  let isComposingStudentFilter = false
+  let lastAppliedStudentFilter = filterInput?.value ?? ''
+  const applyStudentFilterInput = (
+    inputValue: string,
+    options: { force?: boolean } = {},
+  ) => {
+    if (!options.force && isTransientNameInputQuery(inputValue)) {
+      return
+    }
+    lastAppliedStudentFilter = inputValue
+    filterCards(inputValue)
+  }
+
   sortSelect?.addEventListener('change', () => sortCards(sortSelect.value, sortDirection))
   sortDirectionButton?.addEventListener('click', () => {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
@@ -204,9 +217,22 @@ const setupStudentGrid = (students: Student[], unavailableAudioNames: Set<string
       sortCards(sortSelect.value, sortDirection)
     }
   })
-  filterInput?.addEventListener('input', () => filterCards(filterInput.value))
+  filterInput?.addEventListener('compositionstart', () => {
+    isComposingStudentFilter = true
+  })
+  filterInput?.addEventListener('compositionend', () => {
+    isComposingStudentFilter = false
+    applyStudentFilterInput(filterInput?.value ?? '', { force: true })
+  })
+  filterInput?.addEventListener('input', (event) => {
+    const inputEvent = event as InputEvent
+    if (isComposingStudentFilter || inputEvent.isComposing) {
+      return
+    }
+    applyStudentFilterInput(filterInput?.value ?? '')
+  })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
-    checkbox?.addEventListener('change', () => filterCards(filterInput?.value ?? ''))
+    checkbox?.addEventListener('change', () => filterCards(lastAppliedStudentFilter))
   })
 
   let fittyInstances: FittyInstance[] = setupFitty()
@@ -370,6 +396,7 @@ const setupQuiz = (students: Student[]) => {
   const nameAnswerForm = document.getElementById(
     'quiz-name-answer-form',
   ) as HTMLFormElement | null
+  const quizSection = document.querySelector<HTMLElement>('#quiz-view .quiz-section')
   const nameAnswerInput = document.getElementById(
     'quiz-name-answer-input',
   ) as HTMLInputElement | null
@@ -653,15 +680,23 @@ const setupQuiz = (students: Student[]) => {
     if (
       !nameAnswerSuggestionsOverlay ||
       !nameAnswerInput ||
+      !quizSection ||
       nameAnswerSuggestionsOverlay.hidden
     ) {
       return
     }
     const inputRect = nameAnswerInput.getBoundingClientRect()
+    const sectionRect = quizSection.getBoundingClientRect()
+    const relativeLeft = Math.max(0, inputRect.left - sectionRect.left)
+    const relativeTop = Math.max(0, inputRect.bottom - sectionRect.top)
+    const maxWidth = Math.max(
+      MIN_NAME_SUGGESTION_OVERLAY_WIDTH,
+      sectionRect.width - relativeLeft,
+    )
     const overlayWidth = Math.max(inputRect.width, MIN_NAME_SUGGESTION_OVERLAY_WIDTH)
-    nameAnswerSuggestionsOverlay.style.top = `${inputRect.bottom + 4}px`
-    nameAnswerSuggestionsOverlay.style.left = `${inputRect.left}px`
-    nameAnswerSuggestionsOverlay.style.width = `${overlayWidth}px`
+    nameAnswerSuggestionsOverlay.style.top = `${relativeTop}px`
+    nameAnswerSuggestionsOverlay.style.left = `${relativeLeft}px`
+    nameAnswerSuggestionsOverlay.style.width = `${Math.min(overlayWidth, maxWidth)}px`
   }
 
   const showNameSuggestions = () => {
@@ -1157,10 +1192,6 @@ const setupQuiz = (students: Student[]) => {
   })
   if (!nameSuggestionOverlayListenersAttached) {
     window.addEventListener('resize', positionNameSuggestionsOverlay)
-    window.addEventListener('scroll', positionNameSuggestionsOverlay, {
-      passive: true,
-      capture: true,
-    })
     nameSuggestionOverlayListenersAttached = true
   }
 
