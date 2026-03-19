@@ -72,9 +72,9 @@
                 </button>
                 <div id="quiz-menu-panel" class="quiz-menu-panel" role="menu" hidden>
                   <button id="quiz-menu-restart-button" type="button" role="menuitem" disabled>リスタート</button>
-                  <button id="quiz-menu-reset-screen-button" type="button" role="menuitem">最初の画面に戻る</button>
-                  <button id="quiz-export-progress-button" type="button" role="menuitem">進捗エクスポート</button>
-                  <button id="quiz-import-progress-button" type="button" role="menuitem">進捗インポート</button>
+                  <button id="quiz-menu-reset-screen-button" type="button" role="menuitem">クイズ設定画面に戻る</button>
+                  <button id="quiz-export-progress-button" type="button" role="menuitem" disabled>進捗エクスポート(仮)</button>
+                  <button id="quiz-import-progress-button" type="button" role="menuitem" disabled>進捗インポート(仮)</button>
                 </div>
               </div>
             </div>
@@ -103,11 +103,11 @@
               </label>
             </div>
             <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
-            <div class="quiz-controls">
-              <button id="quiz-start-button" type="button">開始</button>
-              <button id="quiz-next-button" type="button" disabled>次へ</button>
-              <button id="quiz-play-audio-button" type="button" disabled>もう一度再生</button>
-            </div>
+              <div class="quiz-controls">
+                <button id="quiz-start-button" class="quiz-action-button" type="button">開始</button>
+                <button id="quiz-next-button" class="quiz-action-button" type="button" disabled>次へ</button>
+                <button id="quiz-play-audio-button" class="quiz-action-button" type="button" disabled>もう一度再生</button>
+              </div>
             <div class="quiz-choices" id="quiz-choices"></div>
             <form id="quiz-name-answer-form" class="quiz-name-answer-form" hidden>
               <input id="quiz-name-answer-input" type="text" autocomplete="off" placeholder="生徒名を入力" />

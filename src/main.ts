@@ -335,12 +335,6 @@ const setupQuiz = (students: Student[]) => {
   const replayButton = document.getElementById(
     'quiz-play-audio-button',
   ) as HTMLButtonElement | null
-  const exportButton = document.getElementById(
-    'quiz-export-progress-button',
-  ) as HTMLButtonElement | null
-  const importButton = document.getElementById(
-    'quiz-import-progress-button',
-  ) as HTMLButtonElement | null
   const statusText = document.getElementById('quiz-status')
   const proficiencyText = document.getElementById('quiz-proficiency-text')
   const costumeHintText = document.getElementById('quiz-costume-hint-text')
@@ -852,38 +846,6 @@ const setupQuiz = (students: Student[]) => {
     finalizeAnswer(isCorrect)
     nameAnswerInput.disabled = true
     nameAnswerSubmit.disabled = true
-  })
-
-  exportButton?.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(proficiencyMap, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'bluaka-quiz-proficiency.json'
-    link.click()
-    URL.revokeObjectURL(url)
-  })
-
-  importButton?.addEventListener('click', () => {
-    const raw = window.prompt(
-      '移行するJSONを貼り付けてください（エクスポート済みデータ）',
-    )
-    if (!raw) return
-    try {
-      const parsed = JSON.parse(raw)
-      const imported = ensureStudentEntries(migrateLegacyMap(parsed))
-      proficiencyMap = {
-        ...proficiencyMap,
-        ...imported,
-      }
-      saveProficiency()
-      statusText.textContent = '進捗データをインポートしました。'
-      updateProficiencyText()
-    } catch {
-      statusText.textContent = 'JSONの解析に失敗しました。形式を確認してください。'
-    }
   })
 
   loadProficiency()
