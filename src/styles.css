@@ -560,7 +560,7 @@ h1 {
 }
 
 #quiz-result-perfect-stamp {
-  width: min(75px, 32.5%);
+  width: min(75px, calc(65% / 2));
   display: block;
 }
 
