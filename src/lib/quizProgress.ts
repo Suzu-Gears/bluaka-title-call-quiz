@@ -19,6 +19,10 @@ export interface ProficiencyEntry {
   attempts: number
 }
 
+export interface QuizResultSummaryEntry {
+  isCorrect: boolean
+}
+
 export type ProficiencyMap = Record<string, ProficiencyEntry>
 
 export function filterCandidates(
@@ -130,4 +134,18 @@ export function resolveQuestionCount(
     return Math.max(1, Math.min(fallback, maxQuestions))
   }
   return Math.max(1, Math.min(parsed, maxQuestions))
+}
+
+export function summarizeQuizResults(results: readonly QuizResultSummaryEntry[]) {
+  const totalCount = results.length
+  const correctCount = results.filter((entry) => entry.isCorrect).length
+  const wrongCount = Math.max(0, totalCount - correctCount)
+  const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 1000) / 10 : 0
+  return {
+    totalCount,
+    correctCount,
+    wrongCount,
+    accuracy,
+    isPerfect: totalCount > 0 && correctCount === totalCount,
+  }
 }

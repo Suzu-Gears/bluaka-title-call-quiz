@@ -3,6 +3,7 @@ import fitty, { type FittyInstance } from 'fitty'
 
 import type { Student } from '@/lib/interfaces'
 import {
+  summarizeQuizResults,
   filterCandidates,
   normalizeQuizAnswer,
   resolveQuestionCount,
@@ -31,6 +32,12 @@ type CandidateGroups = {
 }
 
 type ProficiencyMap = Record<string, { correct: number; attempts: number }>
+type QuizResultEntry = {
+  questionNumber: number
+  correctAnswer: string
+  userAnswer: string
+  isCorrect: boolean
+}
 
 const setupPageSwitch = () => {
   const switchButtons = document.querySelectorAll<HTMLButtonElement>(
@@ -353,6 +360,12 @@ const setupQuiz = (students: Student[]) => {
     'quiz-answer-image',
   ) as HTMLImageElement | null
   const answerName = document.getElementById('quiz-answer-name')
+  const resultSection = document.getElementById('quiz-result')
+  const resultSummary = document.getElementById('quiz-result-summary')
+  const resultPerfectStamp = document.getElementById(
+    'quiz-result-perfect-stamp',
+  ) as HTMLImageElement | null
+  const resultList = document.getElementById('quiz-result-list')
 
   if (
     !quizModeSelect ||
@@ -412,6 +425,7 @@ const setupQuiz = (students: Student[]) => {
   let totalQuestions = Math.min(DEFAULT_QUESTION_COUNT, activeNames.length)
   let hasAnsweredCurrentQuestion = false
   let isQuizRunning = false
+  let resultEntries: QuizResultEntry[] = []
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
 
   const setMenuOpen = (isOpen: boolean) => {
@@ -628,6 +642,63 @@ const setupQuiz = (students: Student[]) => {
     }
   }
 
+  const hideResult = () => {
+    if (resultSection) {
+      resultSection.hidden = true
+    }
+    if (resultPerfectStamp) {
+      resultPerfectStamp.hidden = true
+    }
+    if (resultList) {
+      resultList.innerHTML = ''
+    }
+    if (resultSummary) {
+      resultSummary.textContent = ''
+    }
+  }
+
+  const renderResult = () => {
+    if (!resultSection || !resultSummary || !resultList) {
+      return
+    }
+    const { correctCount, totalCount, wrongCount, accuracy, isPerfect } = summarizeQuizResults(
+      resultEntries,
+    )
+    resultSummary.textContent =
+      `正解: ${correctCount} / ${totalCount} ・不正解: ${wrongCount} ・正答率: ${accuracy}%`
+
+    if (resultPerfectStamp) {
+      resultPerfectStamp.hidden = !isPerfect
+    }
+
+    resultList.innerHTML = ''
+    resultEntries.forEach((entry) => {
+      const item = document.createElement('article')
+      item.className = `quiz-result-item ${entry.isCorrect ? 'correct' : 'wrong'}`
+      const image = document.createElement('img')
+      image.src = `/image/${encodeURIComponent(entry.correctAnswer)}.webp`
+      image.alt = entry.correctAnswer
+      image.onerror = () => {
+        image.src = DEFAULT_IMAGE
+      }
+
+      const text = document.createElement('div')
+      text.className = 'quiz-result-item-text'
+      const status = document.createElement('div')
+      status.className = 'quiz-result-item-status'
+      status.textContent = `第${entry.questionNumber}問 ${entry.isCorrect ? '正解' : '不正解'}`
+      const correct = document.createElement('div')
+      correct.textContent = `正答: ${entry.correctAnswer}`
+      const answer = document.createElement('div')
+      answer.textContent = `回答: ${entry.userAnswer || '（未回答）'}`
+      text.append(status, correct, answer)
+      item.append(image, text)
+      resultList.appendChild(item)
+    })
+
+    resultSection.hidden = false
+  }
+
   const resetToStartScreen = () => {
     stopAudio()
     askedNames = []
@@ -636,6 +707,7 @@ const setupQuiz = (students: Student[]) => {
     questionNumber = 0
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
+    resultEntries = []
     choicesRoot.innerHTML = ''
     choicesRoot.hidden = true
     if (nameAnswerForm) {
@@ -649,6 +721,7 @@ const setupQuiz = (students: Student[]) => {
       nameAnswerSubmit.disabled = false
     }
     hideAnswerFeedback()
+    hideResult()
     updateCostumeHintText()
     updateProficiencyText()
     statusText.textContent = INITIAL_STATUS_TEXT
@@ -659,10 +732,16 @@ const setupQuiz = (students: Student[]) => {
     setMenuOpen(false)
   }
 
-  const finalizeAnswer = (isCorrect: boolean) => {
+  const finalizeAnswer = (userAnswer: string, isCorrect: boolean) => {
     if (isCorrect) {
       score += 1
     }
+    resultEntries.push({
+      questionNumber,
+      correctAnswer: currentAnswer,
+      userAnswer,
+      isCorrect,
+    })
     shouldShowCurrentAnswerStats = true
     hasAnsweredCurrentQuestion = true
     recordAnswer(currentAnswer, isCorrect)
@@ -684,6 +763,7 @@ const setupQuiz = (students: Student[]) => {
       statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
       startButton.textContent = 'もう一度'
       hideAnswerFeedback()
+      renderResult()
       updateCostumeHintText()
       updateProficiencyText()
       return
@@ -698,6 +778,7 @@ const setupQuiz = (students: Student[]) => {
     replayButton.disabled = false
     nextButton.disabled = true
     hideAnswerFeedback()
+    hideResult()
     playCurrentAudio()
     updateCostumeHintText()
     updateProficiencyText()
@@ -728,7 +809,7 @@ const setupQuiz = (students: Student[]) => {
             return
           }
           const isCorrect = name === currentAnswer
-          finalizeAnswer(isCorrect)
+          finalizeAnswer(name, isCorrect)
           choicesRoot.querySelectorAll<HTMLButtonElement>('button').forEach((choiceButton) => {
             const choiceName = choiceButton.dataset.choiceName
             if (choiceName === currentAnswer) {
@@ -776,8 +857,10 @@ const setupQuiz = (students: Student[]) => {
     currentAnswer = ''
     score = 0
     questionNumber = 0
+    resultEntries = []
     shouldShowCurrentAnswerStats = false
     hideAnswerFeedback()
+    hideResult()
     nextButton.disabled = true
     setQuizRunning(true)
     startButton.textContent = 'リスタート'
@@ -843,7 +926,7 @@ const setupQuiz = (students: Student[]) => {
     const answer = normalizeAnswer(nameAnswerInput.value)
     const correctAnswer = normalizeAnswer(currentAnswer)
     const isCorrect = answer.length > 0 && answer === correctAnswer
-    finalizeAnswer(isCorrect)
+    finalizeAnswer(nameAnswerInput.value.trim(), isCorrect)
     nameAnswerInput.disabled = true
     nameAnswerSubmit.disabled = true
   })
