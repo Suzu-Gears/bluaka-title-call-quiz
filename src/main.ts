@@ -608,16 +608,7 @@ const setupQuiz = (students: Student[]) => {
   }
 
   const updateCostumeHintText = () => {
-    if (
-      (currentMode !== QUIZ_MODE_NAME_INPUT &&
-        currentMode !== QUIZ_MODE_NAME_INPUT_LUNATIC) ||
-      !currentAnswer
-    ) {
-      costumeHintText.textContent = ''
-      return
-    }
-    const costumeName = String(costumeHints[currentAnswer] ?? '').trim()
-    costumeHintText.textContent = costumeName ? `ヒント: ${costumeName}` : ''
+    costumeHintText.textContent = ''
   }
 
   const refreshFilterState = () => {
