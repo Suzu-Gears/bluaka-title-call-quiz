@@ -452,6 +452,7 @@ const setupQuiz = (students: Student[]) => {
   let isQuizRunning = false
   let resultEntries: QuizResultEntry[] = []
   let playAudioDelayTimer: number | null = null
+  let isComposingNameInput = false
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) => a.localeCompare(b, 'ja'))
 
@@ -1089,8 +1090,21 @@ const setupQuiz = (students: Student[]) => {
     hideNameSuggestions()
   })
 
-  nameAnswerInput?.addEventListener('input', showNameSuggestions)
   nameAnswerInput?.addEventListener('focus', showNameSuggestions)
+  nameAnswerInput?.addEventListener('compositionstart', () => {
+    isComposingNameInput = true
+  })
+  nameAnswerInput?.addEventListener('compositionend', () => {
+    isComposingNameInput = false
+    showNameSuggestions()
+  })
+  nameAnswerInput?.addEventListener('input', (event) => {
+    const inputEvent = event as InputEvent
+    if (isComposingNameInput || inputEvent.isComposing) {
+      return
+    }
+    showNameSuggestions()
+  })
   nameAnswerInput?.addEventListener('blur', () => {
     window.setTimeout(() => {
       hideNameSuggestions()
