@@ -6,6 +6,7 @@ import {
   buildNameInputSuggestions,
   filterCandidates,
   isTransientNameInputQuery,
+  normalizeKanaForSearch,
   mergeWithStudents,
   migrateLegacyProficiency,
   normalizeQuizAnswer,
@@ -124,6 +125,11 @@ const deterministicRandom = () => 0
     buildNameInputSuggestions(['アリス', 'アスナ'], ['アリス', 'アスナ'], 'あす'),
     ['アスナ'],
   )
+  assert.deepEqual(
+    buildNameInputSuggestions(['キサキ', 'サキ'], ['キサキ', 'サキ'], 'サキ'),
+    ['サキ', 'キサキ'],
+  )
+  assert.equal(normalizeKanaForSearch(normalizeQuizAnswer('さき')), 'サキ')
   assert.equal(isTransientNameInputQuery('あｒ'), true)
   assert.equal(isTransientNameInputQuery('アル'), false)
   assert.equal(isTransientNameInputQuery('ar'), false)

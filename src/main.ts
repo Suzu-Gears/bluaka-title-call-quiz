@@ -6,6 +6,7 @@ import {
   summarizeQuizResults,
   filterCandidates,
   normalizeQuizAnswer,
+  normalizeKanaForSearch,
   buildNameInputSuggestions,
   isTransientNameInputQuery,
   resolveQuestionCount,
@@ -182,14 +183,14 @@ const setupStudentGrid = (students: Student[], unavailableAudioNames: Set<string
   }
 
   const filterCards = (input: string) => {
-    const normalized = normalizeQuizAnswer(input)
+    const normalized = normalizeKanaForSearch(normalizeQuizAnswer(input))
     grid.querySelectorAll<HTMLElement>('.grid-item').forEach((card) => {
       const category = card.dataset.filterCategory
       const categoryEnabled =
         (category === 'normal' && Boolean(normalFilter?.checked)) ||
         (category === 'costume' && Boolean(costumeFilter?.checked)) ||
         (category === 'collaboration' && Boolean(collaborationFilter?.checked))
-      const nameKey = String(card.dataset.nameKey ?? '')
+      const nameKey = normalizeKanaForSearch(String(card.dataset.nameKey ?? ''))
       card.style.display = (!normalized || nameKey.includes(normalized)) && categoryEnabled
         ? ''
         : 'none'

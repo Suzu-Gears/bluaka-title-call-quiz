@@ -108,18 +108,19 @@ export function normalizeQuizAnswer(value: string): string {
     .toLowerCase()
 }
 
+export function normalizeKanaForSearch(value: string): string {
+  return value.replace(/[ぁ-ゖ]/g, (char) =>
+    // Hiragana(U+3041-U+3096) and Katakana(U+30A1-U+30F6) are offset by 0x60.
+    String.fromCharCode(char.charCodeAt(0) + 0x60),
+  )
+}
+
 export function buildNameInputSuggestions(
   allNames: readonly string[],
   activeNames: readonly string[],
   rawInput: string,
   maxCount = 8,
 ): string[] {
-  const normalizeKanaForSearch = (value: string) =>
-    value.replace(/[ぁ-ゖ]/g, (char) =>
-      // Hiragana(U+3041-U+3096) and Katakana(U+30A1-U+30F6) are offset by 0x60.
-      String.fromCharCode(char.charCodeAt(0) + 0x60),
-    )
-
   const normalizedInput = normalizeQuizAnswer(rawInput.trim())
   if (!normalizedInput) {
     return []
@@ -128,10 +129,20 @@ export function buildNameInputSuggestions(
   const activeSet = new Set(activeNames)
   return [...allNames]
     .filter((name) => activeSet.has(name))
-    .sort((a, b) => a.localeCompare(b, 'ja'))
-    .filter((name) =>
-      normalizeKanaForSearch(normalizeQuizAnswer(name)).includes(normalizedKanaInput),
-    )
+    .map((name) => ({
+      name,
+      searchKey: normalizeKanaForSearch(normalizeQuizAnswer(name)),
+    }))
+    .filter(({ searchKey }) => searchKey.includes(normalizedKanaInput))
+    .sort((a, b) => {
+      const aStartsWith = a.searchKey.startsWith(normalizedKanaInput)
+      const bStartsWith = b.searchKey.startsWith(normalizedKanaInput)
+      if (aStartsWith !== bStartsWith) {
+        return aStartsWith ? -1 : 1
+      }
+      return a.name.localeCompare(b.name, 'ja')
+    })
+    .map(({ name }) => name)
     .slice(0, Math.max(0, maxCount))
 }
 
