@@ -786,8 +786,8 @@ const setupQuiz = (students: Student[]) => {
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
     awaitingResult = false
-    choicesRoot.hidden = true
     choicesRoot.innerHTML = ''
+    choicesRoot.hidden = true
     if (nameAnswerForm) {
       nameAnswerForm.hidden = true
     }
