@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja" prefix="og: https://ogp.me/ns#">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>ブルアカタイトルコールクイズ</title>
+    <meta name="description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta property="og:site_name" content="ブルアカタイトルコールクイズ" />
+    <meta property="og:title" content="ブルアカタイトルコールクイズ" />
+    <meta property="og:description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta name="twitter:title" content="ブルアカタイトルコールクイズ" />
+    <meta name="twitter:description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:image" content="/icon-mask.png" />
+  </head>
+  <body>
+    <div class="main">
+      <header>
+        <h1>ブルアカ タイトルコールクイズ</h1>
+      </header>
+      <div class="content">
+        <div class="page-switch">
+          <button type="button" data-view-target="card-list" class="is-active">カード一覧</button>
+          <button type="button" data-view-target="quiz-view">クイズ</button>
+        </div>
+        <section id="card-list">
+          <div class="grid" id="studentGrid">
+            <div class="controls-row">
+              <label class="search-wrapper" for="student-filter-input">
+                名前フィルター
+                <input id="student-filter-input" class="student-filter-input" type="text" placeholder="生徒名" autocomplete="off" />
+              </label>
+              <fieldset class="category-filter-fieldset">
+                <legend>表示対象</legend>
+                <label><input id="student-filter-normal" type="checkbox" checked />通常生徒</label>
+                <label><input id="student-filter-costume" type="checkbox" checked />別衣装</label>
+                <label><input id="student-filter-collaboration" type="checkbox" checked />コラボ</label>
+              </fieldset>
+              <label class="sort-wrapper" for="student-sort-select">
+                並べ替え
+                <select id="student-sort-select">
+                  <option value="default-order">実装順</option>
+                  <option value="name-order">名前順</option>
+                </select>
+                <button id="student-sort-direction" class="sort-direction-button" type="button">昇順</button>
+              </label>
+            </div>
+          </div>
+        </section>
+        <section id="quiz-view" hidden>
+          <section aria-label="クイズ" class="quiz-section">
+            <div class="quiz-header-row">
+              <h2>クイズ</h2>
+              <div class="quiz-menu">
+                <button
+                  id="quiz-menu-button"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="quiz-menu-panel"
+                >
+                  メニュー
+                </button>
+                <div id="quiz-menu-panel" class="quiz-menu-panel" role="menu" hidden>
+                  <button id="quiz-menu-restart-button" type="button" role="menuitem" disabled>リスタート</button>
+                  <button id="quiz-menu-reset-screen-button" type="button" role="menuitem">クイズ設定画面に戻る</button>
+                  <button id="quiz-export-progress-button" type="button" role="menuitem" disabled>進捗エクスポート(仮)</button>
+                  <button id="quiz-import-progress-button" type="button" role="menuitem" disabled>進捗インポート(仮)</button>
+                </div>
+              </div>
+            </div>
+            <div id="quiz-setup-controls">
+              <label for="quiz-mode-select">出題方式
+                <select id="quiz-mode-select">
+                  <option value="multiple-choice">4択</option>
+                  <option value="name-input">名前入力</option>
+                  <option value="name-input-lunatic">名前入力 (Lunatic)</option>
+                </select>
+              </label>
+              <fieldset class="quiz-filter-fieldset">
+                <legend>出題対象</legend>
+                <label><input id="quiz-filter-normal" type="checkbox" checked />通常</label>
+                <label><input id="quiz-filter-costume" type="checkbox" />別衣装</label>
+                <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
+              </fieldset>
+              <label class="quiz-question-count-wrapper" for="quiz-question-count-preset">問題数
+                <select id="quiz-question-count-preset">
+                  <option value="1">1</option>
+                  <option value="10" selected>10</option>
+                  <option value="20">20</option>
+                  <option value="all">〇〇(全部)</option>
+                  <option value="custom">任意</option>
+                </select>
+                <input id="quiz-question-count-custom" type="number" min="1" step="1" placeholder="任意" hidden />
+              </label>
+            </div>
+            <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
+              <div class="quiz-controls">
+                <button id="quiz-start-button" class="quiz-action-button" type="button">開始</button>
+                <button id="quiz-next-button" class="quiz-action-button" type="button" disabled>次へ</button>
+                <button id="quiz-play-audio-button" class="quiz-action-button" type="button" disabled>もう一度再生</button>
+              </div>
+              <div id="quiz-result-actions" class="quiz-controls" hidden>
+                <button id="quiz-result-restart-button" class="quiz-action-button" type="button">リスタート</button>
+                <button id="quiz-result-back-button" class="quiz-action-button" type="button">クイズ設定画面に戻る</button>
+              </div>
+            <div class="quiz-choices" id="quiz-choices"></div>
+            <form id="quiz-name-answer-form" class="quiz-name-answer-form" hidden>
+              <input id="quiz-name-answer-input" type="text" autocomplete="off" placeholder="生徒名を入力" />
+              <button type="submit">回答する</button>
+              <div id="quiz-name-answer-suggestions" class="quiz-name-answer-suggestions" hidden></div>
+            </form>
+            <div id="quiz-answer-feedback" class="quiz-answer-feedback" hidden>
+              <img id="quiz-answer-image" alt="" />
+              <p id="quiz-answer-name"></p>
+            </div>
+            <section id="quiz-result" class="quiz-result" hidden>
+              <h3>リザルト</h3>
+              <p id="quiz-result-summary"></p>
+              <div id="quiz-result-perfect-row" hidden>
+                <img id="quiz-result-perfect-stamp" src="/kokona-stamp.png" alt="100点満点スタンプ" hidden />
+                <p id="quiz-result-perfect-message" hidden>100点満点、花丸です！</p>
+              </div>
+              <div id="quiz-result-list" class="quiz-result-list"></div>
+            </section>
+            <small id="quiz-costume-hint-text"></small>
+            <small id="quiz-proficiency-text"></small>
+          </section>
+        </section>
+      </div>
+      <footer style="text-align: center;">
+        <div>
+          <small id="footer-version"></small>
+          <a href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <small>
+          当WEBサイトはNexon、Nexon GamesおよびYostarとは一切関係ありません。<br />
+          当WEBサイトでは、データベースとして
+          <a href="https://schaledb.com/" target="_blank" rel="noopener noreferrer">Schale DB</a>
+          を参照しています。ゲーム画像・情報の所有権および著作権はそれぞれの権利者に帰属します。
+        </small>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

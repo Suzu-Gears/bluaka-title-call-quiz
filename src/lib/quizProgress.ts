@@ -19,6 +19,10 @@ export interface ProficiencyEntry {
   attempts: number
 }
 
+export interface QuizResultSummaryEntry {
+  isCorrect: boolean
+}
+
 export type ProficiencyMap = Record<string, ProficiencyEntry>
 
 export function filterCandidates(
@@ -104,6 +108,33 @@ export function normalizeQuizAnswer(value: string): string {
     .toLowerCase()
 }
 
+export function buildNameInputSuggestions(
+  allNames: readonly string[],
+  activeNames: readonly string[],
+  rawInput: string,
+  maxCount = 8,
+): string[] {
+  const normalizeKanaForSearch = (value: string) =>
+    value.replace(/[ぁ-ゖ]/g, (char) =>
+      // Hiragana(U+3041-U+3096) and Katakana(U+30A1-U+30F6) are offset by 0x60.
+      String.fromCharCode(char.charCodeAt(0) + 0x60),
+    )
+
+  const normalizedInput = normalizeQuizAnswer(rawInput.trim())
+  if (!normalizedInput) {
+    return []
+  }
+  const normalizedKanaInput = normalizeKanaForSearch(normalizedInput)
+  const activeSet = new Set(activeNames)
+  return [...allNames]
+    .filter((name) => activeSet.has(name))
+    .sort((a, b) => a.localeCompare(b, 'ja'))
+    .filter((name) =>
+      normalizeKanaForSearch(normalizeQuizAnswer(name)).includes(normalizedKanaInput),
+    )
+    .slice(0, Math.max(0, maxCount))
+}
+
 export function resolveStudentCategory(
   costume?: string,
   isCollaboration?: boolean,
@@ -130,4 +161,18 @@ export function resolveQuestionCount(
     return Math.max(1, Math.min(fallback, maxQuestions))
   }
   return Math.max(1, Math.min(parsed, maxQuestions))
+}
+
+export function summarizeQuizResults(results: readonly QuizResultSummaryEntry[]) {
+  const totalCount = results.length
+  const correctCount = results.filter((entry) => entry.isCorrect).length
+  const wrongCount = Math.max(0, totalCount - correctCount)
+  const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 1000) / 10 : 0
+  return {
+    totalCount,
+    correctCount,
+    wrongCount,
+    accuracy,
+    isPerfect: totalCount > 0 && correctCount === totalCount,
+  }
 }

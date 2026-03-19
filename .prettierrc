@@ -5,20 +5,12 @@
   "useTabs": false,
   "tabWidth": 2,
   "plugins": [
-    "prettier-plugin-astro",
-    "prettier-plugin-organize-imports",
-    "prettier-plugin-astro-organize-imports"
+    "prettier-plugin-organize-imports"
   ],
   "pluginSearchDirs": false,
   "overrides": [
     {
-      "files": "*.astro",
-      "options": {
-        "parser": "astro"
-      }
-    },
-    {
-      "files": ["*.ts", "*.astro"],
+      "files": "*.ts",
       "options": {
         "semi": false
       }

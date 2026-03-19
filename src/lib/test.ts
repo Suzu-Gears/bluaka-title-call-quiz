@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import {
   calculateAccuracy,
+  buildNameInputSuggestions,
   filterCandidates,
   mergeWithStudents,
   migrateLegacyProficiency,
@@ -10,6 +11,7 @@ import {
   normalizeProficiencyMap,
   resolveStudentCategory,
   resolveQuestionCount,
+  summarizeQuizResults,
 } from '@/lib/quizProgress'
 
 const deterministicRandom = () => 0
@@ -106,6 +108,24 @@ const deterministicRandom = () => 0
 }
 
 {
+  const suggestions = buildNameInputSuggestions(
+    ['アリス', 'イオリ', 'アル', 'アスナ'],
+    ['アリス', 'アル', 'アスナ'],
+    'ア',
+    3,
+  )
+  assert.deepEqual(suggestions, ['アスナ', 'アリス', 'アル'])
+  assert.deepEqual(
+    buildNameInputSuggestions(['アリス'], ['アリス'], '   '),
+    [],
+  )
+  assert.deepEqual(
+    buildNameInputSuggestions(['アリス', 'アスナ'], ['アリス', 'アスナ'], 'あす'),
+    ['アスナ'],
+  )
+}
+
+{
   assert.equal(resolveStudentCategory('', false), 'normal')
   assert.equal(resolveStudentCategory('イベント衣装', false), 'costume')
   assert.equal(resolveStudentCategory('', true), 'collaboration')
@@ -116,6 +136,30 @@ const deterministicRandom = () => 0
   assert.equal(resolveQuestionCount(20, 10), 10)
   assert.equal(resolveQuestionCount(0, 5), 5)
   assert.equal(resolveQuestionCount(Number.NaN, 8), 8)
+}
+
+{
+  const summary = summarizeQuizResults([
+    { isCorrect: true },
+    { isCorrect: false },
+    { isCorrect: true },
+  ])
+  assert.deepEqual(summary, {
+    totalCount: 3,
+    correctCount: 2,
+    wrongCount: 1,
+    accuracy: 66.7,
+    isPerfect: false,
+  })
+}
+
+{
+  const perfect = summarizeQuizResults([
+    { isCorrect: true },
+    { isCorrect: true },
+  ])
+  assert.equal(perfect.isPerfect, true)
+  assert.equal(perfect.accuracy, 100)
 }
 
 console.log('All quiz tests passed.')
