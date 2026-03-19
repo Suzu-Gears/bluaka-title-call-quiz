@@ -41,6 +41,12 @@ type QuizResultEntry = {
   isCorrect: boolean
 }
 
+let pageSwitchGuard: ((targetId: string) => boolean) | null = null
+
+const setPageSwitchGuard = (guard: ((targetId: string) => boolean) | null) => {
+  pageSwitchGuard = guard
+}
+
 const setupPageSwitch = () => {
   const switchButtons = document.querySelectorAll<HTMLButtonElement>(
     '[data-view-target]',
@@ -50,6 +56,9 @@ const setupPageSwitch = () => {
     button.addEventListener('click', () => {
       const targetId = button.getAttribute('data-view-target')
       if (!targetId) return
+      if (pageSwitchGuard && !pageSwitchGuard(targetId)) {
+        return
+      }
       allViews.forEach((viewId) => {
         const view = document.getElementById(viewId)
         if (view) {
@@ -739,7 +748,7 @@ const setupQuiz = (students: Student[]) => {
   }
 
   const showQuizProgressActions = () => {
-    nextButton.hidden = false
+    nextButton.hidden = !hasAnsweredCurrentQuestion
     replayButton.hidden = false
     resultActions.hidden = true
   }
@@ -826,7 +835,9 @@ const setupQuiz = (students: Student[]) => {
     updateCostumeHintText()
     updateProficiencyText()
     statusText.textContent = INITIAL_STATUS_TEXT
-    showQuizProgressActions()
+    nextButton.hidden = true
+    replayButton.hidden = true
+    resultActions.hidden = true
     nextButton.textContent = '次へ'
     replayButton.disabled = true
     nextButton.disabled = true
@@ -854,6 +865,7 @@ const setupQuiz = (students: Student[]) => {
     awaitingResult = !hasRemainingQuestion
     nextButton.textContent = awaitingResult ? 'リザルト' : '次へ'
     replayButton.disabled = awaitingResult
+    nextButton.hidden = false
     nextButton.disabled = false
   }
 
@@ -953,7 +965,6 @@ const setupQuiz = (students: Student[]) => {
     if (nameAnswerInput) {
       nameAnswerInput.value = ''
       nameAnswerInput.disabled = false
-      nameAnswerInput.focus()
     }
     hideNameSuggestions()
     if (nameAnswerSubmit) {
@@ -1007,6 +1018,21 @@ const setupQuiz = (students: Student[]) => {
   })
 
   replayButton.addEventListener('click', playCurrentAudio)
+  setPageSwitchGuard((targetId) => {
+    const isNavigatingToCardList = targetId === 'card-list'
+    const isShowingResult = Boolean(resultSection && !resultSection.hidden)
+    if (!isNavigatingToCardList || !isQuizRunning || isShowingResult) {
+      return true
+    }
+    const shouldMove = window.confirm(
+      '現在クイズ中です。進行中のデータは保存されません。\nクイズを中断してカード一覧に移動しますか？',
+    )
+    if (!shouldMove) {
+      return false
+    }
+    resetToStartScreen()
+    return true
+  })
   menuButton?.addEventListener('click', () => {
     setMenuOpen(menuPanel?.hidden ?? true)
   })
