@@ -342,6 +342,13 @@ const setupQuiz = (students: Student[]) => {
   const replayButton = document.getElementById(
     'quiz-play-audio-button',
   ) as HTMLButtonElement | null
+  const resultActions = document.getElementById('quiz-result-actions')
+  const resultRestartButton = document.getElementById(
+    'quiz-result-restart-button',
+  ) as HTMLButtonElement | null
+  const resultBackButton = document.getElementById(
+    'quiz-result-back-button',
+  ) as HTMLButtonElement | null
   const statusText = document.getElementById('quiz-status')
   const proficiencyText = document.getElementById('quiz-proficiency-text')
   const costumeHintText = document.getElementById('quiz-costume-hint-text')
@@ -377,6 +384,9 @@ const setupQuiz = (students: Student[]) => {
     !startButton ||
     !nextButton ||
     !replayButton ||
+    !resultActions ||
+    !resultRestartButton ||
+    !resultBackButton ||
     !statusText ||
     !proficiencyText ||
     !costumeHintText ||
@@ -424,6 +434,7 @@ const setupQuiz = (students: Student[]) => {
   let activeNames = getCandidateNames()
   let totalQuestions = Math.min(DEFAULT_QUESTION_COUNT, activeNames.length)
   let hasAnsweredCurrentQuestion = false
+  let awaitingResult = false
   let isQuizRunning = false
   let resultEntries: QuizResultEntry[] = []
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
@@ -657,6 +668,18 @@ const setupQuiz = (students: Student[]) => {
     }
   }
 
+  const showQuizProgressActions = () => {
+    nextButton.hidden = false
+    replayButton.hidden = false
+    resultActions.hidden = true
+  }
+
+  const showResultActions = () => {
+    nextButton.hidden = true
+    replayButton.hidden = true
+    resultActions.hidden = false
+  }
+
   const renderResult = () => {
     if (!resultSection || !resultSummary || !resultList) {
       return
@@ -707,6 +730,7 @@ const setupQuiz = (students: Student[]) => {
     questionNumber = 0
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
+    awaitingResult = false
     resultEntries = []
     choicesRoot.innerHTML = ''
     choicesRoot.hidden = true
@@ -725,6 +749,8 @@ const setupQuiz = (students: Student[]) => {
     updateCostumeHintText()
     updateProficiencyText()
     statusText.textContent = INITIAL_STATUS_TEXT
+    showQuizProgressActions()
+    nextButton.textContent = '次へ'
     replayButton.disabled = true
     nextButton.disabled = true
     startButton.textContent = '開始'
@@ -747,25 +773,33 @@ const setupQuiz = (students: Student[]) => {
     recordAnswer(currentAnswer, isCorrect)
     statusText.textContent = isCorrect ? '正解！' : `不正解… 正解は「${currentAnswer}」`
     updateAnswerFeedback(currentAnswer)
+    const hasRemainingQuestion = questionNumber < totalQuestions
+    awaitingResult = !hasRemainingQuestion
+    nextButton.textContent = awaitingResult ? 'リザルト' : '次へ'
+    replayButton.disabled = awaitingResult
     nextButton.disabled = false
+  }
+
+  const showResultScreen = () => {
+    stopAudio()
+    currentAnswer = ''
+    shouldShowCurrentAnswerStats = false
+    hasAnsweredCurrentQuestion = false
+    awaitingResult = false
+    statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
+    startButton.textContent = 'もう一度'
+    hideAnswerFeedback()
+    renderResult()
+    showResultActions()
+    updateCostumeHintText()
+    updateProficiencyText()
   }
 
   const renderQuestion = () => {
     choicesRoot.innerHTML = ''
     const available = activeNames.filter((name) => !askedNames.includes(name))
     if (available.length === 0 || questionNumber >= totalQuestions) {
-      stopAudio()
-      currentAnswer = ''
-      shouldShowCurrentAnswerStats = false
-      hasAnsweredCurrentQuestion = false
-      replayButton.disabled = true
-      nextButton.disabled = true
-      statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
-      startButton.textContent = 'もう一度'
-      hideAnswerFeedback()
-      renderResult()
-      updateCostumeHintText()
-      updateProficiencyText()
+      showResultScreen()
       return
     }
 
@@ -775,6 +809,9 @@ const setupQuiz = (students: Student[]) => {
     statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
+    awaitingResult = false
+    nextButton.textContent = '次へ'
+    showQuizProgressActions()
     replayButton.disabled = false
     nextButton.disabled = true
     hideAnswerFeedback()
@@ -859,8 +896,11 @@ const setupQuiz = (students: Student[]) => {
     questionNumber = 0
     resultEntries = []
     shouldShowCurrentAnswerStats = false
+    awaitingResult = false
     hideAnswerFeedback()
     hideResult()
+    showQuizProgressActions()
+    nextButton.textContent = '次へ'
     nextButton.disabled = true
     setQuizRunning(true)
     startButton.textContent = 'リスタート'
@@ -872,6 +912,10 @@ const setupQuiz = (students: Student[]) => {
 
   nextButton.addEventListener('click', () => {
     if (!hasAnsweredCurrentQuestion) {
+      return
+    }
+    if (awaitingResult) {
+      showResultScreen()
       return
     }
     renderQuestion()
@@ -889,6 +933,8 @@ const setupQuiz = (students: Student[]) => {
     startQuiz()
   })
   menuResetScreenButton?.addEventListener('click', resetToStartScreen)
+  resultRestartButton.addEventListener('click', startQuiz)
+  resultBackButton.addEventListener('click', resetToStartScreen)
   document.addEventListener('click', (event) => {
     if (!menuPanel || menuPanel.hidden) {
       return

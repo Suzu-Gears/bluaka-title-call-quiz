@@ -420,6 +420,10 @@ h1 {
   gap: 0.5rem;
 }
 
+#quiz-result-actions[hidden] {
+  display: none;
+}
+
 .quiz-filter-fieldset {
   margin: 0;
   border: 0;
