@@ -1,5 +1,4 @@
 import {
-  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
   type ListObjectsV2Output,
@@ -7,7 +6,6 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3'
 import fs from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
 
@@ -47,11 +45,6 @@ export async function getFileList(): Promise<ListObjectsV2Output> {
 
   fileListCache = listResponse
   return fileListCache
-}
-
-export async function updateFileList(): Promise<ListObjectsV2Output> {
-  fileListCache = null
-  return getFileList()
 }
 
 export async function downloadR2Folder(folderPath: string, localPath: string) {
@@ -119,43 +112,6 @@ export async function downloadR2Folder(folderPath: string, localPath: string) {
   }
 }
 
-export async function deleteR2Folder(folderPath: string) {
-  if (!folderPath) {
-    console.error('Error: folderPath is required.')
-    return
-  }
-
-  try {
-    const listCommand = new ListObjectsV2Command({
-      Bucket: R2_BUCKET_NAME,
-      Prefix: folderPath,
-    })
-
-    const listResponse = await s3Client.send(listCommand)
-
-    if (!listResponse.Contents) {
-      console.log('No files found in the specified folder.')
-      return
-    }
-
-    for (const item of listResponse.Contents) {
-      if (!item.Key) continue
-
-      const deleteCommand = new DeleteObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: item.Key,
-      })
-
-      await s3Client.send(deleteCommand)
-      console.log(`Deleted: ${item.Key}`)
-    }
-
-    await updateFileList()
-  } catch (error) {
-    console.error('Error deleting folder contents:', error)
-  }
-}
-
 /* Content-Typeが未設定なのでapplication/octet-streamになる */
 export async function uploadFileToR2(
   localFilePath: string,
@@ -178,46 +134,4 @@ export async function uploadFileToR2(
   } catch (error) {
     console.error('Error uploading file:', error)
   }
-}
-
-/* Content-Typeが未設定なのでapplication/octet-streamになる */
-export async function uploadFolderToR2(
-  localFolderPath: string,
-  bucketFolder: string,
-) {
-  try {
-    const folderName = path.basename(localFolderPath)
-    const files = await getFilesRecursively(localFolderPath)
-
-    for (const file of files) {
-      const relativePath = path
-        .relative(localFolderPath, file)
-        .replace(/\\/g, '/')
-      const bucketKey = `${bucketFolder}/${folderName}/${relativePath}`
-
-      const fileStream = fs.createReadStream(file)
-
-      const putCommand = new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: bucketKey,
-        Body: fileStream,
-      })
-
-      await s3Client.send(putCommand)
-      console.log(`Uploaded: ${file} to ${bucketKey}`)
-    }
-  } catch (error) {
-    console.error('Error uploading folder:', error)
-  }
-}
-
-async function getFilesRecursively(dir: string): Promise<string[]> {
-  const dirents = await readdir(dir, { withFileTypes: true })
-  const files = await Promise.all(
-    dirents.map((dirent) => {
-      const res = path.resolve(dir, dirent.name)
-      return dirent.isDirectory() ? getFilesRecursively(res) : res
-    }),
-  )
-  return Array.prototype.concat(...files)
 }
