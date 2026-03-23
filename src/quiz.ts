@@ -86,7 +86,9 @@ export const setupQuiz = (
   const questionCountSlider = document.getElementById(
     'quiz-question-count-slider',
   ) as HTMLInputElement | null
-  const questionCountValue = document.getElementById('quiz-question-count-value')
+  const questionCountValue = document.getElementById(
+    'quiz-question-count-value',
+  ) as HTMLOutputElement | null
   const setupControls = document.getElementById('quiz-setup-controls')
   const menuButton = document.getElementById(
     'quiz-menu-button',
@@ -316,7 +318,6 @@ export const setupQuiz = (
         : activeNames.length
     updateQuestionCountSliderRange(maxQuestions)
     totalQuestions = getSelectedQuestionCount(maxQuestions)
-    questionCountValue.textContent = questionCountSlider.value
   }
 
   const hideNameSuggestions = () => {
@@ -801,6 +802,7 @@ export const setupQuiz = (
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
   })
   questionCountSlider.addEventListener('input', () => {
+    questionCountValue.textContent = questionCountSlider.value
     refreshFilterState()
     statusText.textContent = '問題数を変更しました。「開始」を押してください。'
   })
