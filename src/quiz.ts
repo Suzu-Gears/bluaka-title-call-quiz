@@ -10,10 +10,10 @@ import {
   normalizeProficiencyMap,
   normalizeQuizAnswer,
   resolveMultipleChoiceMaxQuestions,
-  resolveQuestionCount,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
 import type { ProficiencyMap } from '@/lib/quizProgress'
+import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
 
 const DEFAULT_IMAGE = '/default-student-image.webp'
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
@@ -294,23 +294,25 @@ export const setupQuiz = (
     updateProficiencyText()
   }
 
-  const getSelectedQuestionCount = (maxQuestions: number) => {
-    const rawValue = Number(questionCountInput.value)
-    return resolveQuestionCount(rawValue, maxQuestions)
-  }
-
   const getQuestionCountMax = () =>
     currentMode === QUIZ_MODE_MULTIPLE_CHOICE
       ? resolveMultipleChoiceMaxQuestions(activeNames.length)
       : activeNames.length
 
-  const updateQuestionCountInputRange = (maxQuestions: number) => {
-    const inputMax = Math.max(1, maxQuestions)
-    questionCountInput.max = String(inputMax)
-    if (Number(questionCountInput.value) > inputMax) {
-      questionCountInput.value = String(inputMax)
-    }
-  }
+  const questionCountControl = setupQuizQuestionCountControl({
+    elements: {
+      input: questionCountInput,
+      minusButton: questionCountMinusButton,
+      plusButton: questionCountPlusButton,
+      minButton: questionCountMinButton,
+      maxButton: questionCountMaxButton,
+    },
+    getQuestionCountMax,
+    onChange: () => {
+      refreshFilterState()
+      statusText.textContent = '問題数を変更しました。「開始」を押してください。'
+    },
+  })
 
   const updateModeUI = () => {
     currentMode = quizModeSelect.value
@@ -328,12 +330,9 @@ export const setupQuiz = (
 
   const refreshFilterState = () => {
     activeNames = getCandidateNames()
-    const maxQuestions =
-      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
-        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
-        : activeNames.length
-    updateQuestionCountInputRange(maxQuestions)
-    totalQuestions = getSelectedQuestionCount(maxQuestions)
+    const maxQuestions = getQuestionCountMax()
+    questionCountControl.updateRange(maxQuestions)
+    totalQuestions = questionCountControl.getSelectedQuestionCount(maxQuestions)
   }
 
   const hideNameSuggestions = () => {
@@ -816,47 +815,6 @@ export const setupQuiz = (
     updateModeUI()
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
-  })
-  const blurOnEscape = (event: KeyboardEvent, element: HTMLElement) => {
-    if (event.key === 'Escape') {
-      element.blur()
-    }
-  }
-  questionCountInput.addEventListener('input', () => {
-    refreshFilterState()
-    statusText.textContent = '問題数を変更しました。「開始」を押してください。'
-  })
-  questionCountInput.addEventListener('keydown', (event) => {
-    blurOnEscape(event, questionCountInput)
-  })
-  const adjustQuestionCountInput = (nextValue: number) => {
-    const maxQuestions = getQuestionCountMax()
-    const clamped = resolveQuestionCount(nextValue, maxQuestions, 1)
-    questionCountInput.value = String(clamped)
-    refreshFilterState()
-    statusText.textContent = '問題数を変更しました。「開始」を押してください。'
-  }
-  questionCountMinusButton.addEventListener('click', () => {
-    adjustQuestionCountInput(Number(questionCountInput.value) - 1)
-  })
-  questionCountPlusButton.addEventListener('click', () => {
-    adjustQuestionCountInput(Number(questionCountInput.value) + 1)
-  })
-  questionCountMinButton.addEventListener('click', () => {
-    adjustQuestionCountInput(1)
-  })
-  questionCountMaxButton.addEventListener('click', () => {
-    adjustQuestionCountInput(getQuestionCountMax())
-  })
-  ;[
-    questionCountMinusButton,
-    questionCountPlusButton,
-    questionCountMinButton,
-    questionCountMaxButton,
-  ].forEach((button) => {
-    button.addEventListener('keydown', (event) => {
-      blurOnEscape(event, button)
-    })
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {

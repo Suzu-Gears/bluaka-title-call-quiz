@@ -441,38 +441,6 @@ h1 {
   gap: 0.35rem;
 }
 
-.quiz-question-count-wrapper {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.5rem;
-}
-
-.quiz-question-count-input-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.quiz-question-count-input-controls.win .btn {
-  letter-spacing: 0.05em;
-}
-
-#quiz-question-count-input {
-  width: 5.5ch;
-  padding: 0.35rem 0.45rem;
-  text-align: right;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.quiz-question-count-input-controls.win .counter {
-  letter-spacing: 0.1em;
-  transform: scaleX(0.8);
-}
-
 .quiz-name-answer-form {
   margin-top: 0.75rem;
   display: flex;
