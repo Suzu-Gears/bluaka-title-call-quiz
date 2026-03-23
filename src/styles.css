@@ -397,6 +397,10 @@ h1 {
   box-shadow: none;
 }
 
+.quiz-action-button[hidden] {
+  display: none;
+}
+
 #quiz-next-button,
 #quiz-play-audio-button {
   color: #314665;
