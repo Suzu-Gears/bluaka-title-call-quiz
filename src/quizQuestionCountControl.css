@@ -1,8 +1,8 @@
 .quiz-question-count-wrapper {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.5rem;
-  align-items: center;
   margin-top: 0.5rem;
 }
 
