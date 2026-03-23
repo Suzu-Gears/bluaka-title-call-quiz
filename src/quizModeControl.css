@@ -59,6 +59,7 @@
 
 .quiz-mode-component-wrapper .para:active {
   transform: scale(0.95);
+  cursor: default;
 }
 
 .quiz-mode-component-wrapper .radio-input {
