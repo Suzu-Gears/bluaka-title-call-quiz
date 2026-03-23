@@ -64,6 +64,11 @@
   background-color: #4e5b6e;
 }
 
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper .para:has(.counter) {
+  height: calc(var(--quiz-question-count-input-height-ratio) * 100%);
+  align-self: flex-end;
+}
+
 .quiz-question-count-input-controls.quiz-question-count-component-wrapper .btn,
 .quiz-question-count-input-controls.quiz-question-count-component-wrapper .counter {
   position: relative;
@@ -104,8 +109,6 @@
 
 #quiz-question-count-input.counter {
   width: 3em;
-  height: calc(var(--quiz-question-count-input-height-ratio) * 100%);
-  align-self: flex-end;
   color: #fff;
   font-size: 1rem;
 }
