@@ -79,22 +79,13 @@
               </div>
             </div>
             <div id="quiz-setup-controls">
-              <div class="quiz-mode-wrapper">出題方式
-                <div id="quiz-mode-group" class="radio-group quiz-mode-component-wrapper">
-                  <label class="para">
-                    <input type="radio" name="quiz-mode" value="multiple-choice" class="radio-input" checked />
-                    <span class="radio-label">4択</span>
-                  </label>
-                  <label class="para">
-                    <input type="radio" name="quiz-mode" value="name-input" class="radio-input" />
-                    <span class="radio-label">名前入力</span>
-                  </label>
-                  <label class="para">
-                    <input type="radio" name="quiz-mode" value="name-input-lunatic" class="radio-input" />
-                    <span class="radio-label">名前入力 (Lunatic)</span>
-                  </label>
-                </div>
-              </div>
+              <label for="quiz-mode-select">出題方式
+                <select id="quiz-mode-select">
+                  <option value="multiple-choice">4択</option>
+                  <option value="name-input">名前入力</option>
+                  <option value="name-input-lunatic">名前入力 (Lunatic)</option>
+                </select>
+              </label>
               <fieldset class="quiz-filter-fieldset">
                 <legend>出題対象</legend>
                 <label><input id="quiz-filter-normal" type="checkbox" checked />通常</label>

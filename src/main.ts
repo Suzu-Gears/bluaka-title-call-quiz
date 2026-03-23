@@ -3,7 +3,6 @@ import '@fontsource/kosugi-maru'
 import type { Student } from '@/lib/interfaces'
 import { setupStudentGrid } from '@/cardList'
 import { setupQuiz } from '@/quiz'
-import './quizModeControl.css'
 import './quizQuestionCountControl.css'
 import './styles.css'
 

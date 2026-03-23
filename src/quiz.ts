@@ -71,10 +71,9 @@ export const setupQuiz = (
     }).map(({ name }) => name),
   }
 
-  const quizModeGroup = document.getElementById('quiz-mode-group') as HTMLElement | null
-  const getQuizModeValue = () =>
-    (quizModeGroup?.querySelector('input[name="quiz-mode"]:checked') as HTMLInputElement | null)
-      ?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
+  const quizModeSelect = document.getElementById(
+    'quiz-mode-select',
+  ) as HTMLSelectElement | null
   const normalFilter = document.getElementById(
     'quiz-filter-normal',
   ) as HTMLInputElement | null
@@ -160,7 +159,7 @@ export const setupQuiz = (
   const resultList = document.getElementById('quiz-result-list')
 
   if (
-    !quizModeGroup ||
+    !quizModeSelect ||
     !normalFilter ||
     !costumeFilter ||
     !collaborationFilter ||
@@ -199,7 +198,7 @@ export const setupQuiz = (
 
   let usedChoiceNames: Set<string> = new Set()
   let currentAnswer = ''
-  let currentMode = getQuizModeValue()
+  let currentMode = quizModeSelect.value
   let shouldShowCurrentAnswerStats = false
   let score = 0
   let questionNumber = 0
@@ -316,7 +315,7 @@ export const setupQuiz = (
   })
 
   const updateModeUI = () => {
-    currentMode = getQuizModeValue()
+    currentMode = quizModeSelect.value
     const isNameInputMode =
       currentMode === QUIZ_MODE_NAME_INPUT || currentMode === QUIZ_MODE_NAME_INPUT_LUNATIC
     choicesRoot.hidden = isNameInputMode
@@ -812,7 +811,7 @@ export const setupQuiz = (
     }
     setMenuOpen(false)
   })
-  quizModeGroup.addEventListener('change', () => {
+  quizModeSelect.addEventListener('change', () => {
     updateModeUI()
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
