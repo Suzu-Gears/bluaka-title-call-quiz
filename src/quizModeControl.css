@@ -1,5 +1,5 @@
 .quiz-mode-wrapper {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;

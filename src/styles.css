@@ -401,12 +401,10 @@ h1 {
   display: none;
 }
 
-#quiz-next-button,
 #quiz-play-audio-button {
   color: #314665;
 }
 
-#quiz-next-button::before,
 #quiz-play-audio-button::before {
   background-color: #77dfff;
 }
