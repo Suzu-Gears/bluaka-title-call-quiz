@@ -1,0 +1,92 @@
+.quiz-mode-wrapper {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.quiz-mode-component-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  height: 2.4em;
+  min-width: 0;
+  overflow-x: auto;
+  padding-block: 0.3em;
+  padding-inline: 0.5em;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+.quiz-mode-component-wrapper .para {
+  position: relative;
+  flex-shrink: 0;
+  height: 100%;
+  font-size: 1.2em;
+  background: transparent;
+  border: none;
+  padding-inline: 0.5em;
+  padding-block: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+
+.quiz-mode-component-wrapper .para::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: skewX(-10deg);
+  border-radius: 0.25em;
+  background-color: #fff;
+  box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
+  transition: background-color 0.2s ease;
+}
+
+.quiz-mode-component-wrapper .para:active {
+  transform: scale(0.95);
+}
+
+.quiz-mode-component-wrapper .radio-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.quiz-mode-component-wrapper .radio-label {
+  position: relative;
+  pointer-events: none;
+  font-weight: 700;
+  font-family:
+    'ヒラギノ丸ゴ Pro',
+    'Hiragino Maru Gothic Pro',
+    'HG丸ｺﾞｼｯｸM-PRO',
+    'HGMaruGothicMPRO',
+    sans-serif;
+  color: #496f8f;
+  transition: color 0.2s ease;
+}
+
+.quiz-mode-component-wrapper .para:has(.radio-input:checked)::before {
+  background-color: #496f8f;
+}
+
+.quiz-mode-component-wrapper .para:has(.radio-input:checked) .radio-label {
+  color: #fff;
+}
+
+.quiz-mode-component-wrapper .para:focus-within {
+  outline: none;
+}
+
+.quiz-mode-component-wrapper .para:focus-within::before {
+  outline: 0.2em solid #f3e756;
+}
