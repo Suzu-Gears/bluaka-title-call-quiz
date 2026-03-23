@@ -83,12 +83,10 @@ export const setupQuiz = (
   const collaborationFilter = document.getElementById(
     'quiz-filter-collaboration',
   ) as HTMLInputElement | null
-  const questionCountPreset = document.getElementById(
-    'quiz-question-count-preset',
-  ) as HTMLSelectElement | null
-  const questionCountCustom = document.getElementById(
-    'quiz-question-count-custom',
+  const questionCountSlider = document.getElementById(
+    'quiz-question-count-slider',
   ) as HTMLInputElement | null
+  const questionCountValue = document.getElementById('quiz-question-count-value')
   const setupControls = document.getElementById('quiz-setup-controls')
   const menuButton = document.getElementById(
     'quiz-menu-button',
@@ -154,8 +152,8 @@ export const setupQuiz = (
     !normalFilter ||
     !costumeFilter ||
     !collaborationFilter ||
-    !questionCountPreset ||
-    !questionCountCustom ||
+    !questionCountSlider ||
+    !questionCountValue ||
     !startButton ||
     !nextButton ||
     !replayButton ||
@@ -282,51 +280,18 @@ export const setupQuiz = (
     updateProficiencyText()
   }
 
-  const updateQuestionCountFieldVisibility = () => {
-    questionCountCustom.hidden = questionCountPreset.value !== 'custom'
-  }
-
   const getSelectedQuestionCount = (maxQuestions: number) => {
-    if (maxQuestions <= 0) {
-      return 0
-    }
-    const presetValue = questionCountPreset.value
-    const rawValue =
-      presetValue === 'all'
-        ? maxQuestions
-        : presetValue === 'custom'
-          ? Number(questionCountCustom.value ?? '')
-          : Number(presetValue)
+    const rawValue = Number(questionCountSlider.value)
     return resolveQuestionCount(rawValue, maxQuestions)
   }
 
-  const updateQuestionCountPresetVisibility = (maxQuestions: number) => {
-    const allOption = questionCountPreset.querySelector<HTMLOptionElement>(
-      'option[value="all"]',
-    )
-    if (allOption) {
-      allOption.textContent = `${maxQuestions}(全部)`
+  const updateQuestionCountSliderRange = (maxQuestions: number) => {
+    const sliderMax = Math.max(1, maxQuestions)
+    questionCountSlider.max = String(sliderMax)
+    if (Number(questionCountSlider.value) > sliderMax) {
+      questionCountSlider.value = String(sliderMax)
     }
-
-    const numericOptions = Array.from(
-      questionCountPreset.querySelectorAll<HTMLOptionElement>('option'),
-    ).filter((opt) => opt.value !== 'all' && opt.value !== 'custom')
-
-    for (const opt of numericOptions) {
-      opt.hidden = Number(opt.value) > maxQuestions
-    }
-
-    const currentValue = questionCountPreset.value
-    if (currentValue !== 'all' && currentValue !== 'custom') {
-      if (Number(currentValue) > maxQuestions) {
-        const bestFit = numericOptions
-          .filter((opt) => Number(opt.value) <= maxQuestions)
-          .sort((a, b) => Number(b.value) - Number(a.value))[0]
-        questionCountPreset.value = bestFit ? bestFit.value : 'all'
-      }
-    }
-
-    updateQuestionCountFieldVisibility()
+    questionCountValue.textContent = questionCountSlider.value
   }
 
   const updateModeUI = () => {
@@ -349,8 +314,9 @@ export const setupQuiz = (
       currentMode === QUIZ_MODE_MULTIPLE_CHOICE
         ? resolveMultipleChoiceMaxQuestions(activeNames.length)
         : activeNames.length
-    updateQuestionCountPresetVisibility(maxQuestions)
+    updateQuestionCountSliderRange(maxQuestions)
     totalQuestions = getSelectedQuestionCount(maxQuestions)
+    questionCountValue.textContent = questionCountSlider.value
   }
 
   const hideNameSuggestions = () => {
@@ -743,7 +709,6 @@ export const setupQuiz = (
 
   const startQuiz = () => {
     updateModeUI()
-    updateQuestionCountFieldVisibility()
     refreshFilterState()
     if (activeNames.length < 1) {
       statusText.textContent =
@@ -835,12 +800,10 @@ export const setupQuiz = (
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
   })
-  questionCountPreset.addEventListener('change', () => {
-    updateQuestionCountFieldVisibility()
+  questionCountSlider.addEventListener('input', () => {
     refreshFilterState()
     statusText.textContent = '問題数を変更しました。「開始」を押してください。'
   })
-  questionCountCustom.addEventListener('input', refreshFilterState)
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {
       refreshFilterState()
@@ -887,7 +850,6 @@ export const setupQuiz = (
 
   loadProficiency()
   updateModeUI()
-  updateQuestionCountFieldVisibility()
   refreshFilterState()
   setQuizRunning(false)
 }

@@ -92,15 +92,11 @@
                 <label><input id="quiz-filter-costume" type="checkbox" />別衣装</label>
                 <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
               </fieldset>
-              <label class="quiz-question-count-wrapper" for="quiz-question-count-preset">問題数
-                <select id="quiz-question-count-preset">
-                  <option value="1">1</option>
-                  <option value="10" selected>10</option>
-                  <option value="20">20</option>
-                  <option value="all">〇〇(全部)</option>
-                  <option value="custom">任意</option>
-                </select>
-                <input id="quiz-question-count-custom" type="number" min="1" step="1" placeholder="任意" hidden />
+              <label class="quiz-question-count-wrapper" for="quiz-question-count-slider">問題数
+                <div class="quiz-question-count-slider">
+                  <input id="quiz-question-count-slider" type="range" min="1" max="10" step="1" value="10" />
+                  <output id="quiz-question-count-value" for="quiz-question-count-slider">10</output>
+                </div>
               </label>
             </div>
             <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
