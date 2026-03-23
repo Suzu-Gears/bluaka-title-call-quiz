@@ -300,14 +300,33 @@ export const setupQuiz = (
     return resolveQuestionCount(rawValue, maxQuestions)
   }
 
-  const updateAllQuestionOptionLabel = (maxQuestions: number) => {
+  const updateQuestionCountPresetVisibility = (maxQuestions: number) => {
     const allOption = questionCountPreset.querySelector<HTMLOptionElement>(
       'option[value="all"]',
     )
-    if (!allOption) {
-      return
+    if (allOption) {
+      allOption.textContent = `${maxQuestions}(全部)`
     }
-    allOption.textContent = `${maxQuestions}(全部)`
+
+    const numericOptions = Array.from(
+      questionCountPreset.querySelectorAll<HTMLOptionElement>('option'),
+    ).filter((opt) => opt.value !== 'all' && opt.value !== 'custom')
+
+    for (const opt of numericOptions) {
+      opt.hidden = Number(opt.value) > maxQuestions
+    }
+
+    const currentValue = questionCountPreset.value
+    if (currentValue !== 'all' && currentValue !== 'custom') {
+      if (Number(currentValue) > maxQuestions) {
+        const bestFit = numericOptions
+          .filter((opt) => Number(opt.value) <= maxQuestions)
+          .sort((a, b) => Number(b.value) - Number(a.value))[0]
+        questionCountPreset.value = bestFit ? bestFit.value : 'all'
+      }
+    }
+
+    updateQuestionCountFieldVisibility()
   }
 
   const updateModeUI = () => {
@@ -330,7 +349,7 @@ export const setupQuiz = (
       currentMode === QUIZ_MODE_MULTIPLE_CHOICE
         ? resolveMultipleChoiceMaxQuestions(activeNames.length)
         : activeNames.length
-    updateAllQuestionOptionLabel(maxQuestions)
+    updateQuestionCountPresetVisibility(maxQuestions)
     totalQuestions = getSelectedQuestionCount(maxQuestions)
   }
 
