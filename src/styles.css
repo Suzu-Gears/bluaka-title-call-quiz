@@ -288,6 +288,7 @@ h1 {
 .quiz-section {
   --quiz-image-max-width: 108px;
   margin-top: 1rem;
+  margin-inline: auto;
   width: 100%;
   max-width: 720px;
   box-sizing: border-box;
@@ -407,6 +408,10 @@ h1 {
 
 #quiz-play-audio-button::before {
   background-color: #77dfff;
+}
+
+#quiz-start-button {
+  margin-inline: auto;
 }
 
 #quiz-menu-button:not(:disabled):hover,
