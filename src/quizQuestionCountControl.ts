@@ -25,6 +25,13 @@ export const setupQuizQuestionCountControl = ({
   onChange,
 }: SetupQuizQuestionCountControlParams): QuizQuestionCountControl => {
   const { input, minusButton, plusButton, minButton, maxButton } = elements
+  const container = input.closest('.quiz-question-count-component-wrapper')
+  if (
+    container &&
+    (navigator.userAgent.includes('Windows') || navigator.userAgent.includes('Win'))
+  ) {
+    container.classList.add('win')
+  }
 
   const blurOnEscape = (event: KeyboardEvent, element: HTMLElement) => {
     if (event.key === 'Escape') {
