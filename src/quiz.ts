@@ -9,6 +9,7 @@ import {
   migrateLegacyProficiency,
   normalizeProficiencyMap,
   normalizeQuizAnswer,
+  resolveMultipleChoiceMaxQuestions,
   resolveQuestionCount,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
@@ -183,7 +184,7 @@ export const setupQuiz = (
     return [...selected]
   }
 
-  let askedNames: string[] = []
+  let usedChoiceNames: Set<string> = new Set()
   let currentAnswer = ''
   let currentMode = quizModeSelect.value
   let shouldShowCurrentAnswerStats = false
@@ -325,8 +326,12 @@ export const setupQuiz = (
 
   const refreshFilterState = () => {
     activeNames = getCandidateNames()
-    updateAllQuestionOptionLabel(activeNames.length)
-    totalQuestions = getSelectedQuestionCount(activeNames.length)
+    const maxQuestions =
+      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
+        : activeNames.length
+    updateAllQuestionOptionLabel(maxQuestions)
+    totalQuestions = getSelectedQuestionCount(maxQuestions)
   }
 
   const hideNameSuggestions = () => {
@@ -552,7 +557,7 @@ export const setupQuiz = (
 
   const resetToStartScreen = () => {
     stopAudio()
-    askedNames = []
+    usedChoiceNames = new Set()
     currentAnswer = ''
     score = 0
     questionNumber = 0
@@ -635,14 +640,14 @@ export const setupQuiz = (
 
   const renderQuestion = () => {
     choicesRoot.innerHTML = ''
-    const available = activeNames.filter((name) => !askedNames.includes(name))
-    if (available.length === 0 || questionNumber >= totalQuestions) {
+    const available = activeNames.filter((name) => !usedChoiceNames.has(name))
+    const minAvailable = currentMode === QUIZ_MODE_MULTIPLE_CHOICE ? 4 : 1
+    if (available.length < minAvailable || questionNumber >= totalQuestions) {
       showResultScreen()
       return
     }
 
     currentAnswer = available[Math.floor(Math.random() * available.length)]
-    askedNames.push(currentAnswer)
     questionNumber += 1
     statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
     shouldShowCurrentAnswerStats = false
@@ -664,7 +669,8 @@ export const setupQuiz = (
         nameAnswerForm.hidden = true
       }
       hideNameSuggestions()
-      const choices = buildChoices(currentAnswer, activeNames)
+      const choices = buildChoices(currentAnswer, available)
+      choices.forEach((name) => usedChoiceNames.add(name))
       choices.forEach((name) => {
         const button = document.createElement('button')
         button.type = 'button'
@@ -701,6 +707,7 @@ export const setupQuiz = (
       return
     }
 
+    usedChoiceNames.add(currentAnswer)
     choicesRoot.hidden = true
     if (nameAnswerForm) {
       nameAnswerForm.hidden = false
@@ -729,7 +736,7 @@ export const setupQuiz = (
         'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。'
       return false
     }
-    askedNames = []
+    usedChoiceNames = new Set()
     currentAnswer = ''
     score = 0
     questionNumber = 0

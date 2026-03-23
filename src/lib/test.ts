@@ -11,6 +11,7 @@ import {
   migrateLegacyProficiency,
   normalizeQuizAnswer,
   normalizeProficiencyMap,
+  resolveMultipleChoiceMaxQuestions,
   resolveStudentCategory,
   resolveQuestionCount,
   summarizeQuizResults,
@@ -147,6 +148,15 @@ const deterministicRandom = () => 0
   assert.equal(resolveQuestionCount(20, 10), 10)
   assert.equal(resolveQuestionCount(0, 5), 5)
   assert.equal(resolveQuestionCount(Number.NaN, 8), 8)
+}
+
+{
+  assert.equal(resolveMultipleChoiceMaxQuestions(120), 30)
+  assert.equal(resolveMultipleChoiceMaxQuestions(4), 1)
+  assert.equal(resolveMultipleChoiceMaxQuestions(3), 0)
+  assert.equal(resolveMultipleChoiceMaxQuestions(0), 0)
+  assert.equal(resolveMultipleChoiceMaxQuestions(10, 5), 2)
+  assert.equal(resolveMultipleChoiceMaxQuestions(11, 4), 2)
 }
 
 {

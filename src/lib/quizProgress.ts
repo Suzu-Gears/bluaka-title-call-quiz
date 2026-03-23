@@ -184,6 +184,16 @@ export function resolveQuestionCount(
   return Math.max(1, Math.min(parsed, maxQuestions))
 }
 
+export function resolveMultipleChoiceMaxQuestions(
+  candidateCount: number,
+  choiceCount = 4,
+): number {
+  if (choiceCount < 2 || candidateCount < choiceCount) {
+    return 0
+  }
+  return Math.floor(candidateCount / choiceCount)
+}
+
 export function summarizeQuizResults(results: readonly QuizResultSummaryEntry[]) {
   const totalCount = results.length
   const correctCount = results.filter((entry) => entry.isCorrect).length
