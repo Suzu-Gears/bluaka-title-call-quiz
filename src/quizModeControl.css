@@ -63,6 +63,10 @@
   cursor: default;
 }
 
+.quiz-mode-component-wrapper .para:has(.radio-input:checked):active {
+  transform: none;
+}
+
 .quiz-mode-component-wrapper .radio-input {
   position: absolute;
   opacity: 0;

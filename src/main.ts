@@ -43,6 +43,9 @@ const setFooterVersion = () => {
   }
 }
 
+// iOS Safari では空の touchstart リスナーが存在しないと :active 疑似クラスが発火しない
+document.addEventListener('touchstart', () => {}, { passive: true })
+
 const bootstrap = async () => {
   const hasAudioFile = async (studentName: string) => {
     try {
