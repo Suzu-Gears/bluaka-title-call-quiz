@@ -7,6 +7,7 @@
 }
 
 .quiz-question-count-input-controls.quiz-question-count-component-wrapper.button-group {
+  --quiz-question-count-input-height-ratio: 0.95;
   display: flex;
   align-items: center;
   gap: 0.25em;
@@ -103,6 +104,8 @@
 
 #quiz-question-count-input.counter {
   width: 3em;
+  height: calc(var(--quiz-question-count-input-height-ratio) * 100%);
+  align-self: flex-end;
   color: #fff;
   font-size: 1rem;
 }
