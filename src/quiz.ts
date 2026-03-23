@@ -212,6 +212,8 @@ export const setupQuiz = (
   let isQuizRunning = false
   let resultEntries: QuizResultEntry[] = []
   let playAudioDelayTimer: number | null = null
+  let kokonaAudioTimer: number | null = null
+  const kokonaAudio: HTMLAudioElement = new Audio('/kokona-hanamaru.mp3')
   let isComposingNameInput = false
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
@@ -462,6 +464,12 @@ export const setupQuiz = (
     }, 500)
   }
 
+  const playKokonaAudio = () => {
+    kokonaAudio.pause()
+    kokonaAudio.currentTime = 0
+    kokonaAudio.play().catch(() => {})
+  }
+
   const updateAnswerFeedback = (name: string) => {
     if (!answerFeedback || !answerImage || !answerName || !name) return
     answerImage.src = `/image/${encodeURIComponent(name)}.webp`
@@ -529,6 +537,16 @@ export const setupQuiz = (
       resultPerfectRow.hidden = !isPerfect
     }
 
+    if (isPerfect) {
+      if (kokonaAudioTimer !== null) {
+        window.clearTimeout(kokonaAudioTimer)
+      }
+      kokonaAudioTimer = window.setTimeout(() => {
+        kokonaAudioTimer = null
+        playKokonaAudio()
+      }, 500)
+    }
+
     resultList.innerHTML = ''
     resultEntries.forEach((entry) => {
       const item = document.createElement('article')
@@ -539,6 +557,9 @@ export const setupQuiz = (
       image.onerror = () => {
         image.src = DEFAULT_IMAGE
       }
+      image.addEventListener('click', () => {
+        playAudioForName(entry.correctAnswer)
+      })
 
       const text = document.createElement('div')
       text.className = 'quiz-result-item-text'
@@ -559,6 +580,10 @@ export const setupQuiz = (
 
   const resetToStartScreen = () => {
     stopAudio()
+    if (kokonaAudioTimer !== null) {
+      window.clearTimeout(kokonaAudioTimer)
+      kokonaAudioTimer = null
+    }
     usedChoiceNames = new Set()
     currentAnswer = ''
     score = 0
@@ -757,6 +782,15 @@ export const setupQuiz = (
   }
 
   startButton.addEventListener('click', startQuiz)
+
+  answerImage?.addEventListener('click', () => {
+    if (!answerFeedback || answerFeedback.hidden) return
+    if (!currentAnswer) return
+    playAudioForName(currentAnswer)
+  })
+
+  resultPerfectStamp?.addEventListener('click', playKokonaAudio)
+  resultPerfectMessage?.addEventListener('click', playKokonaAudio)
 
   nextButton.addEventListener('click', () => {
     if (!hasAnsweredCurrentQuestion) {
