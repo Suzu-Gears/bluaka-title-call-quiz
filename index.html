@@ -93,11 +93,19 @@
                 <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
               </fieldset>
               <label class="quiz-question-count-wrapper" for="quiz-question-count-input">問題数
-                <div class="quiz-question-count-input-controls">
-                  <button id="quiz-question-count-min-button" type="button">最小</button>
-                  <button id="quiz-question-count-minus-button" type="button" aria-label="問題数を1減らす">-</button>
+                <div class="quiz-question-count-input-controls win">
+                  <button id="quiz-question-count-min-button" class="btn" type="button">最小</button>
+                  <button
+                    id="quiz-question-count-minus-button"
+                    class="btn"
+                    type="button"
+                    aria-label="問題数を1減らす"
+                  >
+                    -
+                  </button>
                   <input
                     id="quiz-question-count-input"
+                    class="counter"
                     type="number"
                     min="1"
                     max="10"
@@ -105,8 +113,10 @@
                     value="10"
                     inputmode="numeric"
                   />
-                  <button id="quiz-question-count-plus-button" type="button" aria-label="問題数を1増やす">+</button>
-                  <button id="quiz-question-count-max-button" type="button">最大</button>
+                  <button id="quiz-question-count-plus-button" class="btn" type="button" aria-label="問題数を1増やす">
+                    +
+                  </button>
+                  <button id="quiz-question-count-max-button" class="btn" type="button">最大</button>
                 </div>
               </label>
             </div>

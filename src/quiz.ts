@@ -831,7 +831,7 @@ export const setupQuiz = (
   })
   const adjustQuestionCountInput = (nextValue: number) => {
     const maxQuestions = getQuestionCountMax()
-    const clamped = resolveQuestionCount(nextValue, maxQuestions)
+    const clamped = resolveQuestionCount(nextValue, maxQuestions, 1)
     questionCountInput.value = String(clamped)
     refreshFilterState()
     statusText.textContent = '問題数を変更しました。「開始」を押してください。'
