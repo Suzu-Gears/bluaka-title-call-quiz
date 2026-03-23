@@ -43,10 +43,18 @@
   position: absolute;
   inset: 0;
   transform: skewX(-10deg);
-  border-radius: 0.25em;
+  border-radius: 0;
   background-color: #fff;
   box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
   transition: background-color 0.2s ease;
+}
+
+.quiz-mode-component-wrapper .para:first-child::before {
+  border-radius: 0.25em 0 0 0.25em;
+}
+
+.quiz-mode-component-wrapper .para:last-child::before {
+  border-radius: 0 0.25em 0.25em 0;
 }
 
 .quiz-mode-component-wrapper .para:active {
