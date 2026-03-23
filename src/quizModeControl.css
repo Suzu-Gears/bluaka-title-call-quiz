@@ -9,12 +9,8 @@
 .quiz-mode-component-wrapper {
   display: flex;
   align-items: center;
-  gap: 0.25em;
+  gap: 1px;
   height: 2.4em;
-  min-width: 0;
-  overflow-x: auto;
-  padding-block: 0.3em;
-  padding-inline: 0.5em;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-touch-callout: none;
@@ -23,12 +19,11 @@
 
 .quiz-mode-component-wrapper .para {
   position: relative;
-  flex-shrink: 0;
   height: 100%;
   font-size: 1.2em;
   background: transparent;
   border: none;
-  padding-inline: 0.5em;
+  padding-inline: 1em;
   padding-block: 0;
   margin: 0;
   display: flex;
@@ -44,9 +39,9 @@
   inset: 0;
   transform: skewX(-10deg);
   border-radius: 0;
-  background-color: #fff;
+  background-color: #f4f5f6;
   box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-radius 0.2s ease;
 }
 
 .quiz-mode-component-wrapper .para:first-child::before {
@@ -57,8 +52,13 @@
   border-radius: 0 0.25em 0.25em 0;
 }
 
-.quiz-mode-component-wrapper .para:active {
+.quiz-mode-component-wrapper .para:not(:has(.radio-input:checked)):active {
   transform: scale(0.95);
+}
+
+.quiz-mode-component-wrapper .para:has(.radio-input:checked):active {
+  transform: scale(1);
+  cursor: default;
 }
 
 .quiz-mode-component-wrapper .radio-input {
