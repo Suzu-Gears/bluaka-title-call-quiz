@@ -299,6 +299,11 @@ export const setupQuiz = (
     return resolveQuestionCount(rawValue, maxQuestions)
   }
 
+  const getQuestionCountMax = () =>
+    currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+      ? resolveMultipleChoiceMaxQuestions(activeNames.length)
+      : activeNames.length
+
   const updateQuestionCountInputRange = (maxQuestions: number) => {
     const inputMax = Math.max(1, maxQuestions)
     questionCountInput.max = String(inputMax)
@@ -812,20 +817,20 @@ export const setupQuiz = (
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
   })
+  const blurOnEscape = (event: KeyboardEvent, element: HTMLElement) => {
+    if (event.key === 'Escape') {
+      element.blur()
+    }
+  }
   questionCountInput.addEventListener('input', () => {
     refreshFilterState()
     statusText.textContent = '問題数を変更しました。「開始」を押してください。'
   })
   questionCountInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      questionCountInput.blur()
-    }
+    blurOnEscape(event, questionCountInput)
   })
   const adjustQuestionCountInput = (nextValue: number) => {
-    const maxQuestions =
-      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
-        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
-        : activeNames.length
+    const maxQuestions = getQuestionCountMax()
     const clamped = resolveQuestionCount(nextValue, maxQuestions)
     questionCountInput.value = String(clamped)
     refreshFilterState()
@@ -841,11 +846,7 @@ export const setupQuiz = (
     adjustQuestionCountInput(1)
   })
   questionCountMaxButton.addEventListener('click', () => {
-    const maxQuestions =
-      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
-        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
-        : activeNames.length
-    adjustQuestionCountInput(maxQuestions)
+    adjustQuestionCountInput(getQuestionCountMax())
   })
   ;[
     questionCountMinusButton,
@@ -854,9 +855,7 @@ export const setupQuiz = (
     questionCountMaxButton,
   ].forEach((button) => {
     button.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        button.blur()
-      }
+      blurOnEscape(event, button)
     })
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
