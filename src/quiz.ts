@@ -83,12 +83,21 @@ export const setupQuiz = (
   const collaborationFilter = document.getElementById(
     'quiz-filter-collaboration',
   ) as HTMLInputElement | null
-  const questionCountSlider = document.getElementById(
-    'quiz-question-count-slider',
+  const questionCountInput = document.getElementById(
+    'quiz-question-count-input',
   ) as HTMLInputElement | null
-  const questionCountValue = document.getElementById(
-    'quiz-question-count-value',
-  ) as HTMLOutputElement | null
+  const questionCountMinusButton = document.getElementById(
+    'quiz-question-count-minus-button',
+  ) as HTMLButtonElement | null
+  const questionCountPlusButton = document.getElementById(
+    'quiz-question-count-plus-button',
+  ) as HTMLButtonElement | null
+  const questionCountMinButton = document.getElementById(
+    'quiz-question-count-min-button',
+  ) as HTMLButtonElement | null
+  const questionCountMaxButton = document.getElementById(
+    'quiz-question-count-max-button',
+  ) as HTMLButtonElement | null
   const setupControls = document.getElementById('quiz-setup-controls')
   const menuButton = document.getElementById(
     'quiz-menu-button',
@@ -154,8 +163,11 @@ export const setupQuiz = (
     !normalFilter ||
     !costumeFilter ||
     !collaborationFilter ||
-    !questionCountSlider ||
-    !questionCountValue ||
+    !questionCountInput ||
+    !questionCountMinusButton ||
+    !questionCountPlusButton ||
+    !questionCountMinButton ||
+    !questionCountMaxButton ||
     !startButton ||
     !nextButton ||
     !replayButton ||
@@ -283,17 +295,16 @@ export const setupQuiz = (
   }
 
   const getSelectedQuestionCount = (maxQuestions: number) => {
-    const rawValue = Number(questionCountSlider.value)
+    const rawValue = Number(questionCountInput.value)
     return resolveQuestionCount(rawValue, maxQuestions)
   }
 
-  const updateQuestionCountSliderRange = (maxQuestions: number) => {
-    const sliderMax = Math.max(1, maxQuestions)
-    questionCountSlider.max = String(sliderMax)
-    if (Number(questionCountSlider.value) > sliderMax) {
-      questionCountSlider.value = String(sliderMax)
+  const updateQuestionCountInputRange = (maxQuestions: number) => {
+    const inputMax = Math.max(1, maxQuestions)
+    questionCountInput.max = String(inputMax)
+    if (Number(questionCountInput.value) > inputMax) {
+      questionCountInput.value = String(inputMax)
     }
-    questionCountValue.textContent = questionCountSlider.value
   }
 
   const updateModeUI = () => {
@@ -316,7 +327,7 @@ export const setupQuiz = (
       currentMode === QUIZ_MODE_MULTIPLE_CHOICE
         ? resolveMultipleChoiceMaxQuestions(activeNames.length)
         : activeNames.length
-    updateQuestionCountSliderRange(maxQuestions)
+    updateQuestionCountInputRange(maxQuestions)
     totalQuestions = getSelectedQuestionCount(maxQuestions)
   }
 
@@ -801,10 +812,52 @@ export const setupQuiz = (
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
   })
-  questionCountSlider.addEventListener('input', () => {
-    questionCountValue.textContent = questionCountSlider.value
+  questionCountInput.addEventListener('input', () => {
     refreshFilterState()
     statusText.textContent = '問題数を変更しました。「開始」を押してください。'
+  })
+  questionCountInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      questionCountInput.blur()
+    }
+  })
+  const adjustQuestionCountInput = (nextValue: number) => {
+    const maxQuestions =
+      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
+        : activeNames.length
+    const clamped = resolveQuestionCount(nextValue, maxQuestions)
+    questionCountInput.value = String(clamped)
+    refreshFilterState()
+    statusText.textContent = '問題数を変更しました。「開始」を押してください。'
+  }
+  questionCountMinusButton.addEventListener('click', () => {
+    adjustQuestionCountInput(Number(questionCountInput.value) - 1)
+  })
+  questionCountPlusButton.addEventListener('click', () => {
+    adjustQuestionCountInput(Number(questionCountInput.value) + 1)
+  })
+  questionCountMinButton.addEventListener('click', () => {
+    adjustQuestionCountInput(1)
+  })
+  questionCountMaxButton.addEventListener('click', () => {
+    const maxQuestions =
+      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
+        : activeNames.length
+    adjustQuestionCountInput(maxQuestions)
+  })
+  ;[
+    questionCountMinusButton,
+    questionCountPlusButton,
+    questionCountMinButton,
+    questionCountMaxButton,
+  ].forEach((button) => {
+    button.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        button.blur()
+      }
+    })
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {

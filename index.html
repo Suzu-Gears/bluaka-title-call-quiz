@@ -92,10 +92,21 @@
                 <label><input id="quiz-filter-costume" type="checkbox" />別衣装</label>
                 <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
               </fieldset>
-              <label class="quiz-question-count-wrapper" for="quiz-question-count-slider">問題数
-                <div class="quiz-question-count-slider">
-                  <input id="quiz-question-count-slider" type="range" min="1" max="10" step="1" value="10" />
-                  <output id="quiz-question-count-value" for="quiz-question-count-slider">10</output>
+              <label class="quiz-question-count-wrapper" for="quiz-question-count-input">問題数
+                <div class="quiz-question-count-input-controls">
+                  <button id="quiz-question-count-min-button" type="button">最小</button>
+                  <button id="quiz-question-count-minus-button" type="button" aria-label="問題数を1減らす">-</button>
+                  <input
+                    id="quiz-question-count-input"
+                    type="number"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value="10"
+                    inputmode="numeric"
+                  />
+                  <button id="quiz-question-count-plus-button" type="button" aria-label="問題数を1増やす">+</button>
+                  <button id="quiz-question-count-max-button" type="button">最大</button>
                 </div>
               </label>
             </div>
