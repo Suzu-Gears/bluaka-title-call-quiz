@@ -93,30 +93,36 @@
                 <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
               </fieldset>
               <label class="quiz-question-count-wrapper" for="quiz-question-count-input">問題数
-                <div class="quiz-question-count-input-controls quiz-question-count-component-wrapper win">
-                  <button id="quiz-question-count-min-button" class="btn" type="button">最小</button>
+                <div class="quiz-question-count-input-controls button-group quiz-question-count-component-wrapper win">
+                  <button id="quiz-question-count-min-button" class="para" type="button">
+                    <span class="btn min">最小</span>
+                  </button>
                   <button
                     id="quiz-question-count-minus-button"
-                    class="btn"
+                    class="para"
                     type="button"
                     aria-label="問題数を1減らす"
                   >
-                    -
+                    <span class="btn minus">－</span>
                   </button>
-                  <input
-                    id="quiz-question-count-input"
-                    class="counter"
-                    type="number"
-                    min="1"
-                    max="10"
-                    step="1"
-                    value="10"
-                    inputmode="numeric"
-                  />
-                  <button id="quiz-question-count-plus-button" class="btn" type="button" aria-label="問題数を1増やす">
-                    +
+                  <div class="para">
+                    <input
+                      id="quiz-question-count-input"
+                      class="counter"
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value="10"
+                      inputmode="numeric"
+                    />
+                  </div>
+                  <button id="quiz-question-count-plus-button" class="para" type="button" aria-label="問題数を1増やす">
+                    <span class="btn plus">＋</span>
                   </button>
-                  <button id="quiz-question-count-max-button" class="btn" type="button">最大</button>
+                  <button id="quiz-question-count-max-button" class="para" type="button">
+                    <span class="btn max">最大</span>
+                  </button>
                 </div>
               </label>
             </div>
