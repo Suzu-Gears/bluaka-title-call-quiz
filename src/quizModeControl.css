@@ -4,7 +4,6 @@
   gap: 0.5rem;
   align-items: center;
   margin-top: 0.5rem;
-  overflow-x: auto;
 }
 
 .quiz-mode-component-wrapper {
@@ -12,7 +11,10 @@
   align-items: center;
   gap: 0.25em;
   height: 2.4em;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding-block: 0.3em;
+  padding-inline: 0.5em;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-touch-callout: none;
