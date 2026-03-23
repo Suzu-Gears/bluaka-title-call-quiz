@@ -615,6 +615,7 @@ export const setupQuiz = (
     awaitingResult = !hasRemainingQuestion
     nextButton.textContent = awaitingResult ? 'リザルト' : '次へ'
     replayButton.disabled = awaitingResult
+    replayButton.hidden = awaitingResult
     nextButton.hidden = false
     nextButton.disabled = false
   }
