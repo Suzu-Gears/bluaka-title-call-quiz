@@ -213,6 +213,7 @@ export const setupQuiz = (
   let resultEntries: QuizResultEntry[] = []
   let playAudioDelayTimer: number | null = null
   let kokonaAudioTimer: number | null = null
+  const kokonaAudio: HTMLAudioElement = new Audio('/kokona-hanamaru.mp3')
   let isComposingNameInput = false
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
@@ -464,8 +465,9 @@ export const setupQuiz = (
   }
 
   const playKokonaAudio = () => {
-    const audio = new Audio('/kokona-hanamaru.mp3')
-    audio.play().catch(() => {})
+    kokonaAudio.pause()
+    kokonaAudio.currentTime = 0
+    kokonaAudio.play().catch(() => {})
   }
 
   const updateAnswerFeedback = (name: string) => {

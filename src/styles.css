@@ -315,8 +315,7 @@ h1 {
 }
 
 #quiz-menu-button,
-.quiz-menu-panel button,
-.quiz-name-answer-form button {
+.quiz-menu-panel button {
   border: 1px solid #d5dbe3;
   color: #2f3b52;
   border-radius: 999px;
@@ -331,8 +330,61 @@ h1 {
     color 0.15s ease;
 }
 
-.quiz-name-answer-form button {
+.quiz-name-answer-form button[type='submit'] {
+  position: relative;
+  isolation: isolate;
   min-height: 2.2rem;
+  background: transparent;
+  border: none;
+  padding-inline: 0.75em;
+  padding-block: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  color: #4b2016;
+  white-space: nowrap;
+  transition: transform 0.05s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.quiz-name-answer-form button[type='submit']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-10deg);
+  border-radius: 0.25em;
+  background-color: #f6e94b;
+  box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
+  transition: background-color 0.2s ease;
+}
+
+.quiz-name-answer-form button[type='submit']:active {
+  transform: scale(0.95);
+}
+
+.quiz-name-answer-form button[type='submit']:focus-visible {
+  outline: none;
+}
+
+.quiz-name-answer-form button[type='submit']:focus-visible::before {
+  outline: 0.2em solid #f3e756;
+}
+
+.quiz-name-answer-form button[type='submit']:disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  color: #828282;
+}
+
+.quiz-name-answer-form button[type='submit']:disabled::before {
+  background-color: #cdcecf;
+  box-shadow: none;
 }
 
 .quiz-menu-panel button {
@@ -415,21 +467,18 @@ h1 {
 }
 
 #quiz-menu-button:not(:disabled):hover,
-.quiz-menu-panel button:not(:disabled):hover,
-.quiz-name-answer-form button:not(:disabled):hover {
+.quiz-menu-panel button:not(:disabled):hover {
   border-color: #9fc7ff;
   background: #edf5ff;
 }
 
 #quiz-menu-button:focus-visible,
-.quiz-menu-panel button:focus-visible,
-.quiz-name-answer-form button:focus-visible {
+.quiz-menu-panel button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(66, 135, 245, 0.25);
 }
 
-.quiz-menu-panel button:disabled,
-.quiz-name-answer-form button:disabled {
+.quiz-menu-panel button:disabled {
   color: #96a0ae;
   border-color: #e1e5eb;
   background: #f7f8fa;
