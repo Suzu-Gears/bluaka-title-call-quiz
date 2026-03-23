@@ -64,6 +64,7 @@
 .quiz-mode-component-wrapper .radio-label {
   position: relative;
   pointer-events: none;
+  white-space: nowrap;
   font-weight: 700;
   font-family:
     'ヒラギノ丸ゴ Pro',
