@@ -10,10 +10,10 @@ import {
   normalizeProficiencyMap,
   normalizeQuizAnswer,
   resolveMultipleChoiceMaxQuestions,
-  resolveQuestionCount,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
 import type { ProficiencyMap } from '@/lib/quizProgress'
+import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
 
 const DEFAULT_IMAGE = '/default-student-image.webp'
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
@@ -83,12 +83,21 @@ export const setupQuiz = (
   const collaborationFilter = document.getElementById(
     'quiz-filter-collaboration',
   ) as HTMLInputElement | null
-  const questionCountPreset = document.getElementById(
-    'quiz-question-count-preset',
-  ) as HTMLSelectElement | null
-  const questionCountCustom = document.getElementById(
-    'quiz-question-count-custom',
+  const questionCountInput = document.getElementById(
+    'quiz-question-count-input',
   ) as HTMLInputElement | null
+  const questionCountMinusButton = document.getElementById(
+    'quiz-question-count-minus-button',
+  ) as HTMLButtonElement | null
+  const questionCountPlusButton = document.getElementById(
+    'quiz-question-count-plus-button',
+  ) as HTMLButtonElement | null
+  const questionCountMinButton = document.getElementById(
+    'quiz-question-count-min-button',
+  ) as HTMLButtonElement | null
+  const questionCountMaxButton = document.getElementById(
+    'quiz-question-count-max-button',
+  ) as HTMLButtonElement | null
   const setupControls = document.getElementById('quiz-setup-controls')
   const menuButton = document.getElementById(
     'quiz-menu-button',
@@ -154,8 +163,11 @@ export const setupQuiz = (
     !normalFilter ||
     !costumeFilter ||
     !collaborationFilter ||
-    !questionCountPreset ||
-    !questionCountCustom ||
+    !questionCountInput ||
+    !questionCountMinusButton ||
+    !questionCountPlusButton ||
+    !questionCountMinButton ||
+    !questionCountMaxButton ||
     !startButton ||
     !nextButton ||
     !replayButton ||
@@ -282,52 +294,25 @@ export const setupQuiz = (
     updateProficiencyText()
   }
 
-  const updateQuestionCountFieldVisibility = () => {
-    questionCountCustom.hidden = questionCountPreset.value !== 'custom'
-  }
+  const getQuestionCountMax = () =>
+    currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+      ? resolveMultipleChoiceMaxQuestions(activeNames.length)
+      : activeNames.length
 
-  const getSelectedQuestionCount = (maxQuestions: number) => {
-    if (maxQuestions <= 0) {
-      return 0
-    }
-    const presetValue = questionCountPreset.value
-    const rawValue =
-      presetValue === 'all'
-        ? maxQuestions
-        : presetValue === 'custom'
-          ? Number(questionCountCustom.value ?? '')
-          : Number(presetValue)
-    return resolveQuestionCount(rawValue, maxQuestions)
-  }
-
-  const updateQuestionCountPresetVisibility = (maxQuestions: number) => {
-    const allOption = questionCountPreset.querySelector<HTMLOptionElement>(
-      'option[value="all"]',
-    )
-    if (allOption) {
-      allOption.textContent = `${maxQuestions}(全部)`
-    }
-
-    const numericOptions = Array.from(
-      questionCountPreset.querySelectorAll<HTMLOptionElement>('option'),
-    ).filter((opt) => opt.value !== 'all' && opt.value !== 'custom')
-
-    for (const opt of numericOptions) {
-      opt.hidden = Number(opt.value) > maxQuestions
-    }
-
-    const currentValue = questionCountPreset.value
-    if (currentValue !== 'all' && currentValue !== 'custom') {
-      if (Number(currentValue) > maxQuestions) {
-        const bestFit = numericOptions
-          .filter((opt) => Number(opt.value) <= maxQuestions)
-          .sort((a, b) => Number(b.value) - Number(a.value))[0]
-        questionCountPreset.value = bestFit ? bestFit.value : 'all'
-      }
-    }
-
-    updateQuestionCountFieldVisibility()
-  }
+  const questionCountControl = setupQuizQuestionCountControl({
+    elements: {
+      input: questionCountInput,
+      minusButton: questionCountMinusButton,
+      plusButton: questionCountPlusButton,
+      minButton: questionCountMinButton,
+      maxButton: questionCountMaxButton,
+    },
+    getQuestionCountMax,
+    onChange: () => {
+      refreshFilterState()
+      statusText.textContent = '問題数を変更しました。「開始」を押してください。'
+    },
+  })
 
   const updateModeUI = () => {
     currentMode = quizModeSelect.value
@@ -345,12 +330,9 @@ export const setupQuiz = (
 
   const refreshFilterState = () => {
     activeNames = getCandidateNames()
-    const maxQuestions =
-      currentMode === QUIZ_MODE_MULTIPLE_CHOICE
-        ? resolveMultipleChoiceMaxQuestions(activeNames.length)
-        : activeNames.length
-    updateQuestionCountPresetVisibility(maxQuestions)
-    totalQuestions = getSelectedQuestionCount(maxQuestions)
+    const maxQuestions = getQuestionCountMax()
+    questionCountControl.updateRange(maxQuestions)
+    totalQuestions = questionCountControl.getSelectedQuestionCount(maxQuestions)
   }
 
   const hideNameSuggestions = () => {
@@ -743,7 +725,6 @@ export const setupQuiz = (
 
   const startQuiz = () => {
     updateModeUI()
-    updateQuestionCountFieldVisibility()
     refreshFilterState()
     if (activeNames.length < 1) {
       statusText.textContent =
@@ -835,12 +816,6 @@ export const setupQuiz = (
     refreshFilterState()
     statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
   })
-  questionCountPreset.addEventListener('change', () => {
-    updateQuestionCountFieldVisibility()
-    refreshFilterState()
-    statusText.textContent = '問題数を変更しました。「開始」を押してください。'
-  })
-  questionCountCustom.addEventListener('input', refreshFilterState)
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {
       refreshFilterState()
@@ -887,7 +862,6 @@ export const setupQuiz = (
 
   loadProficiency()
   updateModeUI()
-  updateQuestionCountFieldVisibility()
   refreshFilterState()
   setQuizRunning(false)
 }
