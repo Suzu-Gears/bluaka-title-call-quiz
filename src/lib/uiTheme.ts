@@ -1,0 +1,17 @@
+export const UI_THEME_CLASSIC = {
+  selectBorder: '#ddd',
+  selectHoverBorder: '#999',
+  focusOutlineStrong: '#1e88e5',
+  appBackground: '#f4fcfd',
+  headerBackground: '#1e88e5',
+  activeButtonText: '#fff',
+  activeButtonBackground: '#1e88e5',
+  activeButtonBorder: '#1e88e5',
+  legendText: '#555',
+  subtleButtonBorder: '#ddd',
+  subtleButtonBackground: '#fff',
+  subtleButtonHoverBorder: '#aaa',
+  subtleButtonHoverBackground: '#f6faff',
+  focusOutlineSoft: 'rgba(0, 123, 255, 0.7)',
+  voiceOverlayBackground: 'rgb(28 42 65 / 70%)',
+} as const

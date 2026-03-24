@@ -16,6 +16,17 @@ import {
   resolveQuestionCount,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
+import {
+  formatAnswerResultStatus,
+  formatQuizFinishedStatus,
+  formatQuizQuestionStatus,
+  formatResultEntryCorrectAnswer,
+  formatResultEntryStatus,
+  formatResultEntryUserAnswer,
+  formatResultSummary,
+  QUIZ_UI_TEXT,
+  SORT_DIRECTION_LABEL,
+} from '@/lib/uiText'
 
 const deterministicRandom = () => 0
 
@@ -181,6 +192,23 @@ const deterministicRandom = () => 0
   ])
   assert.equal(perfect.isPerfect, true)
   assert.equal(perfect.accuracy, 100)
+}
+
+{
+  assert.equal(SORT_DIRECTION_LABEL.asc, '昇順')
+  assert.equal(SORT_DIRECTION_LABEL.desc, '降順')
+  assert.equal(QUIZ_UI_TEXT.next, '次へ')
+  assert.equal(QUIZ_UI_TEXT.start, '開始')
+  assert.equal(formatQuizQuestionStatus(3), '第3問: このタイトルコールは誰？')
+  assert.equal(formatQuizFinishedStatus(8, 10), '終了！8 / 10 問正解')
+  assert.equal(formatAnswerResultStatus(true, 'アリス'), '正解！')
+  assert.equal(formatAnswerResultStatus(false, 'アリス'), '不正解… 正解は「アリス」')
+  assert.equal(formatResultSummary(7, 10, 3, 70), '正解: 7 / 10 ・不正解: 3 ・正答率: 70%')
+  assert.equal(formatResultEntryStatus(2, true), '第2問 正解')
+  assert.equal(formatResultEntryStatus(2, false), '第2問 不正解')
+  assert.equal(formatResultEntryCorrectAnswer('ヒナ'), '正答: ヒナ')
+  assert.equal(formatResultEntryUserAnswer('ホシノ'), '回答: ホシノ')
+  assert.equal(formatResultEntryUserAnswer(''), '回答: （未回答）')
 }
 
 console.log('All quiz tests passed.')
