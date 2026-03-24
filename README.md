@@ -91,7 +91,6 @@ src/
 │   ├── quizEngine.ts          # shuffleArray・buildChoices などのクイズロジック  [クライアントサイド]
 │   ├── uiText.ts              # UI文言・表示文字列の共通定義                      [クライアントサイド]
 │   ├── uiState.ts             # UI表示状態（hidden）の共通ヘルパー                [クライアントサイド]
-│   ├── uiTheme.ts             # テーマ色トークン定義（CSS変数と対応）              [クライアントサイド]
 │   ├── schaleDBClient.ts      # SchaleDB データ取得・音声・画像の補完ダウンロード [サーバーサイド]
 │   ├── cloudflareR2Client.ts  # Cloudflare R2 の操作（upload/download）         [サーバーサイド]
 │   ├── fileOperations.ts      # ファイルシステム操作のユーティリティ              [サーバーサイド]
@@ -117,8 +116,8 @@ src/
   クイズと一覧で使う文言（ボタンラベル、状態メッセージ、リザルト文言）を共通化し、後から表示文言を変更しやすくしています。
 - `src/lib/uiState.ts`  
   `hidden` 切り替え処理を共通化し、表示状態変更の意図を読み取りやすくしています。
-- `src/lib/uiTheme.ts` / `src/styles.css` の `:root` 変数  
-  色トークンを集中管理し、主要な色の変更を行いやすくしています。
+- `src/styles.css` の `:root` 変数  
+  主要な色トークンを集中管理し、色の変更を行いやすくしています。
 
 ---
 
