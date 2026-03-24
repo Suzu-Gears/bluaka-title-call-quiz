@@ -7,6 +7,7 @@ import {
   normalizeQuizAnswer,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
+import { SORT_DIRECTION_LABEL } from '@/lib/uiText'
 
 const DEFAULT_IMAGE = '/default-student-image.webp'
 
@@ -149,7 +150,7 @@ export const setupStudentGrid = (
   sortSelect?.addEventListener('change', () => sortCards(sortSelect.value, sortDirection))
   sortDirectionButton?.addEventListener('click', () => {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-    sortDirectionButton.textContent = sortDirection === 'asc' ? '昇順' : '降順'
+    sortDirectionButton.textContent = SORT_DIRECTION_LABEL[sortDirection]
     if (sortSelect) {
       sortCards(sortSelect.value, sortDirection)
     }

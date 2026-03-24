@@ -89,6 +89,8 @@ src/
 │   ├── interfaces.ts          # TypeScript インターフェース定義                  [共通]
 │   ├── quizProgress.ts        # クイズ共通ユーティリティ（候補フィルタ・正規化・習熟度）  [クライアントサイド]
 │   ├── quizEngine.ts          # shuffleArray・buildChoices などのクイズロジック  [クライアントサイド]
+│   ├── uiText.ts              # UI文言・表示文字列の共通定義                      [クライアントサイド]
+│   ├── uiState.ts             # UI表示状態（hidden）の共通ヘルパー                [クライアントサイド]
 │   ├── schaleDBClient.ts      # SchaleDB データ取得・音声・画像の補完ダウンロード [サーバーサイド]
 │   ├── cloudflareR2Client.ts  # Cloudflare R2 の操作（upload/download）         [サーバーサイド]
 │   ├── fileOperations.ts      # ファイルシステム操作のユーティリティ              [サーバーサイド]
@@ -107,6 +109,15 @@ src/
 | `main.ts` | フォント・スタイルのインポート、ページ切り替え、フッターバージョン表示、`bootstrap()` 関数でデータ取得と初期化を統括 |
 | `cardList.ts` | カード一覧ページ全体（DOM生成・フィルタ・ソート・音声再生） |
 | `quiz.ts` | クイズページ全体（設定UI・出題・回答判定・リザルト・習熟度管理） |
+
+### UIの再利用性向上のための補助モジュール
+
+- `src/lib/uiText.ts`  
+  クイズと一覧で使う文言（ボタンラベル、状態メッセージ、リザルト文言）を共通化し、後から表示文言を変更しやすくしています。
+- `src/lib/uiState.ts`  
+  `hidden` 切り替え処理を共通化し、表示状態変更の意図を読み取りやすくしています。
+- `src/styles.css` の `:root` 変数  
+  主要な色トークンを集中管理し、色の変更を行いやすくしています。
 
 ---
 

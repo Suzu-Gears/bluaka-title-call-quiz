@@ -1,12 +1,25 @@
+:root {
+  --color-border-default: #ddd;
+  --color-border-hover: #999;
+  --color-focus-strong: #1e88e5;
+  --color-focus-soft: rgba(0, 123, 255, 0.7);
+  --color-bg-main: #f4fcfd;
+  --color-bg-surface: #fff;
+  --color-bg-surface-hover: #f6faff;
+  --color-header-bg: #1e88e5;
+  --color-text-muted: #555;
+  --color-overlay-dark: rgb(28 42 65 / 70%);
+}
+
 body {
   margin: 0;
   padding: 0;
 }
 
 select {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-default);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-bg-surface);
   padding: 0.4rem 0.6rem;
   font-size: 0.9em;
   cursor: pointer;
@@ -14,18 +27,18 @@ select {
 }
 
 select:hover {
-  border-color: #999;
+  border-color: var(--color-border-hover);
 }
 
 select:focus-visible {
-  outline: 2px solid #1e88e5;
+  outline: 2px solid var(--color-focus-strong);
   outline-offset: 2px;
 }
 
 .main {
   margin: 0;
   padding: 0;
-  background-color: #f4fcfd;
+  background-color: var(--color-bg-main);
   font-family: sans-serif;
 }
 
@@ -33,7 +46,7 @@ header {
   width: 100%;
   padding: 1.5rem 0;
   text-align: center;
-  background-color: #1e88e5;
+  background-color: var(--color-header-bg);
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -65,17 +78,17 @@ h1 {
 }
 
 .page-switch button {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-default);
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-bg-surface);
   padding: 0.5rem 1rem;
   cursor: pointer;
 }
 
 .page-switch .is-active {
-  color: #fff;
-  background: #1e88e5;
-  border-color: #1e88e5;
+  color: var(--color-bg-surface);
+  background: var(--color-header-bg);
+  border-color: var(--color-header-bg);
 }
 
 #card-list,
@@ -150,7 +163,7 @@ h1 {
   float: left;
   margin-right: 0.35rem;
   font-size: 0.85em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .category-filter-fieldset label {
@@ -168,20 +181,20 @@ h1 {
 }
 
 .sort-direction-button {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-default);
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-bg-surface);
   padding: 0.35rem 0.75rem;
   cursor: pointer;
 }
 
 .sort-direction-button:hover {
   border-color: #aaa;
-  background: #f6faff;
+  background: var(--color-bg-surface-hover);
 }
 
 .sort-direction-button:focus-visible {
-  outline: 2px solid #1e88e5;
+  outline: 2px solid var(--color-focus-strong);
   outline-offset: 2px;
 }
 
@@ -196,7 +209,7 @@ h1 {
 }
 
 .grid-item:focus-visible {
-  outline: 3px solid rgba(0, 123, 255, 0.7);
+  outline: 3px solid var(--color-focus-soft);
   outline-offset: 6px;
 }
 
@@ -212,7 +225,7 @@ h1 {
   bottom: 0;
   width: 100%;
   height: 18%;
-  background-color: rgb(28 42 65 / 70%);
+  background-color: var(--color-overlay-dark);
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   display: flex;

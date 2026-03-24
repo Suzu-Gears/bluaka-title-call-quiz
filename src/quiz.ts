@@ -13,6 +13,17 @@ import {
   summarizeQuizResults,
 } from '@/lib/quizProgress'
 import type { ProficiencyMap } from '@/lib/quizProgress'
+import { setHidden } from '@/lib/uiState'
+import {
+  formatAnswerResultStatus,
+  formatQuizFinishedStatus,
+  formatQuizQuestionStatus,
+  formatResultEntryCorrectAnswer,
+  formatResultEntryStatus,
+  formatResultEntryUserAnswer,
+  formatResultSummary,
+  QUIZ_UI_TEXT,
+} from '@/lib/uiText'
 import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
 
 const DEFAULT_IMAGE = '/default-student-image.webp'
@@ -21,7 +32,7 @@ const QUIZ_MODE_NAME_INPUT = 'name-input'
 const QUIZ_MODE_NAME_INPUT_LUNATIC = 'name-input-lunatic'
 const MIN_NAME_SUGGESTION_OVERLAY_WIDTH = 220
 const DEFAULT_QUESTION_COUNT = 10
-const INITIAL_STATUS_TEXT = '「開始」を押すとクイズを開始します。'
+const INITIAL_STATUS_TEXT = QUIZ_UI_TEXT.initialStatus
 const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
 const LEGACY_STORAGE_KEYS = [
   'bluaka-title-call-quiz.proficiency.v1',
@@ -224,20 +235,18 @@ export const setupQuiz = (
     if (!menuPanel || !menuButton) {
       return
     }
-    menuPanel.hidden = !isOpen
+    setHidden(menuPanel, !isOpen)
     menuButton.setAttribute('aria-expanded', String(isOpen))
   }
 
   const setQuizRunning = (running: boolean) => {
     isQuizRunning = running
-    if (setupControls) {
-      setupControls.hidden = running
-    }
-    startButton.hidden = running
+    setHidden(setupControls, running)
+    setHidden(startButton, running)
     if (!running) {
-      nextButton.hidden = true
-      replayButton.hidden = true
-      resultActions.hidden = true
+      setHidden(nextButton, true)
+      setHidden(replayButton, true)
+      setHidden(resultActions, true)
     }
     if (menuRestartButton) {
       menuRestartButton.disabled = !running
@@ -270,7 +279,7 @@ export const setupQuiz = (
       )
       saveProficiency()
       localStorage.removeItem(legacyKey)
-      statusText.textContent = '旧セーブデータを移行しました。'
+      statusText.textContent = QUIZ_UI_TEXT.migratedLegacySave
       return
     }
     proficiencyMap = mergeWithStudents({}, allStudentNames)
@@ -313,7 +322,7 @@ export const setupQuiz = (
     getQuestionCountMax,
     onChange: () => {
       refreshFilterState()
-      statusText.textContent = '問題数を変更しました。「開始」を押してください。'
+      statusText.textContent = QUIZ_UI_TEXT.questionCountChanged
     },
   })
 
@@ -321,10 +330,8 @@ export const setupQuiz = (
     currentMode = getQuizModeValue()
     const isNameInputMode =
       currentMode === QUIZ_MODE_NAME_INPUT || currentMode === QUIZ_MODE_NAME_INPUT_LUNATIC
-    choicesRoot.hidden = isNameInputMode
-    if (nameAnswerForm) {
-      nameAnswerForm.hidden = !isNameInputMode || !isQuizRunning
-    }
+    setHidden(choicesRoot, isNameInputMode)
+    setHidden(nameAnswerForm, !isNameInputMode || !isQuizRunning)
   }
 
   const updateCostumeHintText = () => {
@@ -339,14 +346,12 @@ export const setupQuiz = (
   }
 
   const hideNameSuggestions = () => {
-    if (nameAnswerSuggestionsOverlay) {
-      nameAnswerSuggestionsOverlay.hidden = true
-    }
+    setHidden(nameAnswerSuggestionsOverlay, true)
     if (!nameAnswerSuggestions) {
       return
     }
     nameAnswerSuggestions.innerHTML = ''
-    nameAnswerSuggestions.hidden = true
+    setHidden(nameAnswerSuggestions, true)
   }
 
   const positionNameSuggestionsOverlay = () => {
@@ -394,7 +399,7 @@ export const setupQuiz = (
         nameAnswerSuggestions.childElementCount > 0
       ) {
         if (nameAnswerSuggestionsOverlay) {
-          nameAnswerSuggestionsOverlay.hidden = false
+          setHidden(nameAnswerSuggestionsOverlay, false)
           positionNameSuggestionsOverlay()
         }
         return
@@ -423,9 +428,9 @@ export const setupQuiz = (
       })
       nameAnswerSuggestions.appendChild(button)
     })
-    nameAnswerSuggestions.hidden = false
+    setHidden(nameAnswerSuggestions, false)
     if (nameAnswerSuggestionsOverlay) {
-      nameAnswerSuggestionsOverlay.hidden = false
+      setHidden(nameAnswerSuggestionsOverlay, false)
       positionNameSuggestionsOverlay()
     }
   }
@@ -446,7 +451,7 @@ export const setupQuiz = (
     stopAudio()
     currentAudio = new Audio(`/audio/${encodeURIComponent(studentName)}.mp3`)
     currentAudio.play().catch(() => {
-      statusText.textContent = '音声を再生できませんでした。もう一度お試しください。'
+      statusText.textContent = QUIZ_UI_TEXT.audioPlaybackFailed
     })
   }
 
@@ -477,28 +482,18 @@ export const setupQuiz = (
       answerImage.src = DEFAULT_IMAGE
     }
     answerName.textContent = name
-    answerFeedback.hidden = false
+    setHidden(answerFeedback, false)
   }
 
   const hideAnswerFeedback = () => {
-    if (answerFeedback) {
-      answerFeedback.hidden = true
-    }
+    setHidden(answerFeedback, true)
   }
 
   const hideResult = () => {
-    if (resultSection) {
-      resultSection.hidden = true
-    }
-    if (resultPerfectStamp) {
-      resultPerfectStamp.hidden = true
-    }
-    if (resultPerfectMessage) {
-      resultPerfectMessage.hidden = true
-    }
-    if (resultPerfectRow) {
-      resultPerfectRow.hidden = true
-    }
+    setHidden(resultSection, true)
+    setHidden(resultPerfectStamp, true)
+    setHidden(resultPerfectMessage, true)
+    setHidden(resultPerfectRow, true)
     if (resultList) {
       resultList.innerHTML = ''
     }
@@ -508,15 +503,15 @@ export const setupQuiz = (
   }
 
   const showQuizProgressActions = () => {
-    nextButton.hidden = !hasAnsweredCurrentQuestion
-    replayButton.hidden = false
-    resultActions.hidden = true
+    setHidden(nextButton, !hasAnsweredCurrentQuestion)
+    setHidden(replayButton, false)
+    setHidden(resultActions, true)
   }
 
   const showResultActions = () => {
-    nextButton.hidden = true
-    replayButton.hidden = true
-    resultActions.hidden = false
+    setHidden(nextButton, true)
+    setHidden(replayButton, true)
+    setHidden(resultActions, false)
   }
 
   const renderResult = () => {
@@ -525,16 +520,16 @@ export const setupQuiz = (
     }
     const { correctCount, totalCount, wrongCount, accuracy, isPerfect } =
       summarizeQuizResults(resultEntries)
-    resultSummary.textContent = `正解: ${correctCount} / ${totalCount} ・不正解: ${wrongCount} ・正答率: ${accuracy}%`
+    resultSummary.textContent = formatResultSummary(correctCount, totalCount, wrongCount, accuracy)
 
     if (resultPerfectStamp) {
-      resultPerfectStamp.hidden = !isPerfect
+      setHidden(resultPerfectStamp, !isPerfect)
     }
     if (resultPerfectMessage) {
-      resultPerfectMessage.hidden = !isPerfect
+      setHidden(resultPerfectMessage, !isPerfect)
     }
     if (resultPerfectRow) {
-      resultPerfectRow.hidden = !isPerfect
+      setHidden(resultPerfectRow, !isPerfect)
     }
 
     if (isPerfect) {
@@ -565,17 +560,17 @@ export const setupQuiz = (
       text.className = 'quiz-result-item-text'
       const status = document.createElement('div')
       status.className = 'quiz-result-item-status'
-      status.textContent = `第${entry.questionNumber}問 ${entry.isCorrect ? '正解' : '不正解'}`
+      status.textContent = formatResultEntryStatus(entry.questionNumber, entry.isCorrect)
       const correct = document.createElement('div')
-      correct.textContent = `正答: ${entry.correctAnswer}`
+      correct.textContent = formatResultEntryCorrectAnswer(entry.correctAnswer)
       const answer = document.createElement('div')
-      answer.textContent = `回答: ${entry.userAnswer || '（未回答）'}`
+      answer.textContent = formatResultEntryUserAnswer(entry.userAnswer)
       text.append(status, correct, answer)
       item.append(image, text)
       resultList.appendChild(item)
     })
 
-    resultSection.hidden = false
+    setHidden(resultSection, false)
   }
 
   const resetToStartScreen = () => {
@@ -593,10 +588,8 @@ export const setupQuiz = (
     awaitingResult = false
     resultEntries = []
     choicesRoot.innerHTML = ''
-    choicesRoot.hidden = true
-    if (nameAnswerForm) {
-      nameAnswerForm.hidden = true
-    }
+    setHidden(choicesRoot, true)
+    setHidden(nameAnswerForm, true)
     if (nameAnswerInput) {
       nameAnswerInput.value = ''
       nameAnswerInput.disabled = false
@@ -610,13 +603,13 @@ export const setupQuiz = (
     updateCostumeHintText()
     updateProficiencyText()
     statusText.textContent = INITIAL_STATUS_TEXT
-    nextButton.hidden = true
-    replayButton.hidden = true
-    resultActions.hidden = true
-    nextButton.textContent = '次へ'
+    setHidden(nextButton, true)
+    setHidden(replayButton, true)
+    setHidden(resultActions, true)
+    nextButton.textContent = QUIZ_UI_TEXT.next
     replayButton.disabled = true
     nextButton.disabled = true
-    startButton.textContent = '開始'
+    startButton.textContent = QUIZ_UI_TEXT.start
     setQuizRunning(false)
     setMenuOpen(false)
   }
@@ -634,14 +627,14 @@ export const setupQuiz = (
     shouldShowCurrentAnswerStats = true
     hasAnsweredCurrentQuestion = true
     recordAnswer(currentAnswer, isCorrect)
-    statusText.textContent = isCorrect ? '正解！' : `不正解… 正解は「${currentAnswer}」`
+    statusText.textContent = formatAnswerResultStatus(isCorrect, currentAnswer)
     updateAnswerFeedback(currentAnswer)
     const hasRemainingQuestion = questionNumber < totalQuestions
     awaitingResult = !hasRemainingQuestion
-    nextButton.textContent = awaitingResult ? 'リザルト' : '次へ'
+    nextButton.textContent = awaitingResult ? QUIZ_UI_TEXT.result : QUIZ_UI_TEXT.next
     replayButton.disabled = awaitingResult
-    replayButton.hidden = awaitingResult
-    nextButton.hidden = false
+    setHidden(replayButton, awaitingResult)
+    setHidden(nextButton, false)
     nextButton.disabled = false
   }
 
@@ -652,13 +645,11 @@ export const setupQuiz = (
     hasAnsweredCurrentQuestion = false
     awaitingResult = false
     choicesRoot.innerHTML = ''
-    choicesRoot.hidden = true
-    if (nameAnswerForm) {
-      nameAnswerForm.hidden = true
-    }
+    setHidden(choicesRoot, true)
+    setHidden(nameAnswerForm, true)
     hideNameSuggestions()
-    statusText.textContent = `終了！${score} / ${questionNumber} 問正解`
-    startButton.textContent = 'もう一度'
+    statusText.textContent = formatQuizFinishedStatus(score, questionNumber)
+    startButton.textContent = QUIZ_UI_TEXT.playAgain
     hideAnswerFeedback()
     renderResult()
     showResultActions()
@@ -677,11 +668,11 @@ export const setupQuiz = (
 
     currentAnswer = available[Math.floor(Math.random() * available.length)]
     questionNumber += 1
-    statusText.textContent = `第${questionNumber}問: このタイトルコールは誰？`
+    statusText.textContent = formatQuizQuestionStatus(questionNumber)
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
     awaitingResult = false
-    nextButton.textContent = '次へ'
+    nextButton.textContent = QUIZ_UI_TEXT.next
     showQuizProgressActions()
     replayButton.disabled = false
     nextButton.disabled = true
@@ -692,10 +683,8 @@ export const setupQuiz = (
     updateProficiencyText()
 
     if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE) {
-      choicesRoot.hidden = false
-      if (nameAnswerForm) {
-        nameAnswerForm.hidden = true
-      }
+      setHidden(choicesRoot, false)
+      setHidden(nameAnswerForm, true)
       hideNameSuggestions()
       const choices = buildChoices(currentAnswer, available)
       choices.forEach((name) => usedChoiceNames.add(name))
@@ -736,10 +725,8 @@ export const setupQuiz = (
     }
 
     usedChoiceNames.add(currentAnswer)
-    choicesRoot.hidden = true
-    if (nameAnswerForm) {
-      nameAnswerForm.hidden = false
-    }
+    setHidden(choicesRoot, true)
+    setHidden(nameAnswerForm, false)
     if (nameAnswerInput) {
       nameAnswerInput.value = ''
       nameAnswerInput.disabled = false
@@ -755,12 +742,12 @@ export const setupQuiz = (
     refreshFilterState()
     if (activeNames.length < 1) {
       statusText.textContent =
-        'クイズを開始できません。選択中の条件で生徒データを1件以上用意してください。'
+        QUIZ_UI_TEXT.startValidationNeedOneCandidate
       return false
     }
     if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE && activeNames.length < 4) {
       statusText.textContent =
-        'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。'
+        QUIZ_UI_TEXT.startValidationNeedFourCandidates
       return false
     }
     usedChoiceNames = new Set()
@@ -773,10 +760,10 @@ export const setupQuiz = (
     hideAnswerFeedback()
     hideResult()
     showQuizProgressActions()
-    nextButton.textContent = '次へ'
+    nextButton.textContent = QUIZ_UI_TEXT.next
     nextButton.disabled = true
     setQuizRunning(true)
-    startButton.textContent = 'リスタート'
+    startButton.textContent = QUIZ_UI_TEXT.restart
     renderQuestion()
     return true
   }
@@ -812,7 +799,7 @@ export const setupQuiz = (
       return true
     }
     const shouldMove = window.confirm(
-      '現在クイズ中です。進行中のデータは保存されません。\nクイズを中断してカード一覧に移動しますか？',
+      QUIZ_UI_TEXT.pageLeaveConfirm,
     )
     if (!shouldMove) {
       return false
@@ -850,12 +837,12 @@ export const setupQuiz = (
   quizModeGroup.addEventListener('change', () => {
     updateModeUI()
     refreshFilterState()
-    statusText.textContent = '出題方式を変更しました。「開始」を押してください。'
+    statusText.textContent = QUIZ_UI_TEXT.modeChanged
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {
       refreshFilterState()
-      statusText.textContent = '出題対象を変更しました。「開始」を押してください。'
+      statusText.textContent = QUIZ_UI_TEXT.candidateFilterChanged
     })
   })
 
