@@ -3,8 +3,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer'
 
-import { QUIZGEM_VERSION } from '@/server-constants'
-
 const projectRoot = appRoot.path
 const quizGeneratorURL =
   'https://quizgenerator.net/クイズジェネレータ変換ツール/'
@@ -67,7 +65,7 @@ export async function getQuizGeneratorZIP(
     })
   })
   const iframeElement = await page.waitForSelector(
-    `iframe[src="/quizgen${QUIZGEM_VERSION}/"]`,
+    'iframe[src^="/quizgen"]',
   )
   const iframe = await iframeElement?.contentFrame()
 

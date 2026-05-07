@@ -10,7 +10,6 @@ export const GAS_DEPLOY_ID = env.GAS_DEPLOY_ID || ''
 export const SPREADSHEET_ID = env.SPREADSHEET_ID || ''
 export const STUDENTS_SHEET_NAME = env.STUDENTS_SHEET_NAME || ''
 export const QUIZ_SHEET_NAME = env.QUIZ_SHEET_NAME || ''
-export const QUIZGEM_VERSION = env.QUIZGEM_VERSION || ''
 
 export const R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID || ''
 export const R2_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY || ''
