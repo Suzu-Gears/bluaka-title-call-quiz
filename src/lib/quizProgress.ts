@@ -25,6 +25,9 @@ export interface QuizResultSummaryEntry {
 
 export type ProficiencyMap = Record<string, ProficiencyEntry>
 
+// Trailing ASCII letters can indicate incomplete romaji during IME composition (e.g. "あk").
+const TRAILING_ROMAJI_PATTERN = /[a-z]$/
+
 export function filterCandidates(
   candidates: readonly QuizCandidate[],
   options: QuizFilterOptions,
@@ -121,7 +124,7 @@ export function normalizeNameInputForSearch(rawInput: string): string {
     return ''
   }
   const shouldTrimLast =
-    isTransientNameInputQuery(rawInput) && /[a-z]$/.test(normalizedInput)
+    isTransientNameInputQuery(rawInput) && TRAILING_ROMAJI_PATTERN.test(normalizedInput)
   const trimmedInput = shouldTrimLast ? normalizedInput.slice(0, -1) : normalizedInput
   if (!trimmedInput) {
     return ''
