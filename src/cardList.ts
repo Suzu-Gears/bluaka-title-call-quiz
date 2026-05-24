@@ -3,7 +3,7 @@ import fitty, { type FittyInstance } from 'fitty'
 import type { Student } from '@/lib/interfaces'
 import {
   normalizeKanaForSearch,
-  normalizeQuizAnswer,
+  normalizeNameInputForSearch,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
 import { SORT_DIRECTION_LABEL } from '@/lib/uiText'
@@ -120,7 +120,7 @@ export const setupStudentGrid = (
   }
 
   const filterCards = (input: string) => {
-    const normalized = normalizeKanaForSearch(normalizeQuizAnswer(input))
+    const normalized = normalizeNameInputForSearch(input)
     grid.querySelectorAll<HTMLElement>('.grid-item').forEach((card) => {
       const category = card.dataset.filterCategory
       const categoryEnabled =
