@@ -9,19 +9,19 @@
     <title>ブルアカタイトルコールクイズ</title>
     <meta name="description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
     <meta name="robots" content="noimageindex" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" sizes="32x32" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="icon" href="%BASE_URL%favicon.ico" sizes="32x32" />
+    <link rel="icon" href="%BASE_URL%icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <meta property="og:site_name" content="ブルアカタイトルコールクイズ" />
     <meta property="og:title" content="ブルアカタイトルコールクイズ" />
     <meta property="og:description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image" content="%BASE_URL%og-image.png" />
     <meta name="twitter:title" content="ブルアカタイトルコールクイズ" />
     <meta name="twitter:description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:image" content="/icon-mask.png" />
+    <meta name="twitter:image" content="%BASE_URL%icon-mask.png" />
   </head>
   <body>
     <div class="main">
@@ -162,7 +162,12 @@
               <h3>リザルト</h3>
               <p id="quiz-result-summary"></p>
               <div id="quiz-result-perfect-row" hidden>
-                <img id="quiz-result-perfect-stamp" src="/kokona-stamp.png" alt="100点満点スタンプ" hidden />
+                <img
+                  id="quiz-result-perfect-stamp"
+                  src="%BASE_URL%kokona-stamp.png"
+                  alt="100点満点スタンプ"
+                  hidden
+                />
                 <p id="quiz-result-perfect-message" hidden>100点満点、花丸です！</p>
               </div>
               <div id="quiz-result-list" class="quiz-result-list"></div>
@@ -185,6 +190,6 @@
         </small>
       </footer>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="%BASE_URL%src/main.ts"></script>
   </body>
 </html>

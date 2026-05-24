@@ -1,6 +1,7 @@
 import fitty, { type FittyInstance } from 'fitty'
 
 import type { Student } from '@/lib/interfaces'
+import { resolveAssetUrl } from '@/lib/assetPath'
 import {
   normalizeKanaForSearch,
   normalizeNameInputForSearch,
@@ -9,7 +10,7 @@ import {
 } from '@/lib/quizProgress'
 import { SORT_DIRECTION_LABEL } from '@/lib/uiText'
 
-const DEFAULT_IMAGE = '/default-student-image.webp'
+const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 
 export const createCard = (student: Student, hasAudio: boolean): HTMLElement => {
   const item = document.createElement('div')
@@ -28,7 +29,7 @@ export const createCard = (student: Student, hasAudio: boolean): HTMLElement => 
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
-  image.src = `/image/${encodeURIComponent(student.Name)}.webp`
+  image.src = resolveAssetUrl(`image/${encodeURIComponent(student.Name)}.webp`)
   image.alt = student.Name
   image.onerror = () => {
     image.src = DEFAULT_IMAGE
@@ -199,7 +200,7 @@ export const setupStudentGrid = (
       resetAudio()
     }
     currentlyPlayingName = name
-    sharedAudioPlayer.src = `/audio/${name}.mp3`
+    sharedAudioPlayer.src = resolveAssetUrl(`audio/${name}.mp3`)
     sharedAudioPlayer.currentTime = 0
     sharedAudioPlayer.load()
     const playPromise = sharedAudioPlayer.play()

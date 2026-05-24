@@ -1,6 +1,7 @@
 import '@fontsource/kosugi-maru'
 
 import type { Student } from '@/lib/interfaces'
+import { resolveAssetUrl } from '@/lib/assetPath'
 import { setupStudentGrid } from '@/cardList'
 import { setupQuiz } from '@/quiz'
 import './quizModeControl.css'
@@ -49,7 +50,10 @@ document.addEventListener('touchstart', () => {}, { passive: true })
 const bootstrap = async () => {
   const hasAudioFile = async (studentName: string) => {
     try {
-      const response = await fetch(`/audio/${encodeURIComponent(studentName)}.mp3`, {
+      const audioUrl = resolveAssetUrl(
+        `audio/${encodeURIComponent(studentName)}.mp3`,
+      )
+      const response = await fetch(audioUrl, {
         method: 'HEAD',
       })
       const contentType = response.headers.get('content-type') ?? ''
@@ -61,7 +65,9 @@ const bootstrap = async () => {
 
   setupPageSwitch()
   setFooterVersion()
-  const response = await fetch('/data/final.json', { cache: 'no-store' })
+  const response = await fetch(resolveAssetUrl('data/final.json'), {
+    cache: 'no-store',
+  })
   const students = (await response.json()) as Student[]
   const audioAvailability = await Promise.all(
     students.map(async ({ Name }) => ({
