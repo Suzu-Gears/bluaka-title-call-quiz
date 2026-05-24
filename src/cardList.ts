@@ -4,6 +4,7 @@ import type { Student } from '@/lib/interfaces'
 import {
   normalizeKanaForSearch,
   normalizeNameInputForSearch,
+  normalizeQuizAnswer,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
 import { SORT_DIRECTION_LABEL } from '@/lib/uiText'
