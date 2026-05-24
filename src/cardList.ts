@@ -200,7 +200,9 @@ export const setupStudentGrid = (
       resetAudio()
     }
     currentlyPlayingName = name
-    sharedAudioPlayer.src = resolveAssetUrl(`audio/${name}.mp3`)
+    sharedAudioPlayer.src = resolveAssetUrl(
+      `audio/${encodeURIComponent(name)}.mp3`,
+    )
     sharedAudioPlayer.currentTime = 0
     sharedAudioPlayer.load()
     const playPromise = sharedAudioPlayer.play()
