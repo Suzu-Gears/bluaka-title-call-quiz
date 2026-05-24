@@ -4,7 +4,6 @@ import {
   buildNameInputSuggestions,
   calculateAccuracy,
   filterCandidates,
-  isTransientNameInputQuery,
   mergeWithStudents,
   migrateLegacyProficiency,
   normalizeProficiencyMap,
@@ -225,8 +224,6 @@ export const setupQuiz = (
   let playAudioDelayTimer: number | null = null
   let kokonaAudioTimer: number | null = null
   const kokonaAudio: HTMLAudioElement = new Audio('/kokona-hanamaru.mp3')
-  let isComposingNameInput = false
-  let lastNameInputValue = ''
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
     a.localeCompare(b, 'ja'),
@@ -384,33 +381,16 @@ export const setupQuiz = (
     }
     if (currentMode !== QUIZ_MODE_NAME_INPUT) {
       hideNameSuggestions()
-      lastNameInputValue = ''
       return
     }
     const rawInput = nameAnswerInput.value.trim()
     if (!rawInput) {
       hideNameSuggestions()
-      lastNameInputValue = ''
       return
     }
     const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
-    const isTransientQuery = isTransientNameInputQuery(rawInput)
     if (matches.length === 0) {
-      if (
-        isTransientQuery &&
-        rawInput.length >= lastNameInputValue.length &&
-        !nameAnswerSuggestions.hidden &&
-        nameAnswerSuggestions.childElementCount > 0
-      ) {
-        if (nameAnswerSuggestionsOverlay) {
-          setHidden(nameAnswerSuggestionsOverlay, false)
-          positionNameSuggestionsOverlay()
-        }
-        lastNameInputValue = rawInput
-        return
-      }
       hideNameSuggestions()
-      lastNameInputValue = rawInput
       return
     }
     nameAnswerSuggestions.innerHTML = ''
@@ -439,7 +419,6 @@ export const setupQuiz = (
       setHidden(nameAnswerSuggestionsOverlay, false)
       positionNameSuggestionsOverlay()
     }
-    lastNameInputValue = rawInput
   }
 
   const stopAudio = () => {
@@ -879,21 +858,13 @@ export const setupQuiz = (
   })
 
   nameAnswerInput?.addEventListener('focus', showNameSuggestions)
-  nameAnswerInput?.addEventListener('compositionstart', () => {
-    isComposingNameInput = true
-  })
   nameAnswerInput?.addEventListener('compositionupdate', () => {
     showNameSuggestions()
   })
   nameAnswerInput?.addEventListener('compositionend', () => {
-    isComposingNameInput = false
     showNameSuggestions()
   })
-  nameAnswerInput?.addEventListener('input', (event) => {
-    const inputEvent = event as InputEvent
-    if (isComposingNameInput || inputEvent.isComposing) {
-      return
-    }
+  nameAnswerInput?.addEventListener('input', () => {
     showNameSuggestions()
   })
   nameAnswerInput?.addEventListener('blur', () => {

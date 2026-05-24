@@ -2,7 +2,6 @@ import fitty, { type FittyInstance } from 'fitty'
 
 import type { Student } from '@/lib/interfaces'
 import {
-  isTransientNameInputQuery,
   normalizeKanaForSearch,
   normalizeQuizAnswer,
   resolveStudentCategory,
@@ -134,19 +133,8 @@ export const setupStudentGrid = (
     })
   }
 
-  let isComposingStudentFilter = false
   let lastAppliedStudentFilter = filterInput?.value ?? ''
-  const applyStudentFilterInput = (
-    inputValue: string,
-    options: { force?: boolean } = {},
-  ) => {
-    if (
-      !options.force &&
-      isTransientNameInputQuery(inputValue) &&
-      inputValue.length >= lastAppliedStudentFilter.length
-    ) {
-      return
-    }
+  const applyStudentFilterInput = (inputValue: string) => {
     lastAppliedStudentFilter = inputValue
     filterCards(inputValue)
   }
@@ -159,21 +147,13 @@ export const setupStudentGrid = (
       sortCards(sortSelect.value, sortDirection)
     }
   })
-  filterInput?.addEventListener('compositionstart', () => {
-    isComposingStudentFilter = true
-  })
   filterInput?.addEventListener('compositionupdate', () => {
     applyStudentFilterInput(filterInput?.value ?? '')
   })
   filterInput?.addEventListener('compositionend', () => {
-    isComposingStudentFilter = false
-    applyStudentFilterInput(filterInput?.value ?? '', { force: true })
+    applyStudentFilterInput(filterInput?.value ?? '')
   })
-  filterInput?.addEventListener('input', (event) => {
-    const inputEvent = event as InputEvent
-    if (isComposingStudentFilter || inputEvent.isComposing) {
-      return
-    }
+  filterInput?.addEventListener('input', () => {
     applyStudentFilterInput(filterInput?.value ?? '')
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
