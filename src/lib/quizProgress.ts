@@ -25,6 +25,10 @@ export interface QuizResultSummaryEntry {
 
 export type ProficiencyMap = Record<string, ProficiencyEntry>
 
+// Trailing ASCII letters can indicate incomplete romaji during IME composition (e.g. "あk").
+// Input is normalized to lowercase before this check.
+const TRAILING_ROMAJI_PATTERN = /[a-z]$/
+
 export function filterCandidates(
   candidates: readonly QuizCandidate[],
   options: QuizFilterOptions,
@@ -115,17 +119,30 @@ export function normalizeKanaForSearch(value: string): string {
   )
 }
 
+export function normalizeNameInputForSearch(rawInput: string): string {
+  const normalizedInput = normalizeQuizAnswer(rawInput.trim())
+  if (!normalizedInput) {
+    return ''
+  }
+  const shouldTrimLast =
+    isTransientNameInputQuery(rawInput) && TRAILING_ROMAJI_PATTERN.test(normalizedInput)
+  const trimmedInput = shouldTrimLast ? normalizedInput.slice(0, -1) : normalizedInput
+  if (!trimmedInput) {
+    return ''
+  }
+  return normalizeKanaForSearch(trimmedInput)
+}
+
 export function buildNameInputSuggestions(
   allNames: readonly string[],
   activeNames: readonly string[],
   rawInput: string,
   maxCount = 8,
 ): string[] {
-  const normalizedInput = normalizeQuizAnswer(rawInput.trim())
-  if (!normalizedInput) {
+  const normalizedKanaInput = normalizeNameInputForSearch(rawInput)
+  if (!normalizedKanaInput) {
     return []
   }
-  const normalizedKanaInput = normalizeKanaForSearch(normalizedInput)
   const activeSet = new Set(activeNames)
   return [...allNames]
     .filter((name) => activeSet.has(name))

@@ -1,15 +1,16 @@
 import fitty, { type FittyInstance } from 'fitty'
 
 import type { Student } from '@/lib/interfaces'
+import { resolveAssetUrl } from '@/lib/assetPath'
 import {
-  isTransientNameInputQuery,
   normalizeKanaForSearch,
+  normalizeNameInputForSearch,
   normalizeQuizAnswer,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
 import { SORT_DIRECTION_LABEL } from '@/lib/uiText'
 
-const DEFAULT_IMAGE = '/default-student-image.webp'
+const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 
 export const createCard = (student: Student, hasAudio: boolean): HTMLElement => {
   const item = document.createElement('div')
@@ -28,7 +29,7 @@ export const createCard = (student: Student, hasAudio: boolean): HTMLElement => 
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
-  image.src = `/image/${encodeURIComponent(student.Name)}.webp`
+  image.src = resolveAssetUrl(`image/${encodeURIComponent(student.Name)}.webp`)
   image.alt = student.Name
   image.onerror = () => {
     image.src = DEFAULT_IMAGE
@@ -121,7 +122,7 @@ export const setupStudentGrid = (
   }
 
   const filterCards = (input: string) => {
-    const normalized = normalizeKanaForSearch(normalizeQuizAnswer(input))
+    const normalized = normalizeNameInputForSearch(input)
     grid.querySelectorAll<HTMLElement>('.grid-item').forEach((card) => {
       const category = card.dataset.filterCategory
       const categoryEnabled =
@@ -134,15 +135,8 @@ export const setupStudentGrid = (
     })
   }
 
-  let isComposingStudentFilter = false
   let lastAppliedStudentFilter = filterInput?.value ?? ''
-  const applyStudentFilterInput = (
-    inputValue: string,
-    options: { force?: boolean } = {},
-  ) => {
-    if (!options.force && isTransientNameInputQuery(inputValue)) {
-      return
-    }
+  const applyStudentFilterInput = (inputValue: string) => {
     lastAppliedStudentFilter = inputValue
     filterCards(inputValue)
   }
@@ -155,18 +149,13 @@ export const setupStudentGrid = (
       sortCards(sortSelect.value, sortDirection)
     }
   })
-  filterInput?.addEventListener('compositionstart', () => {
-    isComposingStudentFilter = true
+  filterInput?.addEventListener('compositionupdate', () => {
+    applyStudentFilterInput(filterInput?.value ?? '')
   })
   filterInput?.addEventListener('compositionend', () => {
-    isComposingStudentFilter = false
-    applyStudentFilterInput(filterInput?.value ?? '', { force: true })
+    applyStudentFilterInput(filterInput?.value ?? '')
   })
-  filterInput?.addEventListener('input', (event) => {
-    const inputEvent = event as InputEvent
-    if (isComposingStudentFilter || inputEvent.isComposing) {
-      return
-    }
+  filterInput?.addEventListener('input', () => {
     applyStudentFilterInput(filterInput?.value ?? '')
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
@@ -211,7 +200,9 @@ export const setupStudentGrid = (
       resetAudio()
     }
     currentlyPlayingName = name
-    sharedAudioPlayer.src = `/audio/${name}.mp3`
+    sharedAudioPlayer.src = resolveAssetUrl(
+      `audio/${encodeURIComponent(name)}.mp3`,
+    )
     sharedAudioPlayer.currentTime = 0
     sharedAudioPlayer.load()
     const playPromise = sharedAudioPlayer.play()

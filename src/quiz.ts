@@ -1,10 +1,10 @@
 import type { Student } from '@/lib/interfaces'
+import { resolveAssetUrl } from '@/lib/assetPath'
 import { buildChoices } from '@/lib/quizEngine'
 import {
   buildNameInputSuggestions,
   calculateAccuracy,
   filterCandidates,
-  isTransientNameInputQuery,
   mergeWithStudents,
   migrateLegacyProficiency,
   normalizeProficiencyMap,
@@ -26,7 +26,7 @@ import {
 } from '@/lib/uiText'
 import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
 
-const DEFAULT_IMAGE = '/default-student-image.webp'
+const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
 const QUIZ_MODE_NAME_INPUT = 'name-input'
 const QUIZ_MODE_NAME_INPUT_LUNATIC = 'name-input-lunatic'
@@ -224,8 +224,9 @@ export const setupQuiz = (
   let resultEntries: QuizResultEntry[] = []
   let playAudioDelayTimer: number | null = null
   let kokonaAudioTimer: number | null = null
-  const kokonaAudio: HTMLAudioElement = new Audio('/kokona-hanamaru.mp3')
-  let isComposingNameInput = false
+  const kokonaAudio: HTMLAudioElement = new Audio(
+    resolveAssetUrl('kokona-hanamaru.mp3'),
+  )
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
     a.localeCompare(b, 'ja'),
@@ -391,19 +392,7 @@ export const setupQuiz = (
       return
     }
     const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
-    const isTransientQuery = isTransientNameInputQuery(rawInput)
     if (matches.length === 0) {
-      if (
-        isTransientQuery &&
-        !nameAnswerSuggestions.hidden &&
-        nameAnswerSuggestions.childElementCount > 0
-      ) {
-        if (nameAnswerSuggestionsOverlay) {
-          setHidden(nameAnswerSuggestionsOverlay, false)
-          positionNameSuggestionsOverlay()
-        }
-        return
-      }
       hideNameSuggestions()
       return
     }
@@ -413,7 +402,7 @@ export const setupQuiz = (
       button.type = 'button'
       button.className = 'quiz-name-answer-suggestion'
       const image = document.createElement('img')
-      image.src = `/image/${encodeURIComponent(name)}.webp`
+      image.src = resolveAssetUrl(`image/${encodeURIComponent(name)}.webp`)
       image.alt = name
       image.onerror = () => {
         image.src = DEFAULT_IMAGE
@@ -449,7 +438,9 @@ export const setupQuiz = (
   const playAudioForName = (studentName: string) => {
     if (!studentName || !allCandidateNames.has(studentName)) return
     stopAudio()
-    currentAudio = new Audio(`/audio/${encodeURIComponent(studentName)}.mp3`)
+    currentAudio = new Audio(
+      resolveAssetUrl(`audio/${encodeURIComponent(studentName)}.mp3`),
+    )
     currentAudio.play().catch(() => {
       statusText.textContent = QUIZ_UI_TEXT.audioPlaybackFailed
     })
@@ -477,7 +468,7 @@ export const setupQuiz = (
 
   const updateAnswerFeedback = (name: string) => {
     if (!answerFeedback || !answerImage || !answerName || !name) return
-    answerImage.src = `/image/${encodeURIComponent(name)}.webp`
+    answerImage.src = resolveAssetUrl(`image/${encodeURIComponent(name)}.webp`)
     answerImage.onerror = () => {
       answerImage.src = DEFAULT_IMAGE
     }
@@ -547,7 +538,9 @@ export const setupQuiz = (
       const item = document.createElement('article')
       item.className = `quiz-result-item ${entry.isCorrect ? 'correct' : 'wrong'}`
       const image = document.createElement('img')
-      image.src = `/image/${encodeURIComponent(entry.correctAnswer)}.webp`
+      image.src = resolveAssetUrl(
+        `image/${encodeURIComponent(entry.correctAnswer)}.webp`,
+      )
       image.alt = entry.correctAnswer
       image.onerror = () => {
         image.src = DEFAULT_IMAGE
@@ -694,7 +687,7 @@ export const setupQuiz = (
         button.className = 'quiz-choice-button'
         button.dataset.choiceName = name
         const image = document.createElement('img')
-        image.src = `/image/${encodeURIComponent(name)}.webp`
+        image.src = resolveAssetUrl(`image/${encodeURIComponent(name)}.webp`)
         image.alt = ''
         image.onerror = () => {
           image.src = DEFAULT_IMAGE
@@ -834,6 +827,19 @@ export const setupQuiz = (
     }
     setMenuOpen(false)
   })
+  quizModeGroup.addEventListener('click', (event) => {
+    if (event.detail === 0) {
+      return
+    }
+    const target = event.target
+    if (!(target instanceof HTMLElement)) {
+      return
+    }
+    target
+      .closest('label.para')
+      ?.querySelector<HTMLInputElement>('.radio-input')
+      ?.blur()
+  })
   quizModeGroup.addEventListener('change', () => {
     updateModeUI()
     refreshFilterState()
@@ -859,18 +865,13 @@ export const setupQuiz = (
   })
 
   nameAnswerInput?.addEventListener('focus', showNameSuggestions)
-  nameAnswerInput?.addEventListener('compositionstart', () => {
-    isComposingNameInput = true
-  })
-  nameAnswerInput?.addEventListener('compositionend', () => {
-    isComposingNameInput = false
+  nameAnswerInput?.addEventListener('compositionupdate', () => {
     showNameSuggestions()
   })
-  nameAnswerInput?.addEventListener('input', (event) => {
-    const inputEvent = event as InputEvent
-    if (isComposingNameInput || inputEvent.isComposing) {
-      return
-    }
+  nameAnswerInput?.addEventListener('compositionend', () => {
+    showNameSuggestions()
+  })
+  nameAnswerInput?.addEventListener('input', () => {
     showNameSuggestions()
   })
   nameAnswerInput?.addEventListener('blur', () => {

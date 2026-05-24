@@ -117,6 +117,13 @@
   width: 3em;
   color: #fff;
   font-size: 1rem;
+  appearance: textfield;
+}
+
+#quiz-question-count-input.counter::-webkit-outer-spin-button,
+#quiz-question-count-input.counter::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 #quiz-question-count-input.counter:focus {
