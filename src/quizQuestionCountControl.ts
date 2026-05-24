@@ -97,27 +97,13 @@ export const setupQuizQuestionCountControl = ({
     button: HTMLButtonElement,
     action: () => void,
   ) => {
-    let suppressClick = false
-    const consumeSuppressedClick = () => {
-      if (!suppressClick) {
-        return false
-      }
-      suppressClick = false
-      return true
-    }
     const stop = () => {
       stopLongPressTimers.stop()
-      if (suppressClick) {
-        window.setTimeout(() => {
-          suppressClick = false
-        }, 0)
-      }
     }
     const start = () => {
       if (button.disabled) {
         return
       }
-      suppressClick = true
       stopLongPressTimers.start(action)
     }
     button.addEventListener('mousedown', (event) => {
@@ -138,11 +124,11 @@ export const setupQuizQuestionCountControl = ({
     button.addEventListener('mouseleave', stop)
     button.addEventListener('touchend', stop)
     button.addEventListener('touchcancel', stop)
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
       if (button.disabled) {
         return
       }
-      if (consumeSuppressedClick()) {
+      if (event.detail > 0) {
         return
       }
       action()
