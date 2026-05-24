@@ -834,6 +834,19 @@ export const setupQuiz = (
     }
     setMenuOpen(false)
   })
+  quizModeGroup.addEventListener('click', (event) => {
+    if (event.detail === 0) {
+      return
+    }
+    const target = event.target
+    if (!(target instanceof HTMLElement)) {
+      return
+    }
+    const input = target
+      .closest('label.para')
+      ?.querySelector<HTMLInputElement>('.radio-input')
+    input?.blur()
+  })
   quizModeGroup.addEventListener('change', () => {
     updateModeUI()
     refreshFilterState()

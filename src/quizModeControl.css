@@ -101,6 +101,6 @@
   outline: none;
 }
 
-.quiz-mode-component-wrapper .para:focus-within::before {
+.quiz-mode-component-wrapper .para:has(.radio-input:focus-visible)::before {
   outline: 0.2em solid #f3e756;
 }

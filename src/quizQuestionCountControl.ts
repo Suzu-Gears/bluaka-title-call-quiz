@@ -107,7 +107,12 @@ export const setupQuizQuestionCountControl = ({
     }
     const stop = () => {
       stopLongPressTimers.stop()
-      suppressClick = false
+      if (!suppressClick) {
+        return
+      }
+      window.setTimeout(() => {
+        suppressClick = false
+      }, 0)
     }
     const start = () => {
       if (button.disabled) {
