@@ -842,10 +842,10 @@ export const setupQuiz = (
     if (!(target instanceof HTMLElement)) {
       return
     }
-    const input = target
+    target
       .closest('label.para')
       ?.querySelector<HTMLInputElement>('.radio-input')
-    input?.blur()
+      ?.blur()
   })
   quizModeGroup.addEventListener('change', () => {
     updateModeUI()
