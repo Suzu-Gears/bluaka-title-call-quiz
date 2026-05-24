@@ -140,7 +140,11 @@ export const setupStudentGrid = (
     inputValue: string,
     options: { force?: boolean } = {},
   ) => {
-    if (!options.force && isTransientNameInputQuery(inputValue)) {
+    if (
+      !options.force &&
+      isTransientNameInputQuery(inputValue) &&
+      inputValue.length >= lastAppliedStudentFilter.length
+    ) {
       return
     }
     lastAppliedStudentFilter = inputValue

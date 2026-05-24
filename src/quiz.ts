@@ -226,6 +226,7 @@ export const setupQuiz = (
   let kokonaAudioTimer: number | null = null
   const kokonaAudio: HTMLAudioElement = new Audio('/kokona-hanamaru.mp3')
   let isComposingNameInput = false
+  let lastNameInputValue = ''
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
     a.localeCompare(b, 'ja'),
@@ -383,11 +384,13 @@ export const setupQuiz = (
     }
     if (currentMode !== QUIZ_MODE_NAME_INPUT) {
       hideNameSuggestions()
+      lastNameInputValue = ''
       return
     }
     const rawInput = nameAnswerInput.value.trim()
     if (!rawInput) {
       hideNameSuggestions()
+      lastNameInputValue = ''
       return
     }
     const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
@@ -395,6 +398,7 @@ export const setupQuiz = (
     if (matches.length === 0) {
       if (
         isTransientQuery &&
+        rawInput.length >= lastNameInputValue.length &&
         !nameAnswerSuggestions.hidden &&
         nameAnswerSuggestions.childElementCount > 0
       ) {
@@ -402,9 +406,11 @@ export const setupQuiz = (
           setHidden(nameAnswerSuggestionsOverlay, false)
           positionNameSuggestionsOverlay()
         }
+        lastNameInputValue = rawInput
         return
       }
       hideNameSuggestions()
+      lastNameInputValue = rawInput
       return
     }
     nameAnswerSuggestions.innerHTML = ''
@@ -433,6 +439,7 @@ export const setupQuiz = (
       setHidden(nameAnswerSuggestionsOverlay, false)
       positionNameSuggestionsOverlay()
     }
+    lastNameInputValue = rawInput
   }
 
   const stopAudio = () => {
