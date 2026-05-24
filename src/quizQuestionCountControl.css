@@ -118,7 +118,6 @@
   color: #fff;
   font-size: 1rem;
   appearance: textfield;
-  -moz-appearance: textfield;
 }
 
 #quiz-question-count-input.counter::-webkit-outer-spin-button,
