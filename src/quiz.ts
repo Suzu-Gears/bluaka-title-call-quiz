@@ -875,6 +875,9 @@ export const setupQuiz = (
   nameAnswerInput?.addEventListener('compositionstart', () => {
     isComposingNameInput = true
   })
+  nameAnswerInput?.addEventListener('compositionupdate', () => {
+    showNameSuggestions()
+  })
   nameAnswerInput?.addEventListener('compositionend', () => {
     isComposingNameInput = false
     showNameSuggestions()

@@ -158,6 +158,9 @@ export const setupStudentGrid = (
   filterInput?.addEventListener('compositionstart', () => {
     isComposingStudentFilter = true
   })
+  filterInput?.addEventListener('compositionupdate', () => {
+    applyStudentFilterInput(filterInput?.value ?? '')
+  })
   filterInput?.addEventListener('compositionend', () => {
     isComposingStudentFilter = false
     applyStudentFilterInput(filterInput?.value ?? '', { force: true })
