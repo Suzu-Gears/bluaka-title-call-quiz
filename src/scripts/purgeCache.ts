@@ -1,41 +1,31 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export async function clearPublicSubfolders(publicPath: string) {
-  if (!fs.existsSync(publicPath)) {
-    console.log(`Folder does not exist: ${publicPath}`)
-    return
+import {
+  AUDIO_DIR,
+  FINAL_JSON_PATH,
+  IMAGE_DIR,
+  TMP_DIR,
+} from '@/lib/assetPipeline'
+
+/**
+ * ローカルキャッシュ(取得済みアセット・JSON キャッシュ・中間生成物)を削除する。
+ * R2 の内容には触れない。
+ */
+const targets = [
+  { label: '音声', target: AUDIO_DIR },
+  { label: '画像', target: IMAGE_DIR },
+  { label: 'final.json', target: FINAL_JSON_PATH },
+  { label: '一時ファイル', target: TMP_DIR },
+]
+
+for (const { label, target } of targets) {
+  if (!fs.existsSync(target)) {
+    console.log(`${label}: 対象がありません (${path.basename(target)})`)
+    continue
   }
-
-  const items = await fs.promises.readdir(publicPath)
-
-  for (const item of items) {
-    const itemPath = path.join(publicPath, item)
-    const stat = await fs.promises.stat(itemPath)
-
-    if (stat.isDirectory()) {
-      await clearFolder(itemPath)
-      await fs.promises.rm(itemPath, { recursive: true, force: true })
-    }
-  }
-
-  console.log(`Cleared subfolders in: ${publicPath}`)
+  fs.rmSync(target, { recursive: true, force: true })
+  console.log(`${label}を削除しました: ${target}`)
 }
 
-async function clearFolder(folderPath: string) {
-  const files = await fs.promises.readdir(folderPath)
-
-  for (const file of files) {
-    const filePath = path.join(folderPath, file)
-    const stat = await fs.promises.stat(filePath)
-
-    if (stat.isDirectory()) {
-      await clearFolder(filePath)
-      await fs.promises.rm(filePath, { recursive: true, force: true })
-    } else {
-      await fs.promises.unlink(filePath)
-    }
-  }
-}
-
-await clearPublicSubfolders('public')
+console.log('ローカルキャッシュを削除しました。')

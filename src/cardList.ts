@@ -1,56 +1,70 @@
 import fitty, { type FittyInstance } from 'fitty'
 
-import type { Student } from '@/lib/interfaces'
+import { formatImageKey } from '@/lib/assetKeys'
 import { resolveAssetUrl } from '@/lib/assetPath'
+import type { QuizEntry, TitleCallClip } from '@/lib/interfaces'
 import {
   normalizeKanaForSearch,
   normalizeNameInputForSearch,
   normalizeQuizAnswer,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
-import { SORT_DIRECTION_LABEL } from '@/lib/uiText'
+import { orderClipsForBrowsing } from '@/lib/titleCallClips'
+import { formatClipBadge, SORT_DIRECTION_LABEL } from '@/lib/uiText'
 
 const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 
-export const createCard = (student: Student, hasAudio: boolean): HTMLElement => {
+export const createCard = (
+  entry: QuizEntry,
+  clips: readonly TitleCallClip[],
+): HTMLElement => {
   const item = document.createElement('div')
   item.className = 'grid-item'
   item.tabIndex = 0
-  item.dataset.name = student.Name
-  item.dataset.nameKey = normalizeQuizAnswer(student.Name)
+  item.dataset.name = entry.Name
+  item.dataset.nameKey = normalizeQuizAnswer(entry.Name)
   item.dataset.filterCategory = resolveStudentCategory(
-    student.Costume,
-    student.IsCollaboration,
+    entry.Costume,
+    entry.IsCollaboration,
   )
-  item.dataset.defaultOrder = String(student.DefaultOrder ?? 0)
-  item.dataset.nameSortOrder = String(student.NameSortOrder ?? student.DefaultOrder ?? 0)
+  item.dataset.defaultOrder = String(entry.DefaultOrder)
+  item.dataset.nameSortOrder = String(entry.NameSortOrder)
+  item.dataset.hasAudio = String(clips.length > 0)
+  item.dataset.clipIndex = '0'
 
   const imageContainer = document.createElement('div')
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
-  image.src = resolveAssetUrl(`image/${encodeURIComponent(student.Name)}.webp`)
-  image.alt = student.Name
+  image.src = resolveAssetUrl(formatImageKey(entry.PrimaryId))
+  image.alt = entry.Name
   image.onerror = () => {
     image.src = DEFAULT_IMAGE
   }
+
+  const badge = document.createElement('div')
+  badge.className = 'clip-badge'
+  const badgeText = formatClipBadge(0, clips.length, clips[0]?.label)
+  badge.textContent = badgeText
+  badge.hidden = badgeText.length === 0
+
   const voiceActorContainer = document.createElement('div')
   voiceActorContainer.className = 'voice-actor-container'
   const voiceActor = document.createElement('div')
   voiceActor.className = 'voice-actor'
-  voiceActor.textContent = `\u00A0\u00A0CV.${student.CharacterVoice}\u00A0\u00A0`
+  voiceActor.textContent = `  CV.${entry.CharacterVoice}  `
   voiceActorContainer.appendChild(voiceActor)
-  imageContainer.append(image, voiceActorContainer)
+  imageContainer.append(image, badge, voiceActorContainer)
 
   const nameContainer = document.createElement('div')
   nameContainer.className = 'name-container'
-  item.dataset.hasAudio = String(hasAudio)
   const nameNode = document.createElement('div')
   nameNode.className = 'name'
-  const baseNameLabel = student.Name.includes('（')
-    ? `\u00A0${student.Name}`
-    : `\u00A0${student.Name}\u00A0`
-  nameNode.textContent = hasAudio ? baseNameLabel : `${baseNameLabel} 🔇`
+  const baseNameLabel = entry.Name.includes('（')
+    ? ` ${entry.Name}`
+    : ` ${entry.Name} `
+  nameNode.textContent =
+    clips.length > 0 ? baseNameLabel : `${baseNameLabel} 🔇`
   nameContainer.appendChild(nameNode)
 
   item.append(imageContainer, nameContainer)
@@ -76,19 +90,21 @@ const setupFitty = (): FittyInstance[] => {
   )
 }
 
-export const setupStudentGrid = (
-  students: Student[],
-  unavailableAudioNames: Set<string>,
-): void => {
+export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   const grid = document.getElementById('studentGrid')
   if (!grid) return
 
-  students
-    .slice()
-    .sort((a, b) => (a.DefaultOrder ?? 0) - (b.DefaultOrder ?? 0))
-    .forEach((student) =>
-      grid.appendChild(createCard(student, !unavailableAudioNames.has(student.Name))),
-    )
+  // カード一覧では旧世代も含めて全クリップを聴けるようにする(最新世代が先頭)。
+  const clipsByCard = new WeakMap<HTMLElement, TitleCallClip[]>()
+
+  ;[...entries]
+    .sort((a, b) => a.DefaultOrder - b.DefaultOrder)
+    .forEach((entry) => {
+      const clips = orderClipsForBrowsing(entry.TitleCalls)
+      const card = createCard(entry, clips)
+      clipsByCard.set(card, clips)
+      grid.appendChild(card)
+    })
 
   const sortSelect = document.getElementById(
     'student-sort-select',
@@ -131,7 +147,9 @@ export const setupStudentGrid = (
         (category === 'collaboration' && Boolean(collaborationFilter?.checked))
       const nameKey = normalizeKanaForSearch(String(card.dataset.nameKey ?? ''))
       card.style.display =
-        (!normalized || nameKey.includes(normalized)) && categoryEnabled ? '' : 'none'
+        (!normalized || nameKey.includes(normalized)) && categoryEnabled
+          ? ''
+          : 'none'
     })
   }
 
@@ -141,7 +159,9 @@ export const setupStudentGrid = (
     filterCards(inputValue)
   }
 
-  sortSelect?.addEventListener('change', () => sortCards(sortSelect.value, sortDirection))
+  sortSelect?.addEventListener('change', () =>
+    sortCards(sortSelect.value, sortDirection),
+  )
   sortDirectionButton?.addEventListener('click', () => {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
     sortDirectionButton.textContent = SORT_DIRECTION_LABEL[sortDirection]
@@ -159,7 +179,9 @@ export const setupStudentGrid = (
     applyStudentFilterInput(filterInput?.value ?? '')
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
-    checkbox?.addEventListener('change', () => filterCards(lastAppliedStudentFilter))
+    checkbox?.addEventListener('change', () =>
+      filterCards(lastAppliedStudentFilter),
+    )
   })
 
   let fittyInstances: FittyInstance[] = setupFitty()
@@ -172,73 +194,81 @@ export const setupStudentGrid = (
     }
   })
 
-  let sharedAudioPlayer: HTMLAudioElement | null = document.createElement('audio')
-  let currentlyPlayingName: string | null = null
+  const sharedAudioPlayer = document.createElement('audio')
   sharedAudioPlayer.hidden = true
   document.body.appendChild(sharedAudioPlayer)
 
+  // 再生中のカードは要素参照で持つ。名前をセレクタに埋め込まないため
+  // 記号を含む名前でも壊れない。
+  let playingCard: HTMLElement | null = null
+
   const resetAudio = () => {
-    if (!sharedAudioPlayer || !currentlyPlayingName) return
+    if (!playingCard) return
     sharedAudioPlayer.pause()
     sharedAudioPlayer.currentTime = 0
-    const image = document.querySelector(
-      `.grid-item[data-name="${currentlyPlayingName}"] img`,
-    )
-    image?.classList.remove('playing')
-    currentlyPlayingName = null
+    playingCard.querySelector('img')?.classList.remove('playing')
+    playingCard = null
   }
 
-  const playAudio = (name: string) => {
-    if (!sharedAudioPlayer) return
-    const gridItem = document.querySelector(`.grid-item[data-name="${name}"]`)
-    if (!gridItem) return
-    if (gridItem instanceof HTMLElement && gridItem.dataset.hasAudio === 'false') {
-      return
-    }
-    const image = gridItem.querySelector('img')
-    if (currentlyPlayingName) {
+  const updateBadge = (
+    card: HTMLElement,
+    clips: readonly TitleCallClip[],
+    index: number,
+  ) => {
+    const badge = card.querySelector<HTMLElement>('.clip-badge')
+    if (!badge) return
+    const text = formatClipBadge(index, clips.length, clips[index]?.label)
+    badge.textContent = text
+    badge.hidden = text.length === 0
+  }
+
+  const playCard = (card: HTMLElement) => {
+    const clips = clipsByCard.get(card)
+    if (!clips || clips.length === 0) return
+
+    const index = Number(card.dataset.clipIndex ?? 0) % clips.length
+    const clip = clips[index]
+    if (!clip) return
+
+    if (playingCard) {
       resetAudio()
     }
-    currentlyPlayingName = name
-    sharedAudioPlayer.src = resolveAssetUrl(
-      `audio/${encodeURIComponent(name)}.mp3`,
-    )
+    playingCard = card
+    card.dataset.clipIndex = String((index + 1) % clips.length)
+    updateBadge(card, clips, index)
+
+    sharedAudioPlayer.src = resolveAssetUrl(clip.file)
     sharedAudioPlayer.currentTime = 0
     sharedAudioPlayer.load()
     const playPromise = sharedAudioPlayer.play()
     if (playPromise !== undefined) {
       playPromise
-        .then(() => image?.classList.add('playing'))
+        .then(() => card.querySelector('img')?.classList.add('playing'))
         .catch(() => resetAudio())
     }
   }
 
-  grid.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null
-    if (!target) return
-    const card = target.closest('.grid-item') as HTMLElement | null
-    const name = card?.dataset.name
-    if (name) {
-      playAudio(name)
+  const handleCardActivation = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return
+    const card = target.closest<HTMLElement>('.grid-item')
+    if (card) {
+      playCard(card)
     }
+  }
+
+  grid.addEventListener('click', (event) => {
+    handleCardActivation(event.target)
   })
 
   grid.addEventListener('keydown', (event) => {
-    const keyboardEvent = event as KeyboardEvent
-    if (keyboardEvent.key !== 'Enter') return
-    const target = keyboardEvent.target as HTMLElement | null
-    if (!target) return
-    const card = target.closest('.grid-item') as HTMLElement | null
-    const name = card?.dataset.name
-    if (name) {
-      playAudio(name)
-    }
+    if ((event as KeyboardEvent).key !== 'Enter') return
+    handleCardActivation(event.target)
   })
 
   document.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null
-    if (!target) return
-    if (!target.closest('.grid-item') && currentlyPlayingName) {
+    const target = event.target
+    if (!(target instanceof HTMLElement)) return
+    if (!target.closest('.grid-item') && playingCard) {
       resetAudio()
     }
   })

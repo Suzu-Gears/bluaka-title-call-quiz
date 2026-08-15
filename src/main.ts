@@ -1,8 +1,13 @@
 import '@fontsource/kosugi-maru'
 
-import type { Student } from '@/lib/interfaces'
-import { resolveAssetUrl } from '@/lib/assetPath'
 import { setupStudentGrid } from '@/cardList'
+import { resolveAssetUrl } from '@/lib/assetPath'
+import {
+  FINAL_DATA_SCHEMA_VERSION,
+  type FinalData,
+  type QuizEntry,
+} from '@/lib/interfaces'
+import { APP_ERROR_TEXT } from '@/lib/uiText'
 import { setupQuiz } from '@/quiz'
 import './quizModeControl.css'
 import './quizQuestionCountControl.css'
@@ -13,9 +18,8 @@ declare const __APP_VERSION__: string
 let pageSwitchGuard: ((targetId: string) => boolean) | null = null
 
 const setupPageSwitch = () => {
-  const switchButtons = document.querySelectorAll<HTMLButtonElement>(
-    '[data-view-target]',
-  )
+  const switchButtons =
+    document.querySelectorAll<HTMLButtonElement>('[data-view-target]')
   const allViews = ['card-list', 'quiz-view']
   switchButtons.forEach((button) => {
     button.addEventListener('click', () => {
@@ -44,53 +48,52 @@ const setFooterVersion = () => {
   }
 }
 
+/**
+ * 両方のビューより上にあるバナーへ出す。
+ * 初期表示はカード一覧なので、クイズ画面の中に出すと誰にも見えない。
+ */
+const showAppError = (message: string) => {
+  const banner = document.getElementById('app-error')
+  if (banner) {
+    banner.textContent = message
+    banner.hidden = false
+  }
+}
+
+const loadEntries = async (): Promise<QuizEntry[]> => {
+  const response = await fetch(resolveAssetUrl('data/final.json'), {
+    cache: 'no-store',
+  })
+  if (!response.ok) {
+    throw new Error(`final.json を取得できません (${response.status})`)
+  }
+  const data = (await response.json()) as Partial<FinalData>
+  if (data?.schemaVersion !== FINAL_DATA_SCHEMA_VERSION) {
+    throw new Error(
+      `final.json のスキーマ版が想定と異なります (期待: ${FINAL_DATA_SCHEMA_VERSION}, 実際: ${String(data?.schemaVersion)})`,
+    )
+  }
+  const entries = Array.isArray(data.entries) ? data.entries : []
+  if (entries.length === 0) {
+    throw new Error('final.json に生徒データが入っていません')
+  }
+  return entries
+}
+
 // iOS Safari では空の touchstart リスナーが存在しないと :active 疑似クラスが発火しない
 document.addEventListener('touchstart', () => {}, { passive: true })
 
 const bootstrap = async () => {
-  const hasAudioFile = async (studentName: string) => {
-    try {
-      const audioUrl = resolveAssetUrl(
-        `audio/${encodeURIComponent(studentName)}.mp3`,
-      )
-      const response = await fetch(audioUrl, {
-        method: 'HEAD',
-      })
-      const contentType = response.headers.get('content-type') ?? ''
-      return response.ok && contentType.startsWith('audio/')
-    } catch {
-      return false
-    }
-  }
-
   setupPageSwitch()
   setFooterVersion()
-  const response = await fetch(resolveAssetUrl('data/final.json'), {
-    cache: 'no-store',
+  const entries = await loadEntries()
+  setupStudentGrid(entries)
+  setupQuiz(entries, (guard) => {
+    pageSwitchGuard = guard
   })
-  const students = (await response.json()) as Student[]
-  const audioAvailability = await Promise.all(
-    students.map(async ({ Name }) => ({
-      name: Name,
-      hasAudio: await hasAudioFile(Name),
-    })),
-  )
-  const unavailableAudioNames = new Set(
-    audioAvailability
-      .filter(({ hasAudio }) => !hasAudio)
-      .map(({ name }) => name),
-  )
-  setupStudentGrid(students, unavailableAudioNames)
-  setupQuiz(
-    students.filter(({ Name }) => !unavailableAudioNames.has(Name)),
-    (guard) => { pageSwitchGuard = guard },
-  )
 }
 
-bootstrap().catch(() => {
-  const status = document.getElementById('quiz-status')
-  if (status) {
-    status.textContent =
-      'データの読み込みに失敗しました。ページを再読み込みしてください。'
-  }
+bootstrap().catch((error: unknown) => {
+  console.error(error)
+  showAppError(APP_ERROR_TEXT.bootstrapFailed)
 })

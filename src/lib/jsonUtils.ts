@@ -1,159 +1,258 @@
-import appRoot from 'app-root-path'
-import fs from 'node:fs'
-import path from 'node:path'
+import {
+  type AudioKeyParts,
+  formatAudioKey,
+  formatClipRef,
+} from '@/lib/assetKeys'
+import type { QuizEntry, Student, TitleCallClip } from '@/lib/interfaces'
+import { sortTitleCallClips } from '@/lib/titleCallClips'
+import { clipIdFromAudioClip } from '@/lib/voiceData'
 
-import type { Student, Students } from '@/lib/interfaces'
+/**
+ * SchaleDB の生データを、出題単位(表示名)のエントリへ整形する純関数群。
+ * ファイル I/O は行わない(呼び出し側が tmp/ や public/data/ へ書き出す)。
+ */
 
-const projectRoot = appRoot.path
-const dataFolderPath = path.join(projectRoot, 'public/data')
-fs.mkdirSync(dataFolderPath, { recursive: true })
+const STUDENT_FIELDS = [
+  'DefaultOrder',
+  'Id',
+  'Name',
+  'PathName',
+  'DevName',
+  'StarGrade',
+  'FamilyName',
+  'FamilyNameRuby',
+  'PersonalName',
+  'PersonalNameRuby',
+  'CharacterVoice',
+  'School',
+  'SchoolYear',
+  'CharacterAge',
+  'Birthday',
+  'BirthDay',
+  'CharHeightMetric',
+] as const
 
-export async function makeStudentsJson(
-  data: Record<string, any>,
-): Promise<Students> {
-  let processingData = convertToArray(data)
-  processingData = extractProperties(processingData)
-  processingData = removeDuplicates(processingData)
-  processingData = addCostumeProperty(processingData)
-  processingData = addNameSortOrder(processingData)
-  processingData = addCollaborationProperty(processingData)
+const COSTUME_PATTERN = /（[^）]+）/
+const COLLABORATION_DEV_NAME_PATTERN = /^CH9\d{3}/
 
-  const result = processingData
-  const sortCsvFilePath = path.join(dataFolderPath, 'final.csv')
-  await jsonToCsv(result, sortCsvFilePath)
+/** students.json(Id キーのオブジェクト、または配列)から必要なフィールドだけ取り出す。 */
+export function extractStudentRecords(raw: unknown): Student[] {
+  if (!raw || typeof raw !== 'object') {
+    return []
+  }
+  const records = Array.isArray(raw)
+    ? raw
+    : Object.values(raw as Record<string, unknown>)
 
+  const result: Student[] = []
+  for (const record of records) {
+    if (!record || typeof record !== 'object') {
+      continue
+    }
+    const source = record as Record<string, unknown>
+    if (typeof source.Name !== 'string' || source.Name.length === 0) {
+      continue
+    }
+    if (!Number.isInteger(source.Id)) {
+      continue
+    }
+    const student = {} as Record<string, unknown>
+    for (const field of STUDENT_FIELDS) {
+      student[field] = source[field]
+    }
+    result.push(student as unknown as Student)
+  }
   return result
 }
 
-function convertToArray(data: Record<string, any>): Students {
-  const dataArray = Array.isArray(data) ? data : Object.values(data)
-  return dataArray as Students
+export function extractCostume(name: string): string {
+  const match = COSTUME_PATTERN.exec(name)
+  return match ? match[0].slice(1, -1) : ''
 }
 
-function removeDuplicates(students: Students): Students {
-  const uniqueStudentsJsonFilePath = path.join(
-    dataFolderPath,
-    'uniqueStudents.json',
+export function stripCostume(name: string): string {
+  return name.replace(/（[^）]+）/g, '').trim()
+}
+
+export function isCollaborationDevName(devName: unknown): boolean {
+  return (
+    typeof devName === 'string' && COLLABORATION_DEV_NAME_PATTERN.test(devName)
   )
-  const sortedStudents = students.sort(
-    (a, b) => a.DefaultOrder - b.DefaultOrder,
+}
+
+export interface BuildQuizEntriesParams {
+  students: readonly Student[]
+  /** R2 に実在する音声キー。これが配信される音声の正本。 */
+  audioKeys: readonly AudioKeyParts[]
+  /** voice.json 由来の AudioClip パス。source 判定にのみ使う。 */
+  titleCalls: ReadonlyMap<number, readonly string[]>
+  /** クリップの表示名。キーは formatClipRef の形式。 */
+  labels?: Readonly<Record<string, string>>
+}
+
+export interface BuildQuizEntriesResult {
+  entries: QuizEntry[]
+  /** students.json に Id が存在しない音声キー(警告対象)。 */
+  orphanAudioKeys: AudioKeyParts[]
+}
+
+/**
+ * 表示名でグループ化して QuizEntry を組み立てる。
+ *
+ * ホシノ（臨戦）やシュン（水着）のように students.json 上で同名 2 レコードになる生徒は
+ * 1 エントリへ統合し、音声はメンバー全員分の和集合、画像は全メンバー分を保持する。
+ */
+export function buildQuizEntries({
+  students,
+  audioKeys,
+  titleCalls,
+  labels = {},
+}: BuildQuizEntriesParams): BuildQuizEntriesResult {
+  const knownIds = new Set<number>()
+  for (const student of students) {
+    knownIds.add(student.Id)
+  }
+
+  const audioByStudent = new Map<number, AudioKeyParts[]>()
+  const orphanAudioKeys: AudioKeyParts[] = []
+  for (const key of audioKeys) {
+    if (!knownIds.has(key.studentId)) {
+      orphanAudioKeys.push(key)
+      continue
+    }
+    const list = audioByStudent.get(key.studentId)
+    if (list) {
+      list.push(key)
+    } else {
+      audioByStudent.set(key.studentId, [key])
+    }
+  }
+
+  const schaledbClipIds = new Map<number, Set<string>>()
+  for (const [studentId, clips] of titleCalls) {
+    const clipIds = new Set<string>()
+    for (const audioClip of clips) {
+      const clipId = clipIdFromAudioClip(audioClip)
+      if (clipId) {
+        clipIds.add(clipId)
+      }
+    }
+    schaledbClipIds.set(studentId, clipIds)
+  }
+
+  const groups = new Map<string, Student[]>()
+  for (const student of students) {
+    const members = groups.get(student.Name)
+    if (members) {
+      members.push(student)
+    } else {
+      groups.set(student.Name, [student])
+    }
+  }
+
+  const entries: QuizEntry[] = []
+  for (const [name, members] of groups) {
+    const sortedMembers = [...members].sort(
+      (a, b) => (a.DefaultOrder ?? 0) - (b.DefaultOrder ?? 0),
+    )
+
+    const clips: TitleCallClip[] = []
+    const seenClips = new Set<string>()
+    for (const member of sortedMembers) {
+      for (const key of audioByStudent.get(member.Id) ?? []) {
+        // 同一 clipId + 世代が複数メンバーの下に置かれていても 1 つに畳む。
+        const dedupeKey = `${key.clipId}.g${key.generation}`
+        if (seenClips.has(dedupeKey)) {
+          continue
+        }
+        seenClips.add(dedupeKey)
+        const label = labels[formatClipRef(key)]
+        clips.push({
+          clipId: key.clipId,
+          generation: key.generation,
+          file: formatAudioKey(key),
+          ownerId: key.studentId,
+          source: schaledbClipIds.get(key.studentId)?.has(key.clipId)
+            ? 'schaledb'
+            : 'r2-only',
+          ...(label ? { label } : {}),
+        })
+      }
+    }
+
+    const primary =
+      sortedMembers.find(
+        (member) => (audioByStudent.get(member.Id)?.length ?? 0) > 0,
+      ) ?? sortedMembers[0]
+
+    entries.push({
+      Name: name,
+      MemberIds: sortedMembers.map((member) => member.Id),
+      PrimaryId: primary.Id,
+      TitleCalls: sortTitleCallClips(clips),
+      ImageIds: sortedMembers.map((member) => member.Id),
+      DefaultOrder: sortedMembers[0].DefaultOrder ?? 0,
+      NameSortOrder: 0,
+      CharacterVoice:
+        typeof primary.CharacterVoice === 'string'
+          ? primary.CharacterVoice
+          : '',
+      Costume: extractCostume(name),
+      IsCollaboration: sortedMembers.some((member) =>
+        isCollaborationDevName(member.DevName),
+      ),
+    })
+  }
+
+  entries.sort((a, b) => a.DefaultOrder - b.DefaultOrder)
+  ;[...entries]
+    .sort((a, b) => {
+      const nameA = stripCostume(a.Name)
+      const nameB = stripCostume(b.Name)
+      if (nameA === nameB) {
+        return a.DefaultOrder - b.DefaultOrder
+      }
+      return nameA.localeCompare(nameB, 'ja')
+    })
+    .forEach((entry, index) => {
+      entry.NameSortOrder = index + 1
+    })
+
+  return { entries, orphanAudioKeys }
+}
+
+const escapeCsvValue = (value: string): string =>
+  /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
+
+/** 目視確認用の CSV。tmp/ にのみ書き出す。 */
+export function quizEntriesToCsv(entries: readonly QuizEntry[]): string {
+  const headers = [
+    'Name',
+    'PrimaryId',
+    'MemberIds',
+    'DefaultOrder',
+    'NameSortOrder',
+    'CharacterVoice',
+    'Costume',
+    'IsCollaboration',
+    'TitleCallCount',
+    'TitleCallFiles',
+  ]
+  const rows = entries.map((entry) =>
+    [
+      entry.Name,
+      String(entry.PrimaryId),
+      entry.MemberIds.join('|'),
+      String(entry.DefaultOrder),
+      String(entry.NameSortOrder),
+      entry.CharacterVoice,
+      entry.Costume,
+      String(entry.IsCollaboration),
+      String(entry.TitleCalls.length),
+      entry.TitleCalls.map((clip) => clip.file).join('|'),
+    ]
+      .map(escapeCsvValue)
+      .join(','),
   )
-  const uniqueStudents: Students = []
-  const seenNames = new Set<string>()
-
-  for (const student of sortedStudents) {
-    if (!seenNames.has(student.Name)) {
-      uniqueStudents.push(student)
-      seenNames.add(student.Name)
-    }
-  }
-  fs.writeFileSync(
-    uniqueStudentsJsonFilePath,
-    JSON.stringify(uniqueStudents, null, 2),
-  )
-  return uniqueStudents
-}
-
-function addNameSortOrder(students: Students): Students {
-  const extractName = (name: string): string => {
-    return name.replace(/（[^）]+）/g, '').trim()
-  }
-
-  const sortedStudents = students.sort((a, b) => {
-    const nameA = extractName(a.Name)
-    const nameB = extractName(b.Name)
-    if (nameA === nameB) {
-      return a.DefaultOrder - b.DefaultOrder
-    }
-    return nameA.localeCompare(nameB, 'ja')
-  })
-
-  sortedStudents.forEach((student, index) => {
-    student.NameSortOrder = index + 1
-  })
-
-  return sortedStudents
-}
-
-function addCostumeProperty(students: Students): Students {
-  return students.map((student) => {
-    const costumeMatch = student.Name.match(/（[^）]+）/)
-    const costume = costumeMatch ? costumeMatch[0].slice(1, -1) : ''
-    return {
-      ...student,
-      Costume: costume,
-    }
-  })
-}
-
-function addCollaborationProperty(students: Students): Students {
-  return students.map((student) => ({
-    ...student,
-    IsCollaboration: /^CH9\d{3}/.test(student.DevName),
-  }))
-}
-
-function extractProperties(data: any): Students {
-  const extractJsonFilePath = path.join(dataFolderPath, 'extract.json')
-  const result: Students = []
-  for (const key in data) {
-    if (data.hasOwnProperty(key)) {
-      const student = data[key]
-      const {
-        DefaultOrder,
-        Id,
-        Name,
-        PathName,
-        DevName,
-        StarGrade,
-        FamilyName,
-        FamilyNameRuby,
-        PersonalName,
-        PersonalNameRuby,
-        CharacterVoice,
-        School,
-        SchoolYear,
-        CharacterAge,
-        Birthday,
-        BirthDay,
-        CharHeightMetric,
-      } = student
-      result.push({
-        DefaultOrder,
-        Id,
-        Name,
-        PathName,
-        DevName,
-        StarGrade,
-        FamilyName,
-        FamilyNameRuby,
-        PersonalName,
-        PersonalNameRuby,
-        CharacterVoice,
-        School,
-        SchoolYear,
-        CharacterAge,
-        Birthday,
-        BirthDay,
-        CharHeightMetric,
-      })
-    }
-  }
-  fs.writeFileSync(extractJsonFilePath, JSON.stringify(result, null, 2))
-  return result
-}
-
-async function jsonToCsv(data: Students, filePath: string): Promise<void> {
-  if (data.length === 0) {
-    // ネットワーク不達などで生徒データが空のときも、出力ファイルを必ず生成して
-    // 後続処理のファイル存在前提を満たす。
-    fs.writeFileSync(filePath, '')
-    return
-  }
-  const headers = Object.keys(data[0]).join(',')
-  const rows = data.map((student) => Object.values(student).join(','))
-  const csvContent = [headers, ...rows].join('\n')
-  const bom = '\uFEFF'
-  fs.writeFileSync(filePath, bom + csvContent)
-  console.log(`Extracted and saved ${filePath}`)
+  return `﻿${[headers.join(','), ...rows].join('\n')}`
 }

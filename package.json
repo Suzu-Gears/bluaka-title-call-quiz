@@ -7,8 +7,13 @@
     "build": "npm run cache:fetch && vite build",
     "preview": "vite preview",
     "cache:fetch": "tsx ./src/scripts/downloadPublic.ts",
+    "cache:refresh": "tsx ./src/scripts/refreshCache.ts",
     "local-cache:fetch": "tsx --env-file=.env ./src/scripts/downloadPublic.ts",
+    "local-cache:refresh": "tsx --env-file=.env ./src/scripts/refreshCache.ts",
     "local-cache:purge": "tsx ./src/scripts/purgeCache.ts",
+    "data:verify": "tsx ./src/scripts/verifyPipeline.ts",
+    "r2:check": "tsx --env-file=.env ./src/scripts/checkR2.ts",
+    "typecheck": "tsc --noEmit",
     "test": "tsx ./src/lib/test.ts"
   },
   "dependencies": {

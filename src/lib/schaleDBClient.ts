@@ -1,180 +1,121 @@
-import appRoot from 'app-root-path'
-import fs from 'node:fs'
-import https from 'node:https'
-import path from 'node:path'
+import {
+  readLocalJSONIfValid,
+  saveBinary,
+  saveJSON,
+} from '@/lib/fileOperations'
 
-import { uploadFileToR2 } from '@/lib/cloudflareR2Client'
-import { doesFileExist, readLocalJSON, saveJSON } from '@/lib/fileOperations'
-import type { Student, Students } from '@/lib/interfaces'
-import { makeStudentsJson } from '@/lib/jsonUtils'
+/**
+ * SchaleDB からのデータ取得。URL の推測は一切行わず、
+ * voice.json の AudioClip をそのまま使う(命名規則の変更に影響されない)。
+ */
 
-const projectRoot = appRoot.path
+export const SCHALEDB_STUDENTS_URL =
+  'https://schaledb.com/data/jp/students.json'
+export const SCHALEDB_VOICE_URL = 'https://schaledb.com/data/jp/voice.json'
 
-const schaledbURL = 'https://schaledb.com/data/jp/students.json'
-const schaledbFilePath = path.join(projectRoot, 'public/data/schaledb.json')
-const audioFolderPath = path.join(projectRoot, 'public/audio')
-const imageFolderPath = path.join(projectRoot, 'public/image')
+export const resolveStudentImageUrl = (studentId: number): string =>
+  `https://schaledb.com/images/student/collection/${studentId}.webp`
 
-let studentsDataCache: Students | null = null
+/** SchaleDB への連続アクセスを避けるための既定待ち時間。 */
+export const DEFAULT_REQUEST_INTERVAL_MS = 1000
 
-export async function getStudentsData(): Promise<Students> {
-  if (studentsDataCache !== null) {
-    return Promise.resolve(studentsDataCache)
-  }
-  const data = await getSchaleDB()
-  studentsDataCache = await makeStudentsJson(data)
-  saveJSON(path.join(projectRoot, 'public/data/final.json'), studentsDataCache)
-  return studentsDataCache
-}
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
-async function getSchaleDB(): Promise<Record<string, any>> {
-  if (
-    !doesFileExist(
-      path.dirname(schaledbFilePath),
-      path.basename(schaledbFilePath),
-    )
+/**
+ * HTTP ステータスを保持する取得エラー。
+ * 404 は「SchaleDB にまだ音源が上がっていない」という日常的な状態を意味し、
+ * 通信障害などの本物の失敗と区別する必要があるため型で持つ。
+ */
+export class HttpStatusError extends Error {
+  constructor(
+    readonly status: number,
+    readonly url: string,
   ) {
-    try {
-      const data = await fetchSchaleDB()
-      saveJSON(schaledbFilePath, data)
-    } catch (error) {
-      console.error(
-        'Failed to fetch SchaleDB data. Continuing with empty dataset.',
-        error,
-      )
-      return []
-    }
+    super(`Failed to download ${url}: ${status}`)
+    this.name = 'HttpStatusError'
   }
-  return readLocalJSON(schaledbFilePath)
 }
 
-async function fetchSchaleDB(): Promise<Record<string, any>> {
-  const response = await fetch(schaledbURL)
+export function isNotFoundError(error: unknown): boolean {
+  return error instanceof HttpStatusError && error.status === 404
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  const response = await fetch(url)
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch data from ${schaledbURL}: ${response.statusText}`,
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
     )
   }
   return response.json()
 }
 
-export async function getMissingAudioBySchaledb(): Promise<void> {
-  const data = await getStudentsData()
-  let failedDownloads: string[] = []
-  for (const key in data) {
-    if (data.hasOwnProperty(key)) {
-      const student: Student = data[key]
-      const { Name: name, DevName: devname, PathName: pathname } = student
-      const audioFileName = `${name}.mp3`
-      const audioFilePath = path.join(audioFolderPath, audioFileName)
-
-      if (!fs.existsSync(audioFilePath)) {
-        const formattedDevName = devname.toLowerCase()
-        let audioUrl = `https://r2.schaledb.com/voice/jp_${formattedDevName}/${formattedDevName}_title.mp3`
-        try {
-          await downloadFile(audioUrl, audioFilePath)
-          console.log(
-            `Downloaded ${formattedDevName}_title.mp3 as ${audioFileName}`,
-          )
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          await uploadFileToR2(audioFilePath, 'audio')
-        } catch (err) {
-          const error = err as Error
-          console.error(`Failed to download ${audioUrl}: ${error.message}`)
-          const formattedPathName = pathname.replace(/_/g, '').toLowerCase()
-          audioUrl = `https://r2.schaledb.com/voice/jp_${formattedPathName}/${formattedPathName}_title.mp3`
-          try {
-            await downloadFile(audioUrl, audioFilePath)
-            console.log(
-              `Downloaded ${formattedPathName}_title.mp3 as ${audioFileName}`,
-            )
-            await new Promise((resolve) => setTimeout(resolve, 1000))
-            await uploadFileToR2(audioFilePath, 'audio')
-          } catch (err) {
-            const error = err as Error
-            console.error(`Failed to download ${audioUrl}: ${error.message}`)
-            failedDownloads.push(audioFileName)
-          }
-        }
-      } else {
-        console.log(`File already exists, skipping: ${audioFileName}`)
-      }
-    }
+/**
+ * JSON を取得してローカルにキャッシュする。キャッシュがあればネットワークを使わない。
+ * キャッシュの破棄は `npm run local-cache:purge` か tmp/ の削除で行う。
+ */
+export async function fetchJsonWithCache(
+  url: string,
+  cachePath: string,
+): Promise<unknown> {
+  const cached = readLocalJSONIfValid(cachePath)
+  if (cached !== null) {
+    return cached
   }
-  if (failedDownloads.length > 0) {
-    console.log('Failed to download audio files for the following students:')
-    failedDownloads.forEach((audioFileName) => console.log(audioFileName))
-  } else {
-    console.log('All audio files downloaded successfully.')
+  const data = await fetchJson(url)
+  saveJSON(cachePath, data)
+  return data
+}
+
+/**
+ * ファイルを取得して保存し、そのレスポンスから指紋を返す。
+ * 指紋を取るためだけに HEAD を追加で投げると SchaleDB へのリクエストが倍になるため、
+ * GET のレスポンスヘッダーから読み取る。
+ */
+export async function downloadBinary(
+  url: string,
+  localPath: string,
+): Promise<RemoteAssetSignature> {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new HttpStatusError(response.status, url)
+  }
+  // 全体をメモリに載せてから書くため、失敗時に不完全なファイルが残らない。
+  // 対象は音声 15-35KB / 画像も小さく、件数も数百なので問題にならない。
+  const body = await response.arrayBuffer()
+  saveBinary(localPath, new Uint8Array(body))
+
+  const contentLength = Number(response.headers.get('content-length'))
+  return {
+    etag: response.headers.get('etag'),
+    size:
+      Number.isFinite(contentLength) && contentLength > 0
+        ? contentLength
+        : body.byteLength,
   }
 }
 
-export async function getMissingImageBySchaledb(): Promise<void> {
-  const data = await getStudentsData()
-  let failedDownloads: string[] = []
-  for (const key in data) {
-    if (data.hasOwnProperty(key)) {
-      const student: Student = data[key]
-      const { Id: id, Name: name } = student
-      const imageFileName = `${name}.webp`
-      const imageFilePath = path.join(imageFolderPath, imageFileName)
-      if (!fs.existsSync(imageFilePath)) {
-        const imageUrl = `https://schaledb.com/images/student/collection/${id}.webp`
-        try {
-          await downloadFile(imageUrl, imageFilePath)
-          console.log(`Downloaded ${id}.webp as ${imageFileName}`)
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          await uploadFileToR2(imageFilePath, 'image')
-        } catch (err) {
-          const error = err as Error
-          console.error(`Failed to download ${imageUrl}: ${error.message}`)
-          failedDownloads.push(imageFileName)
-        }
-      } else {
-        console.log(`File already exists, skipping: ${imageFileName}`)
-      }
-    }
-  }
-  if (failedDownloads.length > 0) {
-    console.log('Failed to download image files for the following students:')
-    failedDownloads.forEach((imageFileName) => console.log(imageFileName))
-  } else {
-    console.log('All image files downloaded successfully.')
-  }
+export interface RemoteAssetSignature {
+  etag: string | null
+  size: number | null
 }
 
-async function downloadFile(url: string, localPath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const dir = path.dirname(localPath)
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
+/** 更新検知用。取得できない場合は null。 */
+export async function headRemoteAsset(
+  url: string,
+): Promise<RemoteAssetSignature | null> {
+  try {
+    const response = await fetch(url, { method: 'HEAD' })
+    if (!response.ok) {
+      return null
     }
-
-    const file = fs.createWriteStream(localPath)
-    https
-      .get(url, (response) => {
-        if (response.statusCode !== 200) {
-          file.close()
-          fs.unlink(localPath, () =>
-            reject(
-              new Error(`Failed to get '${url}' (${response.statusCode})`),
-            ),
-          )
-          return
-        }
-        response.pipe(file)
-        file.on('finish', () => {
-          file.close((err) => {
-            if (err) {
-              reject(err)
-              return
-            }
-            resolve()
-          })
-        })
-      })
-      .on('error', (err) => {
-        fs.unlink(localPath, () => reject(err))
-      })
-  })
+    const size = Number(response.headers.get('content-length'))
+    return {
+      etag: response.headers.get('etag'),
+      size: Number.isFinite(size) && size > 0 ? size : null,
+    }
+  } catch {
+    return null
+  }
 }
