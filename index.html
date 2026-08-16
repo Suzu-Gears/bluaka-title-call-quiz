@@ -3,23 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>ブルアカタイトルコールクイズ</title>
-    <meta name="description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
+    <meta
+      name="description"
+      content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。"
+    />
     <meta name="robots" content="noimageindex" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="icon" href="%BASE_URL%favicon.ico" sizes="32x32" />
-    <link rel="icon" href="%BASE_URL%icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <meta property="og:site_name" content="ブルアカタイトルコールクイズ" />
     <meta property="og:title" content="ブルアカタイトルコールクイズ" />
-    <meta property="og:description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
+    <meta
+      property="og:description"
+      content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。"
+    />
     <meta property="og:image" content="%BASE_URL%og-image.png" />
     <meta name="twitter:title" content="ブルアカタイトルコールクイズ" />
-    <meta name="twitter:description" content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。" />
+    <meta
+      name="twitter:description"
+      content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。"
+    />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:image" content="%BASE_URL%icon-mask.png" />
   </head>
@@ -29,8 +40,11 @@
         <h1>ブルアカ タイトルコールクイズ</h1>
       </header>
       <div class="content">
+        <p id="app-error" class="app-error" role="alert" hidden></p>
         <div class="page-switch">
-          <button type="button" data-view-target="card-list" class="is-active">カード一覧</button>
+          <button type="button" data-view-target="card-list" class="is-active">
+            カード一覧
+          </button>
           <button type="button" data-view-target="quiz-view">クイズ</button>
         </div>
         <section id="card-list">
@@ -38,13 +52,37 @@
             <div class="controls-row">
               <label class="search-wrapper" for="student-filter-input">
                 名前フィルター
-                <input id="student-filter-input" class="student-filter-input" type="text" placeholder="生徒名" autocomplete="off" />
+                <input
+                  id="student-filter-input"
+                  class="student-filter-input"
+                  type="text"
+                  placeholder="生徒名"
+                  autocomplete="off"
+                />
               </label>
               <fieldset class="category-filter-fieldset">
                 <legend>表示対象</legend>
-                <label><input id="student-filter-normal" type="checkbox" checked />通常生徒</label>
-                <label><input id="student-filter-costume" type="checkbox" checked />別衣装</label>
-                <label><input id="student-filter-collaboration" type="checkbox" checked />コラボ</label>
+                <label
+                  ><input
+                    id="student-filter-normal"
+                    type="checkbox"
+                    checked
+                  />通常生徒</label
+                >
+                <label
+                  ><input
+                    id="student-filter-costume"
+                    type="checkbox"
+                    checked
+                  />別衣装</label
+                >
+                <label
+                  ><input
+                    id="student-filter-collaboration"
+                    type="checkbox"
+                    checked
+                  />コラボ</label
+                >
               </fieldset>
               <label class="sort-wrapper" for="student-sort-select">
                 並べ替え
@@ -52,7 +90,13 @@
                   <option value="default-order">実装順</option>
                   <option value="name-order">名前順</option>
                 </select>
-                <button id="student-sort-direction" class="sort-direction-button" type="button">昇順</button>
+                <button
+                  id="student-sort-direction"
+                  class="sort-direction-button"
+                  type="button"
+                >
+                  昇順
+                </button>
               </label>
             </div>
           </div>
@@ -71,40 +115,131 @@
                 >
                   メニュー
                 </button>
-                <div id="quiz-menu-panel" class="quiz-menu-panel" role="menu" hidden>
-                  <button id="quiz-menu-restart-button" type="button" role="menuitem" disabled>リスタート</button>
-                  <button id="quiz-menu-reset-screen-button" type="button" role="menuitem">クイズ設定画面に戻る</button>
-                  <button id="quiz-export-progress-button" type="button" role="menuitem" disabled>進捗エクスポート(仮)</button>
-                  <button id="quiz-import-progress-button" type="button" role="menuitem" disabled>進捗インポート(仮)</button>
+                <div
+                  id="quiz-menu-panel"
+                  class="quiz-menu-panel"
+                  role="menu"
+                  hidden
+                >
+                  <button
+                    id="quiz-menu-restart-button"
+                    type="button"
+                    role="menuitem"
+                    disabled
+                  >
+                    リスタート
+                  </button>
+                  <button
+                    id="quiz-menu-reset-screen-button"
+                    type="button"
+                    role="menuitem"
+                  >
+                    クイズ設定画面に戻る
+                  </button>
+                  <button
+                    id="quiz-export-progress-button"
+                    type="button"
+                    role="menuitem"
+                  >
+                    進捗をエクスポート
+                  </button>
+                  <button
+                    id="quiz-import-progress-button"
+                    type="button"
+                    role="menuitem"
+                  >
+                    進捗をインポート
+                  </button>
+                  <button
+                    id="quiz-sync-button"
+                    type="button"
+                    role="menuitem"
+                    hidden
+                  >
+                    クラウド同期
+                  </button>
                 </div>
               </div>
             </div>
             <div id="quiz-setup-controls">
-              <div class="quiz-mode-wrapper">出題方式
-                <div id="quiz-mode-group" class="radio-group quiz-mode-component-wrapper">
+              <div class="quiz-mode-wrapper">
+                出題方式
+                <div
+                  id="quiz-mode-group"
+                  class="radio-group quiz-mode-component-wrapper"
+                >
                   <label class="para" ontouchstart="">
-                    <input type="radio" name="quiz-mode" value="multiple-choice" class="radio-input" checked />
+                    <input
+                      type="radio"
+                      name="quiz-mode"
+                      value="multiple-choice"
+                      class="radio-input"
+                      checked
+                    />
                     <span class="radio-label">4択</span>
                   </label>
                   <label class="para" ontouchstart="">
-                    <input type="radio" name="quiz-mode" value="name-input" class="radio-input" />
+                    <input
+                      type="radio"
+                      name="quiz-mode"
+                      value="name-input"
+                      class="radio-input"
+                    />
                     <span class="radio-label">名前入力</span>
                   </label>
                   <label class="para" ontouchstart="">
-                    <input type="radio" name="quiz-mode" value="name-input-lunatic" class="radio-input" />
+                    <input
+                      type="radio"
+                      name="quiz-mode"
+                      value="name-input-lunatic"
+                      class="radio-input"
+                    />
                     <span class="radio-label">名前入力 (Lunatic)</span>
                   </label>
                 </div>
               </div>
               <fieldset class="quiz-filter-fieldset">
                 <legend>出題対象</legend>
-                <label><input id="quiz-filter-normal" type="checkbox" checked />通常</label>
-                <label><input id="quiz-filter-costume" type="checkbox" />別衣装</label>
-                <label><input id="quiz-filter-collaboration" type="checkbox" />コラボ生徒</label>
+                <label
+                  ><input
+                    id="quiz-filter-normal"
+                    type="checkbox"
+                    checked
+                  />通常</label
+                >
+                <label
+                  ><input
+                    id="quiz-filter-costume"
+                    type="checkbox"
+                  />別衣装</label
+                >
+                <label
+                  ><input
+                    id="quiz-filter-collaboration"
+                    type="checkbox"
+                  />コラボ生徒</label
+                >
               </fieldset>
-              <label class="quiz-question-count-wrapper" for="quiz-question-count-input">問題数
-                <div class="quiz-question-count-input-controls button-group quiz-question-count-component-wrapper">
-                  <button id="quiz-question-count-min-button" class="para" type="button">
+              <label
+                id="quiz-old-generation-wrapper"
+                class="quiz-old-generation-wrapper"
+                hidden
+              >
+                <input id="quiz-include-old-generations" type="checkbox" />
+                旧バージョンの音声も出題する
+              </label>
+              <label
+                class="quiz-question-count-wrapper"
+                for="quiz-question-count-input"
+                >問題数
+                <div
+                  class="quiz-question-count-input-controls button-group quiz-question-count-component-wrapper"
+                >
+                  <button
+                    id="quiz-question-count-min-button"
+                    class="para"
+                    type="button"
+                  >
                     <span class="btn min">MIN</span>
                   </button>
                   <button
@@ -127,36 +262,98 @@
                       inputmode="numeric"
                     />
                   </div>
-                  <button id="quiz-question-count-plus-button" class="para" type="button" aria-label="問題数を1増やす">
+                  <button
+                    id="quiz-question-count-plus-button"
+                    class="para"
+                    type="button"
+                    aria-label="問題数を1増やす"
+                  >
                     <span class="btn plus">＋</span>
                   </button>
-                  <button id="quiz-question-count-max-button" class="para" type="button">
+                  <button
+                    id="quiz-question-count-max-button"
+                    class="para"
+                    type="button"
+                  >
                     <span class="btn max">MAX</span>
                   </button>
                 </div>
               </label>
             </div>
             <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
-              <div class="quiz-controls">
-                <button id="quiz-start-button" class="quiz-action-button" type="button">開始</button>
-                <button id="quiz-next-button" class="quiz-action-button" type="button" disabled>次へ</button>
-                <button id="quiz-play-audio-button" class="quiz-action-button" type="button" disabled>もう一度再生</button>
-              </div>
-              <div id="quiz-result-actions" class="quiz-controls" hidden>
-                <button id="quiz-result-restart-button" class="quiz-action-button" type="button">リスタート</button>
-                <button id="quiz-result-back-button" class="quiz-action-button" type="button">クイズ設定画面に戻る</button>
-              </div>
+            <div class="quiz-controls">
+              <button
+                id="quiz-start-button"
+                class="quiz-action-button"
+                type="button"
+              >
+                開始
+              </button>
+              <button
+                id="quiz-next-button"
+                class="quiz-action-button"
+                type="button"
+                disabled
+              >
+                次へ
+              </button>
+              <button
+                id="quiz-play-audio-button"
+                class="quiz-action-button"
+                type="button"
+                disabled
+              >
+                もう一度再生
+              </button>
+            </div>
+            <div id="quiz-result-actions" class="quiz-controls" hidden>
+              <button
+                id="quiz-result-restart-button"
+                class="quiz-action-button"
+                type="button"
+              >
+                リスタート
+              </button>
+              <button
+                id="quiz-result-back-button"
+                class="quiz-action-button"
+                type="button"
+              >
+                クイズ設定画面に戻る
+              </button>
+            </div>
             <div class="quiz-choices" id="quiz-choices"></div>
-            <form id="quiz-name-answer-form" class="quiz-name-answer-form" hidden>
-              <input id="quiz-name-answer-input" type="text" autocomplete="off" placeholder="生徒名を入力" />
+            <form
+              id="quiz-name-answer-form"
+              class="quiz-name-answer-form"
+              hidden
+            >
+              <input
+                id="quiz-name-answer-input"
+                type="text"
+                autocomplete="off"
+                placeholder="生徒名を入力"
+              />
               <button type="submit">回答する</button>
             </form>
-            <div id="quiz-name-answer-suggestions-overlay" class="quiz-name-answer-suggestions-overlay" hidden>
-              <div id="quiz-name-answer-suggestions" class="quiz-name-answer-suggestions" hidden></div>
+            <div
+              id="quiz-name-answer-suggestions-overlay"
+              class="quiz-name-answer-suggestions-overlay"
+              hidden
+            >
+              <div
+                id="quiz-name-answer-suggestions"
+                class="quiz-name-answer-suggestions"
+                hidden
+              ></div>
             </div>
             <div id="quiz-answer-feedback" class="quiz-answer-feedback" hidden>
               <img id="quiz-answer-image" alt="" />
               <p id="quiz-answer-name"></p>
+              <small
+                id="quiz-answer-clip-label"
+                class="quiz-answer-clip-label"
+              ></small>
             </div>
             <section id="quiz-result" class="quiz-result" hidden>
               <h3>リザルト</h3>
@@ -168,7 +365,9 @@
                   alt="100点満点スタンプ"
                   hidden
                 />
-                <p id="quiz-result-perfect-message" hidden>100点満点、花丸です！</p>
+                <p id="quiz-result-perfect-message" hidden>
+                  100点満点、花丸です！
+                </p>
               </div>
               <div id="quiz-result-list" class="quiz-result-list"></div>
             </section>
@@ -177,19 +376,92 @@
           </section>
         </section>
       </div>
-      <footer style="text-align: center;">
+      <footer style="text-align: center">
         <div>
           <small id="footer-version"></small>
-          <a href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a
+            href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
         </div>
         <small>
           当WEBサイトはNexon、Nexon GamesおよびYostarとは一切関係ありません。<br />
           当WEBサイトでは、データベースとして
-          <a href="https://schaledb.com/" target="_blank" rel="noopener noreferrer">Schale DB</a>
+          <a
+            href="https://schaledb.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Schale DB</a
+          >
           を参照しています。ゲーム画像・情報の所有権および著作権はそれぞれの権利者に帰属します。
         </small>
       </footer>
     </div>
+    <dialog id="progress-dialog" class="app-dialog">
+      <h3 id="progress-dialog-title">進捗データ</h3>
+      <p id="progress-dialog-description" class="app-dialog-description"></p>
+      <textarea
+        id="progress-dialog-textarea"
+        class="app-dialog-textarea"
+        rows="8"
+        spellcheck="false"
+        autocomplete="off"
+      ></textarea>
+      <p
+        id="progress-dialog-status"
+        class="app-dialog-status"
+        role="status"
+      ></p>
+      <div class="app-dialog-actions">
+        <input
+          id="progress-dialog-file"
+          type="file"
+          accept="application/json,.json"
+          hidden
+        />
+        <button id="progress-dialog-file-button" type="button">
+          ファイルを選択
+        </button>
+        <button id="progress-dialog-copy-button" type="button">コピー</button>
+        <button id="progress-dialog-download-button" type="button">
+          ダウンロード
+        </button>
+        <button id="progress-dialog-apply-button" type="button">
+          読み込む
+        </button>
+        <button id="progress-dialog-close-button" type="button">閉じる</button>
+      </div>
+    </dialog>
+    <dialog id="sync-dialog" class="app-dialog">
+      <h3>クラウド同期</h3>
+      <p class="app-dialog-description">
+        同期コードはパスワードと同じ扱いです。他人に教えないでください。<br />
+        別の端末で同じコードを入力すると、同じ進捗を読み書きできます。
+      </p>
+      <label class="app-dialog-field" for="sync-code-input">
+        同期コード
+        <input
+          id="sync-code-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="未設定"
+        />
+      </label>
+      <p id="sync-dialog-status" class="app-dialog-status" role="status"></p>
+      <div class="app-dialog-actions">
+        <button id="sync-generate-button" type="button">
+          新しいコードを発行
+        </button>
+        <button id="sync-upload-button" type="button">クラウドへ保存</button>
+        <button id="sync-download-button" type="button">
+          クラウドから読込
+        </button>
+        <button id="sync-close-button" type="button">閉じる</button>
+      </div>
+    </dialog>
     <script type="module" src="%BASE_URL%src/main.ts"></script>
   </body>
 </html>

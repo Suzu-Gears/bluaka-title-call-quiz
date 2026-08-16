@@ -1,14 +1,15 @@
 import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
-  type ListObjectsV2Output,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Readable } from 'node:stream'
 
+import { ensureDirectory } from '@/lib/fileOperations'
 import {
   R2_ACCESS_KEY_ID,
   R2_BUCKET_NAME,
@@ -16,122 +17,142 @@ import {
   R2_SECRET_ACCESS_KEY,
 } from '@/server-constants'
 
-const s3Client = new S3Client({
-  endpoint: R2_ENDPOINT,
-  region: 'auto',
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-  },
-})
-
-let fileListCache: ListObjectsV2Output | null = null
-
-export async function getFileList(): Promise<ListObjectsV2Output> {
-  if (fileListCache !== null) {
-    return Promise.resolve(fileListCache)
-  }
-
-  const listCommand = new ListObjectsV2Command({
-    Bucket: R2_BUCKET_NAME,
-  })
-
-  const listResponse = await s3Client.send(listCommand)
-
-  if (!listResponse.Contents) {
-    console.log('No files found in the bucket.')
-    return listResponse
-  }
-
-  fileListCache = listResponse
-  return fileListCache
+export function isR2Configured(): boolean {
+  return Boolean(
+    R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_ENDPOINT && R2_BUCKET_NAME,
+  )
 }
 
-export async function downloadR2Folder(folderPath: string, localPath: string) {
-  try {
-    const maskValue = (value: string) =>
-      value.substring(0, 5) + 'X'.repeat(value.length - 5)
-    console.log('R2_ACCESS_KEY_ID:', maskValue(R2_ACCESS_KEY_ID))
-    console.log('R2_SECRET_ACCESS_KEY:', maskValue(R2_SECRET_ACCESS_KEY))
-    console.log('R2_BUCKET_NAME:', maskValue(R2_BUCKET_NAME))
-    console.log('R2_ENDPOINT:', maskValue(R2_ENDPOINT))
+/** 値そのものは絶対に出力しない。設定漏れの切り分けだけができれば十分。 */
+export function describeR2Configuration(): string {
+  const describe = (name: string, value: string) =>
+    `${name}=${value ? `設定済み(${value.length}文字)` : '未設定'}`
+  return [
+    describe('R2_ACCESS_KEY_ID', R2_ACCESS_KEY_ID),
+    describe('R2_SECRET_ACCESS_KEY', R2_SECRET_ACCESS_KEY),
+    describe('R2_BUCKET_NAME', R2_BUCKET_NAME),
+    describe('R2_ENDPOINT', R2_ENDPOINT),
+  ].join(', ')
+}
 
-    const listResponse = await getFileList()
+let s3Client: S3Client | null = null
 
-    if (!listResponse.Contents) {
-      console.log('No files found in the bucket.')
-      return
-    }
-
-    const filteredContents = listResponse.Contents.filter(
-      (item) => item.Key && item.Key.startsWith(folderPath),
+function getClient(): S3Client {
+  if (!isR2Configured()) {
+    throw new Error(
+      `R2 の環境変数が設定されていません。${describeR2Configuration()}`,
     )
-
-    const downloadPromises = filteredContents.map(async (item) => {
-      if (!item.Key) {
-        return
-      }
-
-      const relativePath = path.relative(folderPath, item.Key)
-      const localFilePath = path.join(localPath, relativePath)
-
-      if (fs.existsSync(localFilePath)) {
-        console.log(`File already exists, skipping: ${localFilePath}`)
-        return
-      }
-
-      const getCommand = new GetObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: item.Key,
-      })
-
-      const getResponse = await s3Client.send(getCommand)
-
-      if (!getResponse.Body) {
-        console.log(`Failed to download file: ${item.Key}`)
-        return
-      }
-
-      await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true })
-
-      const writeStream = fs.createWriteStream(localFilePath)
-      const bodyStream: Readable = getResponse.Body as Readable
-      bodyStream.pipe(writeStream)
-
-      await new Promise<void>((resolve, reject) => {
-        writeStream.on('finish', () => resolve())
-        writeStream.on('error', (err) => reject(err))
-      })
-
-      console.log(`Downloaded: ${localFilePath}`)
-    })
-
-    await Promise.all(downloadPromises)
-  } catch (error) {
-    console.error('Error downloading folder:', error)
   }
+  s3Client ??= new S3Client({
+    endpoint: R2_ENDPOINT,
+    region: 'auto',
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+  })
+  return s3Client
 }
 
-/* Content-Typeが未設定なのでapplication/octet-streamになる */
+/** バケット内のキーを列挙する。1000件超も継続トークンで全件取得する。 */
+export async function listObjectKeys(prefix?: string): Promise<string[]> {
+  const client = getClient()
+  const keys: string[] = []
+  let continuationToken: string | undefined
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: R2_BUCKET_NAME,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    )
+    for (const item of response.Contents ?? []) {
+      if (item.Key) {
+        keys.push(item.Key)
+      }
+    }
+    continuationToken = response.IsTruncated
+      ? response.NextContinuationToken
+      : undefined
+  } while (continuationToken)
+
+  return keys
+}
+
+export async function downloadObjectToFile(
+  key: string,
+  localPath: string,
+): Promise<void> {
+  const response = await getClient().send(
+    new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
+  )
+  if (!response.Body) {
+    throw new Error(`R2 オブジェクトの本体が空です: ${key}`)
+  }
+  const bytes = await response.Body.transformToByteArray()
+  ensureDirectory(path.dirname(localPath))
+  fs.writeFileSync(localPath, bytes)
+}
+
 export async function uploadFileToR2(
   localFilePath: string,
-  bucketFolder: string,
-) {
-  try {
-    const fileName = path.basename(localFilePath)
-    const bucketKey = `${bucketFolder}/${fileName}`
-
-    const fileStream = fs.createReadStream(localFilePath)
-
-    const putCommand = new PutObjectCommand({
+  key: string,
+  contentType: string,
+): Promise<void> {
+  await getClient().send(
+    new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
-      Key: bucketKey,
-      Body: fileStream,
-    })
+      Key: key,
+      Body: fs.readFileSync(localFilePath),
+      ContentType: contentType,
+    }),
+  )
+}
 
-    await s3Client.send(putCommand)
-    console.log(`Uploaded: ${localFilePath} to ${bucketKey}`)
-  } catch (error) {
-    console.error('Error uploading file:', error)
+export async function putObjectJson(key: string, data: unknown): Promise<void> {
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: JSON.stringify(data, null, 2),
+      ContentType: 'application/json',
+    }),
+  )
+}
+
+/** バケット内コピー。移動は copy + delete で行う。 */
+export async function copyObject(
+  sourceKey: string,
+  destinationKey: string,
+): Promise<void> {
+  await getClient().send(
+    new CopyObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      CopySource: `${R2_BUCKET_NAME}/${encodeURIComponent(sourceKey)}`,
+      Key: destinationKey,
+    }),
+  )
+}
+
+export async function deleteObject(key: string): Promise<void> {
+  await getClient().send(
+    new DeleteObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
+  )
+}
+
+/** 存在しない場合は null。壊れた JSON も null(呼び出し側で初期化する)。 */
+export async function getObjectJson(key: string): Promise<unknown | null> {
+  try {
+    const response = await getClient().send(
+      new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
+    )
+    if (!response.Body) {
+      return null
+    }
+    return JSON.parse(await response.Body.transformToString())
+  } catch {
+    return null
   }
 }

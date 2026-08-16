@@ -1,6 +1,8 @@
-import type { Student } from '@/lib/interfaces'
+import { formatImageKey } from '@/lib/assetKeys'
 import { resolveAssetUrl } from '@/lib/assetPath'
+import type { QuizEntry, TitleCallClip } from '@/lib/interfaces'
 import { buildChoices } from '@/lib/quizEngine'
+import type { ProficiencyMap } from '@/lib/quizProgress'
 import {
   buildNameInputSuggestions,
   calculateAccuracy,
@@ -12,9 +14,15 @@ import {
   resolveMultipleChoiceMaxQuestions,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
-import type { ProficiencyMap } from '@/lib/quizProgress'
+import { readStorageJson, removeStorage, writeStorage } from '@/lib/safeStorage'
+import {
+  hasMultipleGenerations,
+  pickRandomClip,
+  selectPlayableClips,
+} from '@/lib/titleCallClips'
 import { setHidden } from '@/lib/uiState'
 import {
+  formatAnswerClipLabel,
   formatAnswerResultStatus,
   formatQuizFinishedStatus,
   formatQuizQuestionStatus,
@@ -22,8 +30,10 @@ import {
   formatResultEntryStatus,
   formatResultEntryUserAnswer,
   formatResultSummary,
+  PROGRESS_UI_TEXT,
   QUIZ_UI_TEXT,
 } from '@/lib/uiText'
+import { setupProgressPanel } from '@/progressPanel'
 import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
 
 const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
@@ -51,18 +61,24 @@ type QuizResultEntry = {
   correctAnswer: string
   userAnswer: string
   isCorrect: boolean
+  /** 出題に使ったクリップ。リザルトから同じ音声を再生するために保持する。 */
+  clip: TitleCallClip | null
 }
 
 let nameSuggestionOverlayListenersAttached = false
 
 export const setupQuiz = (
-  students: Student[],
+  entries: readonly QuizEntry[],
   setPageSwitchGuard: (guard: ((targetId: string) => boolean) | null) => void,
 ): void => {
-  const baseCandidates = students.map(({ Name, Costume, IsCollaboration }) => ({
-    name: Name,
-    costume: Costume ?? '',
-    isCollaboration: Boolean(IsCollaboration),
+  const entryByName = new Map(entries.map((entry) => [entry.Name, entry]))
+  // 音声が 1 本も無い生徒は出題できない(ビルド時点で確定している)。
+  const playableEntries = entries.filter((entry) => entry.TitleCalls.length > 0)
+
+  const baseCandidates = playableEntries.map((entry) => ({
+    name: entry.Name,
+    costume: entry.Costume,
+    isCollaboration: entry.IsCollaboration,
   }))
   const candidateGroups: CandidateGroups = {
     normal: filterCandidates(baseCandidates, {
@@ -82,10 +98,15 @@ export const setupQuiz = (
     }).map(({ name }) => name),
   }
 
-  const quizModeGroup = document.getElementById('quiz-mode-group') as HTMLElement | null
+  const quizModeGroup = document.getElementById(
+    'quiz-mode-group',
+  ) as HTMLElement | null
   const getQuizModeValue = () =>
-    (quizModeGroup?.querySelector('input[name="quiz-mode"]:checked') as HTMLInputElement | null)
-      ?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
+    (
+      quizModeGroup?.querySelector(
+        'input[name="quiz-mode"]:checked',
+      ) as HTMLInputElement | null
+    )?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
   const normalFilter = document.getElementById(
     'quiz-filter-normal',
   ) as HTMLInputElement | null
@@ -94,6 +115,12 @@ export const setupQuiz = (
   ) as HTMLInputElement | null
   const collaborationFilter = document.getElementById(
     'quiz-filter-collaboration',
+  ) as HTMLInputElement | null
+  const oldGenerationWrapper = document.getElementById(
+    'quiz-old-generation-wrapper',
+  )
+  const oldGenerationCheckbox = document.getElementById(
+    'quiz-include-old-generations',
   ) as HTMLInputElement | null
   const questionCountInput = document.getElementById(
     'quiz-question-count-input',
@@ -145,14 +172,18 @@ export const setupQuiz = (
   const nameAnswerForm = document.getElementById(
     'quiz-name-answer-form',
   ) as HTMLFormElement | null
-  const quizSection = document.querySelector<HTMLElement>('#quiz-view .quiz-section')
+  const quizSection = document.querySelector<HTMLElement>(
+    '#quiz-view .quiz-section',
+  )
   const nameAnswerInput = document.getElementById(
     'quiz-name-answer-input',
   ) as HTMLInputElement | null
   const nameAnswerSuggestionsOverlay = document.getElementById(
     'quiz-name-answer-suggestions-overlay',
   )
-  const nameAnswerSuggestions = document.getElementById('quiz-name-answer-suggestions')
+  const nameAnswerSuggestions = document.getElementById(
+    'quiz-name-answer-suggestions',
+  )
   const nameAnswerSubmit = nameAnswerForm?.querySelector<HTMLButtonElement>(
     'button[type="submit"]',
   )
@@ -161,12 +192,15 @@ export const setupQuiz = (
     'quiz-answer-image',
   ) as HTMLImageElement | null
   const answerName = document.getElementById('quiz-answer-name')
+  const answerClipLabel = document.getElementById('quiz-answer-clip-label')
   const resultSection = document.getElementById('quiz-result')
   const resultSummary = document.getElementById('quiz-result-summary')
   const resultPerfectStamp = document.getElementById(
     'quiz-result-perfect-stamp',
   ) as HTMLImageElement | null
-  const resultPerfectMessage = document.getElementById('quiz-result-perfect-message')
+  const resultPerfectMessage = document.getElementById(
+    'quiz-result-perfect-message',
+  )
   const resultPerfectRow = document.getElementById('quiz-result-perfect-row')
   const resultList = document.getElementById('quiz-result-list')
 
@@ -210,6 +244,7 @@ export const setupQuiz = (
 
   let usedChoiceNames: Set<string> = new Set()
   let currentAnswer = ''
+  let currentQuestionClip: TitleCallClip | null = null
   let currentMode = getQuizModeValue()
   let shouldShowCurrentAnswerStats = false
   let score = 0
@@ -224,6 +259,7 @@ export const setupQuiz = (
   let resultEntries: QuizResultEntry[] = []
   let playAudioDelayTimer: number | null = null
   let kokonaAudioTimer: number | null = null
+  let storageWarningShown = false
   const kokonaAudio: HTMLAudioElement = new Audio(
     resolveAssetUrl('kokona-hanamaru.mp3'),
   )
@@ -231,6 +267,38 @@ export const setupQuiz = (
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
     a.localeCompare(b, 'ja'),
   )
+
+  const includeOldGenerations = () => Boolean(oldGenerationCheckbox?.checked)
+
+  const clipsForName = (name: string): TitleCallClip[] =>
+    selectPlayableClips(
+      entryByName.get(name)?.TitleCalls ?? [],
+      includeOldGenerations(),
+    )
+
+  const imageUrlForName = (name: string): string => {
+    const entry = entryByName.get(name)
+    return entry
+      ? resolveAssetUrl(formatImageKey(entry.PrimaryId))
+      : DEFAULT_IMAGE
+  }
+
+  /** 流れたクリップの形態(シュエリンならシュエリン)の画像を出す。 */
+  const imageUrlForClip = (
+    clip: TitleCallClip | null,
+    fallbackName: string,
+  ): string =>
+    clip
+      ? resolveAssetUrl(formatImageKey(clip.ownerId))
+      : imageUrlForName(fallbackName)
+
+  // 旧世代の音声が 1 本も無いうちは、設定項目自体を出さない。
+  if (oldGenerationWrapper) {
+    const hasAnyOldGeneration = playableEntries.some((entry) =>
+      hasMultipleGenerations(entry.TitleCalls),
+    )
+    setHidden(oldGenerationWrapper, !hasAnyOldGeneration)
+  }
 
   const setMenuOpen = (isOpen: boolean) => {
     if (!menuPanel || !menuButton) {
@@ -257,14 +325,18 @@ export const setupQuiz = (
   const allStudentNames = Object.values(candidateGroups).flat()
 
   const saveProficiency = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(proficiencyMap))
+    const saved = writeStorage(STORAGE_KEY, JSON.stringify(proficiencyMap))
+    if (!saved && !storageWarningShown) {
+      storageWarningShown = true
+      proficiencyText.textContent = PROGRESS_UI_TEXT.storageWriteFailed
+    }
   }
 
   const loadProficiency = () => {
-    const currentRaw = localStorage.getItem(STORAGE_KEY)
-    if (currentRaw) {
+    const currentRaw = readStorageJson(STORAGE_KEY)
+    if (currentRaw !== null) {
       proficiencyMap = mergeWithStudents(
-        normalizeProficiencyMap(JSON.parse(currentRaw)),
+        normalizeProficiencyMap(currentRaw),
         allStudentNames,
       )
       saveProficiency()
@@ -272,14 +344,14 @@ export const setupQuiz = (
     }
 
     for (const legacyKey of LEGACY_STORAGE_KEYS) {
-      const legacyRaw = localStorage.getItem(legacyKey)
-      if (!legacyRaw) continue
+      const legacyRaw = readStorageJson(legacyKey)
+      if (legacyRaw === null) continue
       proficiencyMap = mergeWithStudents(
-        migrateLegacyProficiency(JSON.parse(legacyRaw)),
+        migrateLegacyProficiency(legacyRaw),
         allStudentNames,
       )
       saveProficiency()
-      localStorage.removeItem(legacyKey)
+      removeStorage(legacyKey)
       statusText.textContent = QUIZ_UI_TEXT.migratedLegacySave
       return
     }
@@ -307,6 +379,19 @@ export const setupQuiz = (
     updateProficiencyText()
   }
 
+  const progressPanel = setupProgressPanel({
+    getProficiency: () => proficiencyMap,
+    replaceProficiency: (map) => {
+      proficiencyMap = mergeWithStudents(
+        normalizeProficiencyMap(map),
+        allStudentNames,
+      )
+      saveProficiency()
+      updateProficiencyText()
+    },
+    onOpen: () => setMenuOpen(false),
+  })
+
   const getQuestionCountMax = () =>
     currentMode === QUIZ_MODE_MULTIPLE_CHOICE
       ? resolveMultipleChoiceMaxQuestions(activeNames.length)
@@ -330,7 +415,8 @@ export const setupQuiz = (
   const updateModeUI = () => {
     currentMode = getQuizModeValue()
     const isNameInputMode =
-      currentMode === QUIZ_MODE_NAME_INPUT || currentMode === QUIZ_MODE_NAME_INPUT_LUNATIC
+      currentMode === QUIZ_MODE_NAME_INPUT ||
+      currentMode === QUIZ_MODE_NAME_INPUT_LUNATIC
     setHidden(choicesRoot, isNameInputMode)
     setHidden(nameAnswerForm, !isNameInputMode || !isQuizRunning)
   }
@@ -372,7 +458,10 @@ export const setupQuiz = (
       MIN_NAME_SUGGESTION_OVERLAY_WIDTH,
       sectionRect.width - relativeLeft,
     )
-    const overlayWidth = Math.max(inputRect.width, MIN_NAME_SUGGESTION_OVERLAY_WIDTH)
+    const overlayWidth = Math.max(
+      inputRect.width,
+      MIN_NAME_SUGGESTION_OVERLAY_WIDTH,
+    )
     nameAnswerSuggestionsOverlay.style.top = `${relativeTop}px`
     nameAnswerSuggestionsOverlay.style.left = `${relativeLeft}px`
     nameAnswerSuggestionsOverlay.style.width = `${Math.min(overlayWidth, maxWidth)}px`
@@ -391,7 +480,12 @@ export const setupQuiz = (
       hideNameSuggestions()
       return
     }
-    const matches = buildNameInputSuggestions(sortedCandidateNames, activeNames, rawInput, 8)
+    const matches = buildNameInputSuggestions(
+      sortedCandidateNames,
+      activeNames,
+      rawInput,
+      8,
+    )
     if (matches.length === 0) {
       hideNameSuggestions()
       return
@@ -402,7 +496,7 @@ export const setupQuiz = (
       button.type = 'button'
       button.className = 'quiz-name-answer-suggestion'
       const image = document.createElement('img')
-      image.src = resolveAssetUrl(`image/${encodeURIComponent(name)}.webp`)
+      image.src = imageUrlForName(name)
       image.alt = name
       image.onerror = () => {
         image.src = DEFAULT_IMAGE
@@ -435,19 +529,22 @@ export const setupQuiz = (
     currentAudio = null
   }
 
-  const playAudioForName = (studentName: string) => {
-    if (!studentName || !allCandidateNames.has(studentName)) return
+  const playClip = (clip: TitleCallClip | null) => {
+    if (!clip) return
     stopAudio()
-    currentAudio = new Audio(
-      resolveAssetUrl(`audio/${encodeURIComponent(studentName)}.mp3`),
-    )
+    currentAudio = new Audio(resolveAssetUrl(clip.file))
     currentAudio.play().catch(() => {
       statusText.textContent = QUIZ_UI_TEXT.audioPlaybackFailed
     })
   }
 
+  /** 選択肢やリザルトから「その生徒の声」を聴くとき用。どのクリップでもよい。 */
+  const playAnyClipForName = (name: string) => {
+    playClip(pickRandomClip(clipsForName(name)))
+  }
+
   const playCurrentAudio = () => {
-    if (!activeNames.includes(currentAnswer)) {
+    if (!currentQuestionClip) {
       return
     }
     if (playAudioDelayTimer !== null) {
@@ -456,7 +553,7 @@ export const setupQuiz = (
     }
     playAudioDelayTimer = window.setTimeout(() => {
       playAudioDelayTimer = null
-      playAudioForName(currentAnswer)
+      playClip(currentQuestionClip)
     }, 500)
   }
 
@@ -468,16 +565,25 @@ export const setupQuiz = (
 
   const updateAnswerFeedback = (name: string) => {
     if (!answerFeedback || !answerImage || !answerName || !name) return
-    answerImage.src = resolveAssetUrl(`image/${encodeURIComponent(name)}.webp`)
+    answerImage.src = imageUrlForClip(currentQuestionClip, name)
     answerImage.onerror = () => {
       answerImage.src = DEFAULT_IMAGE
     }
     answerName.textContent = name
+    if (answerClipLabel) {
+      // 出題中は伏せておき、答え合わせの後にどのバージョンだったかを示す。
+      answerClipLabel.textContent = formatAnswerClipLabel(
+        currentQuestionClip?.label,
+      )
+    }
     setHidden(answerFeedback, false)
   }
 
   const hideAnswerFeedback = () => {
     setHidden(answerFeedback, true)
+    if (answerClipLabel) {
+      answerClipLabel.textContent = ''
+    }
   }
 
   const hideResult = () => {
@@ -511,7 +617,12 @@ export const setupQuiz = (
     }
     const { correctCount, totalCount, wrongCount, accuracy, isPerfect } =
       summarizeQuizResults(resultEntries)
-    resultSummary.textContent = formatResultSummary(correctCount, totalCount, wrongCount, accuracy)
+    resultSummary.textContent = formatResultSummary(
+      correctCount,
+      totalCount,
+      wrongCount,
+      accuracy,
+    )
 
     if (resultPerfectStamp) {
       setHidden(resultPerfectStamp, !isPerfect)
@@ -538,27 +649,39 @@ export const setupQuiz = (
       const item = document.createElement('article')
       item.className = `quiz-result-item ${entry.isCorrect ? 'correct' : 'wrong'}`
       const image = document.createElement('img')
-      image.src = resolveAssetUrl(
-        `image/${encodeURIComponent(entry.correctAnswer)}.webp`,
-      )
+      image.src = imageUrlForClip(entry.clip, entry.correctAnswer)
       image.alt = entry.correctAnswer
       image.onerror = () => {
         image.src = DEFAULT_IMAGE
       }
       image.addEventListener('click', () => {
-        playAudioForName(entry.correctAnswer)
+        // 出題されたクリップそのものを聴き直せるようにする。
+        if (entry.clip) {
+          playClip(entry.clip)
+        } else {
+          playAnyClipForName(entry.correctAnswer)
+        }
       })
 
       const text = document.createElement('div')
       text.className = 'quiz-result-item-text'
       const status = document.createElement('div')
       status.className = 'quiz-result-item-status'
-      status.textContent = formatResultEntryStatus(entry.questionNumber, entry.isCorrect)
+      status.textContent = formatResultEntryStatus(
+        entry.questionNumber,
+        entry.isCorrect,
+      )
       const correct = document.createElement('div')
       correct.textContent = formatResultEntryCorrectAnswer(entry.correctAnswer)
       const answer = document.createElement('div')
       answer.textContent = formatResultEntryUserAnswer(entry.userAnswer)
       text.append(status, correct, answer)
+      if (entry.clip?.label) {
+        const clipLabel = document.createElement('div')
+        clipLabel.className = 'quiz-result-item-clip-label'
+        clipLabel.textContent = formatAnswerClipLabel(entry.clip.label)
+        text.appendChild(clipLabel)
+      }
       item.append(image, text)
       resultList.appendChild(item)
     })
@@ -574,6 +697,7 @@ export const setupQuiz = (
     }
     usedChoiceNames = new Set()
     currentAnswer = ''
+    currentQuestionClip = null
     score = 0
     questionNumber = 0
     shouldShowCurrentAnswerStats = false
@@ -616,6 +740,7 @@ export const setupQuiz = (
       correctAnswer: currentAnswer,
       userAnswer,
       isCorrect,
+      clip: currentQuestionClip,
     })
     shouldShowCurrentAnswerStats = true
     hasAnsweredCurrentQuestion = true
@@ -624,7 +749,9 @@ export const setupQuiz = (
     updateAnswerFeedback(currentAnswer)
     const hasRemainingQuestion = questionNumber < totalQuestions
     awaitingResult = !hasRemainingQuestion
-    nextButton.textContent = awaitingResult ? QUIZ_UI_TEXT.result : QUIZ_UI_TEXT.next
+    nextButton.textContent = awaitingResult
+      ? QUIZ_UI_TEXT.result
+      : QUIZ_UI_TEXT.next
     replayButton.disabled = awaitingResult
     setHidden(replayButton, awaitingResult)
     setHidden(nextButton, false)
@@ -634,6 +761,7 @@ export const setupQuiz = (
   const showResultScreen = () => {
     stopAudio()
     currentAnswer = ''
+    currentQuestionClip = null
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
     awaitingResult = false
@@ -648,6 +776,8 @@ export const setupQuiz = (
     showResultActions()
     updateCostumeHintText()
     updateProficiencyText()
+    // クラウド同期は 1 回のクイズが終わったタイミングだけに絞る。
+    progressPanel.pushInBackground()
   }
 
   const renderQuestion = () => {
@@ -660,6 +790,7 @@ export const setupQuiz = (
     }
 
     currentAnswer = available[Math.floor(Math.random() * available.length)]
+    currentQuestionClip = pickRandomClip(clipsForName(currentAnswer))
     questionNumber += 1
     statusText.textContent = formatQuizQuestionStatus(questionNumber)
     shouldShowCurrentAnswerStats = false
@@ -687,7 +818,7 @@ export const setupQuiz = (
         button.className = 'quiz-choice-button'
         button.dataset.choiceName = name
         const image = document.createElement('img')
-        image.src = resolveAssetUrl(`image/${encodeURIComponent(name)}.webp`)
+        image.src = imageUrlForName(name)
         image.alt = ''
         image.onerror = () => {
           image.src = DEFAULT_IMAGE
@@ -697,20 +828,22 @@ export const setupQuiz = (
         button.append(image, label)
         button.addEventListener('click', () => {
           if (hasAnsweredCurrentQuestion) {
-            playAudioForName(name)
+            playAnyClipForName(name)
             return
           }
           const isCorrect = name === currentAnswer
           finalizeAnswer(name, isCorrect)
-          choicesRoot.querySelectorAll<HTMLButtonElement>('button').forEach((choiceButton) => {
-            const choiceName = choiceButton.dataset.choiceName
-            if (choiceName === currentAnswer) {
-              choiceButton.classList.add('correct')
-            }
-            if (!isCorrect && choiceName === name) {
-              choiceButton.classList.add('wrong-selected')
-            }
-          })
+          choicesRoot
+            .querySelectorAll<HTMLButtonElement>('button')
+            .forEach((choiceButton) => {
+              const choiceName = choiceButton.dataset.choiceName
+              if (choiceName === currentAnswer) {
+                choiceButton.classList.add('correct')
+              }
+              if (!isCorrect && choiceName === name) {
+                choiceButton.classList.add('wrong-selected')
+              }
+            })
         })
         choicesRoot.appendChild(button)
       })
@@ -734,17 +867,16 @@ export const setupQuiz = (
     updateModeUI()
     refreshFilterState()
     if (activeNames.length < 1) {
-      statusText.textContent =
-        QUIZ_UI_TEXT.startValidationNeedOneCandidate
+      statusText.textContent = QUIZ_UI_TEXT.startValidationNeedOneCandidate
       return false
     }
     if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE && activeNames.length < 4) {
-      statusText.textContent =
-        QUIZ_UI_TEXT.startValidationNeedFourCandidates
+      statusText.textContent = QUIZ_UI_TEXT.startValidationNeedFourCandidates
       return false
     }
     usedChoiceNames = new Set()
     currentAnswer = ''
+    currentQuestionClip = null
     score = 0
     questionNumber = 0
     resultEntries = []
@@ -766,7 +898,11 @@ export const setupQuiz = (
   answerImage?.addEventListener('click', () => {
     if (!answerFeedback || answerFeedback.hidden) return
     if (!currentAnswer) return
-    playAudioForName(currentAnswer)
+    if (currentQuestionClip) {
+      playClip(currentQuestionClip)
+      return
+    }
+    playAnyClipForName(currentAnswer)
   })
 
   resultPerfectStamp?.addEventListener('click', playKokonaAudio)
@@ -791,9 +927,7 @@ export const setupQuiz = (
     if (!isNavigatingToCardList || !isQuizRunning || isShowingResult) {
       return true
     }
-    const shouldMove = window.confirm(
-      QUIZ_UI_TEXT.pageLeaveConfirm,
-    )
+    const shouldMove = window.confirm(QUIZ_UI_TEXT.pageLeaveConfirm)
     if (!shouldMove) {
       return false
     }
@@ -851,6 +985,9 @@ export const setupQuiz = (
       statusText.textContent = QUIZ_UI_TEXT.candidateFilterChanged
     })
   })
+  oldGenerationCheckbox?.addEventListener('change', () => {
+    statusText.textContent = QUIZ_UI_TEXT.audioVersionChanged
+  })
 
   nameAnswerForm?.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -888,4 +1025,5 @@ export const setupQuiz = (
   updateModeUI()
   refreshFilterState()
   setQuizRunning(false)
+  void progressPanel.pullOnStartup()
 }

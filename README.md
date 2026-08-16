@@ -8,13 +8,16 @@
 ## 目次
 
 1. [開発・ビルド手順](#1-開発ビルド手順)
-2. [ビルド時の処理の流れ](#2-ビルド時の処理の流れ)
-3. [ソースコード構成](#3-ソースコード構成)
-4. [カード一覧の仕組み](#4-カード一覧の仕組み)
-5. [音声再生の処理の仕組み](#5-音声再生の処理の仕組み)
-6. [並び替えとフィルタの仕組み](#6-並び替えとフィルタの仕組み)
-7. [クイズの仕組み](#7-クイズの仕組み)
-8. [習熟度（プロフィシエンシー）の仕組み](#8-習熟度プロフィシエンシーの仕組み)
+2. [データパイプラインの考え方](#2-データパイプラインの考え方)
+3. [ビルド時の処理の流れ](#3-ビルド時の処理の流れ)
+4. [ソースコード構成](#4-ソースコード構成)
+5. [final.json のデータモデル](#5-finaljson-のデータモデル)
+6. [カード一覧の仕組み](#6-カード一覧の仕組み)
+7. [音声再生の仕組み](#7-音声再生の仕組み)
+8. [並び替えとフィルタの仕組み](#8-並び替えとフィルタの仕組み)
+9. [クイズの仕組み](#9-クイズの仕組み)
+10. [習熟度と進捗データ](#10-習熟度と進捗データ)
+11. [運用手順（runbook）](#11-運用手順runbook)
 
 ---
 
@@ -24,345 +27,519 @@
 # 依存パッケージのインストール
 npm ci
 
+# アセットと final.json の準備（初回は必須）
+npm run local-cache:fetch
+
 # 開発サーバー起動（ホットリロード付き）
 npm run dev
 
-# 本番ビルド（後述のキャッシュ取得を含む）
+# 本番ビルド（アセット取得を含む）
 npm run build
 
-# テスト実行
+# テスト・型チェック
 npm test
+npm run typecheck
 ```
+
+> **初回は先に `npm run local-cache:fetch` を実行してください。**  
+> `public/data/final.json` が無い状態で `npm run dev` を実行すると、画面上部に
+> 「データの読み込みに失敗しました」とだけ表示されます。
 
 ### その他のスクリプト
 
-| スクリプト | 実行タイミング | 内容 |
-|---|---|---|
-| `npm run cache:fetch` | **サーバーサイド（CI）** | Cloudflare R2 からアセット（音声・画像）をダウンロード |
-| `npm run local-cache:fetch` | **サーバーサイド（ローカル）** | `.env` ファイルを参照してローカルでキャッシュ取得 |
-| `npm run local-cache:purge` | **サーバーサイド（ローカル）** | ローカルキャッシュを削除 |
+| スクリプト                    | 実行タイミング               | 内容                                                       |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------- |
+| `npm run cache:fetch`         | サーバーサイド（CI）         | アセットを R2 と同期し、`final.json` を生成                |
+| `npm run cache:refresh`       | サーバーサイド（手動・月次） | 音源の差し替え（声優降板など）を検知して新世代を追加       |
+| `npm run local-cache:fetch`   | サーバーサイド（ローカル）   | `.env` を読み込んで `cache:fetch`                          |
+| `npm run local-cache:refresh` | サーバーサイド（ローカル）   | `.env` を読み込んで `cache:refresh`                        |
+| `npm run local-cache:purge`   | サーバーサイド（ローカル）   | ローカルキャッシュを削除（R2 には触れない）                |
+| `npm run data:verify`         | サーバーサイド（診断）       | ネットワークとアセットに触れずに `final.json` の内容を検算 |
+| `npm run r2:check`            | サーバーサイド（診断）       | R2 への接続確認とキー構成の表示（読み取りのみ）            |
+| `npm run r2:move`             | サーバーサイド（運用）       | 音声クリップを別メンバーのフォルダへ移動（帰属の変更）     |
+
+### 環境変数（`.env`）
+
+| 変数                                                                           | 必須          | 用途                                                     |
+| ------------------------------------------------------------------------------ | ------------- | -------------------------------------------------------- |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ENDPOINT` / `R2_BUCKET_NAME` | R2 を使う場合 | Cloudflare R2 への接続                                   |
+| `BASE_PATH`                                                                    | 任意          | サブディレクトリ配信時のベースパス                       |
+| `VITE_SYNC_ENDPOINT`                                                           | 任意          | 進捗のクラウド同期先（未設定なら同期 UI は表示されない） |
+| `SCHALEDB_REQUEST_INTERVAL_MS`                                                 | 任意          | SchaleDB への連続リクエスト間隔（既定 1000ms）           |
+
+R2 の環境変数が未設定でもビルドは動きます。その場合はローカルの `public/` を正本として扱い、
+不足分を SchaleDB から直接取得します。
 
 ---
 
-## 2. ビルド時の処理の流れ
+## 2. データパイプラインの考え方
 
-`npm run build` は以下の順序で処理を行います。すべて **サーバーサイド（Node.js）** で実行されます。
+### 2-1. 参照するデータ
+
+SchaleDB の **JSON を 2 本**参照します。生徒一覧ページ（`https://schaledb.com/student`）は
+中身が空の SPA シェルで、実データは同じ JSON をクライアントが読んで描画しているため参照しません。
+
+| ファイル                                     | 用途                                       |
+| -------------------------------------------- | ------------------------------------------ |
+| `https://schaledb.com/data/jp/students.json` | 生徒メタデータ（名前・Id・CV・実装順など） |
+| `https://schaledb.com/data/jp/voice.json`    | **タイトルコールの音声ファイルパス**       |
+
+`voice.json` は生徒 Id ごとにボイス一覧を持ち、タイトルコールは `Group === 'UITitleIdle1'` の
+`AudioClip`（例: `jp_aru/aru_title.mp3`）です。**この値をそのまま使うため、SchaleDB 側の命名規則が
+名前ベース（`Aru`）から数字ベース（`CH0056`）に変わっても影響を受けません。**
+
+どちらの JSON も 5MB 前後あるので、取得直後に必要な項目だけへ縮約し、生の JSON は
+`tmp/`（Git 管理外）にのみキャッシュします。`public/` に置くのは縮約後の `final.json` だけです。
+
+### 2-2. R2 が正本、SchaleDB は供給源
+
+初音ミクのように **SchaleDB 側の更新漏れでタイトルコールの掲載が消える**ことがあります。
+そのため役割を次のように定めています。
+
+- **R2 バケットの内容＝配信される音声の正本。** ビルドは R2 の内容を `public/` にミラーします。
+- **SchaleDB＝新規クリップの供給源。** `voice.json` にあって R2 に無いものだけを取得して R2 へ追加します。
+- したがって **`voice.json` から消えても R2 にあるものは配信され続けます**（ビルドログに `[r2-only]` と表示）。
+- 逆に R2 から削除すれば配信からも消えます。
+
+### 2-3. アセットのキー規約
+
+R2 と `public/` で同じ配置を使います。生徒 Id をフォルダにすることで、手動で置いたファイルの
+帰属が一意に決まります。
+
+```
+audio/{生徒Id}/{clipId}.g{世代}.mp3    例: audio/10143/np0288_title.g1.mp3
+image/{生徒Id}.webp                    例: image/10143.webp
+meta/audio-manifest.json               更新検知用の指紋
+```
+
+- `clipId` … `AudioClip` のファイル名から拡張子を除いたもの。使える文字は `[A-Za-z0-9_-]`。
+- `{世代}` … 1 始まりの整数。**追記専用**で、録り直しがあっても過去のファイルを上書きしません。
+
+### 2-4. 例外ケースの扱い
+
+| ケース                     | 実データ                                                                 | 扱い                                                                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 同名 2 レコード・音声 1 本 | ホシノ（臨戦） Id=10098 / 10099。音声は 10098 のみ                       | 1 エントリへ統合。カード一覧は形態ごとに 2 枚（各形態の絵、音声は共通の 1 本）                                                                                                               |
+| 同名 2 レコード・音声 2 本 | シュン（水着） Id=10143 / 10144。voice.json 上は 2 クリップとも 10143 側 | 1 エントリへ統合し、2 本とも出題候補。np0288 はシュエリン（10144）の声のため R2 上で `audio/10144/` へ移動して帰属させる（`npm run r2:move`、1 回だけ）。カード一覧は 2 枚（各形態の絵と声） |
+| SchaleDB の掲載漏れ        | 初音ミク Id=20007                                                        | R2 に音声があれば `source: 'r2-only'` として出題を継続                                                                                                                                       |
+| 声優の降板・録り直し       | チェリノ など。URL は同じでファイル内容だけ変わる                        | `cache:refresh` が差分を検知し、旧世代を残したまま新世代を追加                                                                                                                               |
+
+---
+
+## 3. ビルド時の処理の流れ
+
+`npm run build` は以下の順に実行されます。すべて **サーバーサイド（Node.js）** です。
 
 ```
 npm run build
-  └─ 1. npm run cache:fetch          (src/scripts/downloadPublic.ts)
-  │     ├─ Cloudflare R2 から音声ファイル (public/audio/) をダウンロード
-  │     ├─ Cloudflare R2 から画像ファイル (public/image/) をダウンロード
-  │     └─ SchaleDB から不足している音声・画像を補完ダウンロード
+  ├─ 1. npm run cache:fetch  (src/scripts/downloadPublic.ts → src/lib/assetPipeline.ts)
+  │     ├─ students.json / voice.json を取得（tmp/ にキャッシュ）
+  │     ├─ スキーマ検査（取得率・拡張子・Id 集合のずれ）→ 異常ならビルド失敗
+  │     ├─ R2 の audio/ image/ を一覧（未設定ならローカルを走査）
+  │     ├─ voice.json にあって R2 に無いクリップだけをダウンロードして R2 へ追加
+  │     ├─ 不足している画像を全メンバー分ダウンロードして R2 へ追加
+  │     ├─ R2 → public/ をミラー（ローカルに無いものだけ）
+  │     └─ public/data/final.json を生成
   │
   └─ 2. vite build
         ├─ index.html をエントリーポイントとして解析
         ├─ src/main.ts → src/cardList.ts / src/quiz.ts → src/lib/* をバンドル
-        ├─ src/styles.css をバンドル
-        ├─ public/ 配下の静的ファイルをそのまま dist/ にコピー
+        ├─ public/ 配下の静的ファイルを dist/ にコピー
         └─ __APP_VERSION__ を package.json のバージョンに置き換え
 ```
 
-### データファイルの生成（サーバーサイド）
+### 失敗したときの扱い
 
-`src/lib/schaleDBClient.ts` がビルド前またはキャッシュ取得時に以下を行います：
+- JSON の取得失敗・スキーマ異常 → **ビルドを失敗させます**（劣化したサイトを黙って配信しないため）。
+- 個別アセットの取得失敗 → 件数を集計し、**5 件を超えたらビルドを失敗**させます。
+- ただし **404 は失敗として数えません**。実装直後の生徒は `voice.json` に掲載されていても
+  SchaleDB 側に音源がまだ置かれていないことがあり（例: 2026-08 時点の CH0344〜CH0348 の水着生徒）、
+  これは日常的な状態だからです。該当分は「SchaleDB にまだ音源が無いクリップ」として一覧表示され、
+  その生徒は一時的に出題対象外（カード一覧では 🔇）になります。音源が公開されれば
+  次回以降のビルドで自動的に取り込まれます。
 
-1. **SchaleDB** (`https://schaledb.com/data/jp/students.json`) から生徒データを取得
-2. `src/lib/jsonUtils.ts` の `makeStudentsJson` でデータを整形
-3. 整形済みデータを `public/data/final.json` として保存
+### スキーマドリフト検知
 
-この `final.json` はブラウザからも `fetch('/data/final.json')` でアクセスされ、カード一覧やクイズの元データとして使われます。
+`voice.json` の形式変更に早く気づくため、以下を検査しています（`src/lib/voiceData.ts`）。
+
+- `UITitleIdle1` を持つ生徒の割合が 95% 未満（実測は約 99%）
+- `AudioClip` が `.mp3` で終わらない要素の存在
+- `students.json` と `voice.json` の Id 集合のずれが 5% 超
 
 ---
 
-## 3. ソースコード構成
+## 4. ソースコード構成
 
 ```
 src/
-├── main.ts              # アプリのエントリーポイント（ブートストラップ）        [クライアントサイド]
-├── cardList.ts          # カード一覧のDOM構築・並び替え・フィルタ・音声再生      [クライアントサイド]
-├── quiz.ts              # クイズ画面のすべてのロジック                          [クライアントサイド]
-├── styles.css           # 全体スタイルシート                                     [クライアントサイド]
-├── server-constants.ts  # 環境変数定数                                          [サーバーサイド]
+├── main.ts                  # エントリーポイント（final.json の読み込みと初期化）  [クライアント]
+├── cardList.ts              # カード一覧の DOM 構築・並び替え・フィルタ・音声再生    [クライアント]
+├── quiz.ts                  # クイズ画面のロジック                                  [クライアント]
+├── progressPanel.ts         # 進捗のエクスポート/インポート・クラウド同期の UI       [クライアント]
+├── quizQuestionCountControl.ts # 問題数コントロール                                 [クライアント]
+├── styles.css               # 全体スタイルシート                                    [クライアント]
+├── server-constants.ts      # 環境変数定数                                          [サーバー]
+│
+├── data/
+│   └── audioLabels.ts       # クリップの表示名（「旧声優版」など）を人手で付ける      [共通]
 │
 ├── lib/
-│   ├── interfaces.ts          # TypeScript インターフェース定義                  [共通]
-│   ├── quizProgress.ts        # クイズ共通ユーティリティ（候補フィルタ・正規化・習熟度）  [クライアントサイド]
-│   ├── quizEngine.ts          # shuffleArray・buildChoices などのクイズロジック  [クライアントサイド]
-│   ├── uiText.ts              # UI文言・表示文字列の共通定義                      [クライアントサイド]
-│   ├── uiState.ts             # UI表示状態（hidden）の共通ヘルパー                [クライアントサイド]
-│   ├── schaleDBClient.ts      # SchaleDB データ取得・音声・画像の補完ダウンロード [サーバーサイド]
-│   ├── cloudflareR2Client.ts  # Cloudflare R2 の操作（upload/download）         [サーバーサイド]
-│   ├── fileOperations.ts      # ファイルシステム操作のユーティリティ              [サーバーサイド]
-│   ├── jsonUtils.ts           # JSON データ整形ユーティリティ                    [サーバーサイド]
-│   └── test.ts                # ユニットテスト                                    [サーバーサイド]
+│   ├── interfaces.ts        # QuizEntry / TitleCallClip などの型定義                 [共通]
+│   ├── assetKeys.ts         # R2・public のキー規約（パース／組み立て）              [共通]
+│   ├── titleCallClips.ts    # クリップの選択・並び（世代とバリアントの扱い）          [共通]
+│   ├── quizProgress.ts      # 候補フィルタ・正規化・習熟度                            [共通]
+│   ├── quizEngine.ts        # shuffleArray・buildChoices                              [共通]
+│   ├── progressTransfer.ts  # 進捗のエクスポート／インポート（純関数）                [共通]
+│   ├── uiText.ts            # UI 文言                                                [クライアント]
+│   ├── uiState.ts           # hidden 切り替えヘルパー                                [クライアント]
+│   ├── assetPath.ts         # ベースパスの解決                                       [クライアント]
+│   ├── safeStorage.ts       # localStorage の例外を吸収する薄いラッパ                [クライアント]
+│   ├── syncClient.ts        # 同期コード方式のクラウド保存                            [クライアント]
+│   ├── voiceData.ts         # voice.json の解釈とスキーマ検査                        [サーバー]
+│   ├── jsonUtils.ts         # QuizEntry の組み立て（純関数）                          [サーバー]
+│   ├── assetPipeline.ts     # ビルドの統括（取得・補充・ミラー・出力）                [サーバー]
+│   ├── audioManifest.ts     # 音源の指紋管理（録り直し検知）                          [サーバー]
+│   ├── schaleDBClient.ts    # SchaleDB からの取得                                    [サーバー]
+│   ├── cloudflareR2Client.ts# R2 の一覧・取得・アップロード                          [サーバー]
+│   ├── fileOperations.ts    # ファイル操作ユーティリティ                              [サーバー]
+│   └── test.ts              # ユニットテスト                                          [サーバー]
 │
 └── scripts/
-    ├── downloadPublic.ts  # ビルド前キャッシュ取得スクリプト  [サーバーサイド]
-    └── purgeCache.ts      # ローカルキャッシュ削除スクリプト  [サーバーサイド]
+    ├── downloadPublic.ts    # ビルド前のアセット準備                                  [サーバー]
+    ├── refreshCache.ts      # 音源の差し替え検知と世代追加                            [サーバー]
+    ├── purgeCache.ts        # ローカルキャッシュ削除                                  [サーバー]
+    └── verifyPipeline.ts    # final.json の内容を検算する診断スクリプト               [サーバー]
+
+docs/
+├── data-pipeline-redesign-plan.md  # 本パイプラインの設計計画書
+└── spreadsheet-sync.gs             # 進捗同期用の Google Apps Script
 ```
-
-### エントリーポイントの役割分担
-
-| ファイル | 役割 |
-|---|---|
-| `main.ts` | フォント・スタイルのインポート、ページ切り替え、フッターバージョン表示、`bootstrap()` 関数でデータ取得と初期化を統括 |
-| `cardList.ts` | カード一覧ページ全体（DOM生成・フィルタ・ソート・音声再生） |
-| `quiz.ts` | クイズページ全体（設定UI・出題・回答判定・リザルト・習熟度管理） |
-
-### UIの再利用性向上のための補助モジュール
-
-- `src/lib/uiText.ts`  
-  クイズと一覧で使う文言（ボタンラベル、状態メッセージ、リザルト文言）を共通化し、後から表示文言を変更しやすくしています。
-- `src/lib/uiState.ts`  
-  `hidden` 切り替え処理を共通化し、表示状態変更の意図を読み取りやすくしています。
-- `src/styles.css` の `:root` 変数  
-  主要な色トークンを集中管理し、色の変更を行いやすくしています。
 
 ---
 
-## 4. カード一覧の仕組み
+## 5. final.json のデータモデル
+
+出題・カード表示の単位は **表示名**、アセットの管理単位は **生徒 Id** という二層構造です。
+
+```ts
+{
+  schemaVersion: 2,
+  builtAt: '2026-08-16T...',
+  entries: [
+    {
+      Name: 'シュン（水着）',
+      MemberIds: [10143, 10144],   // 同名レコードすべて
+      PrimaryId: 10143,            // カード・正解表示に使う代表
+      ImageIds: [10143, 10144],
+      TitleCalls: [
+        { clipId: 'ch0355_title', generation: 1,
+          file: 'audio/10143/ch0355_title.g1.mp3',
+          ownerId: 10143, source: 'schaledb', label: undefined },
+        { clipId: 'np0288_title', generation: 1, ... },
+      ],
+      DefaultOrder: 264,
+      NameSortOrder: 12,
+      CharacterVoice: '伊藤静',
+      Costume: '水着',
+      IsCollaboration: false,
+    },
+  ],
+}
+```
+
+- `TitleCalls.length === 0` の生徒は **ビルド時点で出題対象外が確定**します。
+  そのためクライアントは音声の有無を確認する必要がなく、起動時のリクエストは `final.json` の 1 本だけです。
+- `source` は `'schaledb'`（voice.json に掲載あり）か `'r2-only'`（掲載が無く R2 にのみ存在）。
+- `ownerId` はクリップを「どの形態の声か」として表示する生徒 Id で、**R2 上のフォルダの Id が
+  そのまま入ります**。つまり R2 の置き場所が帰属の宣言です。voice.json の掲載位置が実態と
+  異なる場合（シュン（水着）の np0288 はシュエリン側）は `npm run r2:move` でファイルを
+  移動すれば、以後の再取得・世代管理も自動で追従します（存在判定が clipId 単位のため）。
+- `label` は `src/data/audioLabels.ts` で人手で付ける表示名（例: 「旧声優版」）。キーは
+  `{clipId}.g{世代}` でフォルダを含まないため、移動しても壊れません。
+- 習熟度の localStorage キーは従来どおり **表示名**のため、データ移行は不要です。
+
+---
+
+## 6. カード一覧の仕組み
 
 ### 初期化フロー
 
 `bootstrap()` (in `main.ts`) にて：
 
-1. `fetch('/data/final.json')` で全生徒データを取得
-2. 全生徒について `HEAD /audio/<name>.mp3` を並列リクエストし、音声ファイルの有無を確認
-3. 音声のない生徒名を `unavailableAudioNames: Set<string>` に格納
-4. `setupStudentGrid(students, unavailableAudioNames)` を呼び出す
+1. `fetch('data/final.json')` でエントリを取得（`schemaVersion` を検証）
+2. `setupStudentGrid(entries)` と `setupQuiz(entries, ...)` を呼び出す
+3. 失敗した場合は、両ビューより上にある `#app-error` バナーにメッセージを表示
 
 ### カード生成 (`createCard` in `cardList.ts`)
 
-各生徒ごとに以下の DOM 構造のカードを生成します：
+カードは **メンバー（形態）ごとに 1 枚**生成します（SchaleDB の一覧と同じ見え方）。
+同名グループは名前を共通にしたまま、形態の数だけカードが並びます。
+
+- シュン（水着） → 2 枚（シュンの絵と声 / シュエリンの絵と声）
+- ホシノ（臨戦） → 2 枚（各形態の絵。音声は共通の 1 本を両方のカードから再生）
 
 ```html
 <div class="grid-item" tabindex="0"
-     data-name="アリス"
-     data-name-key="アリス"       <!-- 検索用の正規化済みキー -->
-     data-filter-category="normal"  <!-- normal / costume / collaboration -->
-     data-default-order="1"
-     data-name-sort-order="1"
-     data-has-audio="true">
+     data-name="シュン（水着）"
+     data-name-key="しゅん（水着）"      <!-- 検索用の正規化済みキー -->
+     data-filter-category="costume"      <!-- normal / costume / collaboration -->
+     data-default-order="264.1"          <!-- グループ内は小数の枝番で隣接を維持 -->
+     data-name-sort-order="12.1"
+     data-has-audio="true"
+     data-clip-index="0">                <!-- 次にタップしたときに鳴るクリップ -->
   <div class="image-container">
-    <img loading="lazy" src="/image/アリス.webp" alt="アリス" />
+    <img loading="lazy" src="image/10144.webp" alt="シュン（水着）" />
+    <div class="clip-badge">1/2</div>    <!-- 世代が複数 or ラベルがある場合のみ表示 -->
     <div class="voice-actor-container">
-      <div class="voice-actor">　CV.担当声優　</div>
+      <div class="voice-actor">　CV.伊藤静　</div>
     </div>
   </div>
   <div class="name-container">
-    <div class="name">　アリス　</div>  <!-- 音声なしなら末尾に 🔇 -->
+    <div class="name">　シュン（水着）</div>  <!-- 音声なしなら末尾に 🔇 -->
   </div>
 </div>
 ```
 
-- `data-name-key` には `normalizeQuizAnswer(name)` を適用した文字列（全角英数を半角化・空白除去・小文字化）を設定し、フィルタ検索に使用します。
-- `data-filter-category` は `resolveStudentCategory(costume, isCollaboration)` で判定：  
-  `collaboration` > `costume` > `normal` の優先順位。
+画像の URL は `image/{メンバーId}.webp` です。生徒名を URL に含めないため、
+日本語名のエンコード問題が発生しません。
 
 ### fitty によるフォントサイズ調整
 
-`setupFitty()` は CSS の `.name` と `.voice-actor` セレクタに対して [fitty](https://github.com/rikschennink/fitty) を適用し、カードの幅に合わせて文字サイズを自動縮小します。  
-ウィンドウの `devicePixelRatio` が変化した場合（ズームなど）は fitty インスタンスを再生成します。
+`setupFitty()` は `.name` と `.voice-actor` に [fitty](https://github.com/rikschennink/fitty) を適用し、
+カード幅に合わせて文字サイズを自動縮小します。`devicePixelRatio` が変化した場合は再生成します。
 
 ---
 
-## 5. 音声再生の処理の仕組み
+## 7. 音声再生の仕組み
 
-### カード一覧での音声再生 (`cardList.ts`)
+### クリップの種類
 
-カード一覧では **1つの `<audio>` 要素を全カードで共有**します。
+1 人の生徒が複数のタイトルコールを持つことがあり、2 つの軸で区別しています。
 
-```
-ユーザーがカードをクリック / Enter キー押下
-  │
-  ├─ gridItem.dataset.hasAudio === 'false' → 何もしない（音声なし）
-  │
-  ├─ 別のカードが再生中 → resetAudio() で停止し、img.classList から 'playing' を除去
-  │
-  └─ playAudio(name) 実行
-        ├─ sharedAudioPlayer.src = `/audio/${name}.mp3`
-        ├─ sharedAudioPlayer.load()
-        └─ sharedAudioPlayer.play()
-              ├─ 成功 → img.classList.add('playing') でアニメーション
-              └─ 失敗 → resetAudio()
+| 軸                                     | 例                      | 既定の扱い                                         |
+| -------------------------------------- | ----------------------- | -------------------------------------------------- |
+| **バリアント**（`clipId` が違う）      | シュン（水着）の 2 音声 | 常に両方が候補。出題時にランダムで 1 本            |
+| **世代**（同じ `clipId` で番号が違う） | 声優降板前後の録り直し  | 既定は**最新世代のみ**。設定で旧世代も候補にできる |
 
-カードの外をクリック → resetAudio() で停止
-audio.ended イベント → resetAudio() で停止
-```
+### カード一覧での再生 (`cardList.ts`)
 
-### クイズでの音声再生 (`quiz.ts`)
-
-クイズでは問題ごとに **新しい `Audio` オブジェクト**を生成します。
+カード一覧では **1 つの `<audio>` 要素を全カードで共有**します。
+各カードは自分の形態に帰属するクリップを再生します（`clipsForMember`）。
+自分のクリップが無い形態（ホシノ（臨戦）の dealer 側）はグループ共有の音声を再生します。
+同じカードに世代（録り直し）が複数ある場合のみ、タップのたびに順送りします（最新世代が先頭）。
 
 ```
-問題表示 (renderQuestion)
-  └─ playCurrentAudio()
-        └─ 0.5秒後に playAudioForName(currentAnswer) を実行（遅延タイマー）
-              └─ new Audio(`/audio/${encodeURIComponent(name)}.mp3`).play()
+カードをクリック / Enter
+  ├─ クリップが 0 本 → 何もしない
+  ├─ 別のカードが再生中 → 停止して 'playing' を除去
+  └─ 現在の clipIndex のクリップを再生し、バッジを更新して index を次へ進める
 
-「もう一度再生」ボタン → playCurrentAudio()（同様に0.5秒遅延）
-
-次の問題へ / リザルト表示 / リセット → stopAudio()
-  ├─ 遅延タイマーをキャンセル (clearTimeout)
-  └─ currentAudio.pause() + currentAudio = null
+カードの外をクリック / 再生終了 → 停止
 ```
 
-**0.5秒の遅延理由**：問題のDOM更新後にすぐ音声が流れると操作感が悪いため、わずかな間を置いて再生します。また音声が重複再生されないよう、新しい再生前に必ず `stopAudio()` を呼びます。
+### クイズでの再生 (`quiz.ts`)
+
+問題ごとに新しい `Audio` を生成します。
+
+```
+renderQuestion()
+  ├─ currentQuestionClip = 候補クリップからランダムに 1 本
+  └─ playCurrentAudio() … 0.5 秒後に再生（DOM 更新直後の再生は操作感が悪いため）
+
+「もう一度再生」 → 同じ currentQuestionClip を再生（引き直さない）
+次の問題へ / リザルト / リセット → stopAudio()（遅延タイマーも解除）
+リザルトの画像クリック → その問題で実際に流れたクリップを再生
+```
+
+クリップの `label`（「旧声優版」など）は、**出題中は表示しません**（答えのヒントになるため）。
+答え合わせの後とリザルト、カード一覧でのみ表示します。
 
 ---
 
-## 6. 並び替えとフィルタの仕組み
+## 8. 並び替えとフィルタの仕組み
 
 ### フィルタ
-
-カード一覧のフィルタは以下の2軸を組み合わせます：
 
 **① カテゴリフィルタ（チェックボックス）**
 
 | チェックボックス | `data-filter-category` |
-|---|---|
-| 通常生徒 | `normal` |
-| 別衣装 | `costume` |
-| コラボ | `collaboration` |
+| ---------------- | ---------------------- |
+| 通常生徒         | `normal`               |
+| 別衣装           | `costume`              |
+| コラボ           | `collaboration`        |
 
 **② 名前テキストフィルタ（テキスト入力）**
 
-- 入力値は `normalizeQuizAnswer` で正規化（全角英数 → 半角、大文字 → 小文字、空白除去）
-- さらに `normalizeKanaForSearch` でひらがな → カタカナ変換し、カタカナで統一して比較
-- カードの `data-name-key` も同様に正規化済みのため、**ひらがな入力でもカタカナの名前に一致**します
-- IME 変換中（`compositionstart` ～ `compositionend`）は入力を無視し、`compositionend` で確定後に適用します
-- また `isTransientNameInputQuery` でひらがなとローマ字が混在する未確定入力を検出した場合は適用をスキップします
-
-フィルタ適用時は `.grid-item` 要素の `style.display` を `''` または `'none'` に切り替えます。
+- 入力値は `normalizeQuizAnswer` で正規化（NFKC・空白除去・小文字化）
+- さらに `normalizeKanaForSearch` でひらがな → カタカナに統一して比較するため、
+  **ひらがな入力でもカタカナの名前に一致**します
+- IME 入力中も `compositionupdate` / `compositionend` で追従します
+- `isTransientNameInputQuery` がひらがなとローマ字の混在（例: 「あｋ」）を検出した場合、
+  末尾の未確定ローマ字を落としてから検索します
 
 ### 並び替え
 
-並び替えは `data-default-order`（実装順）または `data-name-sort-order`（名前順）の数値で行います。
-
-```
-sortCards(sortMode, direction)
-  ├─ sortMode === 'name-order'  → dataset.nameSortOrder を使用
-  └─ その他                     → dataset.defaultOrder を使用
-
-direction === 'asc'  → 昇順（小さい順）
-direction === 'desc' → 降順（大きい順）
-```
-
-`.grid-item` を `grid.appendChild()` で再挿入することでDOM順を変更し、CSS Grid のレイアウトを更新します。
+`data-default-order`（実装順）または `data-name-sort-order`（名前順）の数値で並べ替え、
+`grid.appendChild()` で DOM 順を変更します。名前順は `（衣装名）` を除いた名前で比較し、
+同名の場合は実装順で決まります。
 
 ---
 
-## 7. クイズの仕組み
+## 9. クイズの仕組み
 
 ### 出題モード
 
-| モード | ID | 説明 |
-|---|---|---|
-| 4択 | `multiple-choice` | 音声を聞いて4つの選択肢から正解を選ぶ |
-| 名前入力 | `name-input` | 音声を聞いて生徒名をテキスト入力する。候補サジェスト付き |
-| 名前入力 (Lunatic) | `name-input-lunatic` | 名前入力と同じだが候補サジェストなし |
+| モード             | ID                   | 説明                                             |
+| ------------------ | -------------------- | ------------------------------------------------ |
+| 4択                | `multiple-choice`    | 音声を聞いて 4 つの選択肢から正解を選ぶ          |
+| 名前入力           | `name-input`         | 音声を聞いて生徒名を入力する。候補サジェスト付き |
+| 名前入力 (Lunatic) | `name-input-lunatic` | 名前入力と同じだが候補サジェストなし             |
 
-### クイズの状態フロー
-
-```
-[設定画面]
-  │ 「開始」ボタンをクリック
-  ▼
-[startQuiz()]
-  ├─ フィルタ条件・問題数を確定
-  ├─ バリデーション（候補が0件 or 4択で4件未満 → エラー表示）
-  ├─ setQuizRunning(true) → 設定UIを隠し、リスタートボタンを有効化
-  └─ renderQuestion() へ
-        │
-        ▼
-  [renderQuestion()]
-  ├─ 未出題の候補からランダムに currentAnswer を選択
-  ├─ questionNumber をインクリメント
-  ├─ playCurrentAudio() で0.5秒後に音声再生
-  │
-  ├─ [4択モード]
-  │     └─ buildChoices(currentAnswer, activeNames) で4択肢を生成
-  │           （正解1 + ランダム誤答3 をシャッフル）
-  │
-  └─ [名前入力モード]
-        └─ テキスト入力フォームを表示
-              │
-              │（名前入力モードのみ）showNameSuggestions()
-              │  └─ buildNameInputSuggestions で最大8件の候補を表示
-              │       前方一致 → 部分一致の順で、あいうえお順にソート
-              ▼
-        [回答]
-          ├─ [4択] ボタンクリック → finalizeAnswer(name, name === currentAnswer)
-          └─ [名前入力] フォームsubmit → normalizeQuizAnswer で正規化して比較
-                                          finalizeAnswer(input.trim(), isCorrect)
-                ▼
-          [finalizeAnswer()]
-          ├─ score を更新
-          ├─ resultEntries に記録
-          ├─ recordAnswer() で習熟度を更新・保存
-          ├─ ステータステキストに「正解！」または「不正解… 正解は「○○」」を表示
-          ├─ updateAnswerFeedback() で正解の画像と名前を表示
-          └─ 残り問題があれば「次へ」、なければ「リザルト」ボタンを表示
-
-              │「次へ」または「リザルト」ボタンをクリック
-              ▼
-          [次の問題 or リザルト]
-          ├─ 残り問題あり → renderQuestion() に戻る
-          └─ 全問終了  → showResultScreen()
-                              └─ renderResult() でリザルト画面を表示
-                                    ├─ 正解数・不正解数・正答率を表示
-                                    ├─ 100点満点ならスタンプ画像を表示
-                                    └─ 各問の正誤・正答・回答を一覧表示
-```
-
-### 候補のフィルタリング
-
-クイズに出題される候補は、`quiz.ts` の `setupQuiz` 呼び出し時点で **音声ファイルが存在する生徒のみ** (`main.ts` で `unavailableAudioNames` によりフィルタ済み) に絞られています。
-
-さらにチェックボックスで「通常」「別衣装」「コラボ生徒」を切り替えることで `getCandidateNames()` が返す `activeNames` が変化します。
-
-### 問題数の決定
+### 状態フロー
 
 ```
-questionCountPreset の値
-  ├─ '1' / '10' / '20' → そのまま数値に変換
-  ├─ 'all'             → activeNames.length（全件）
-  └─ 'custom'          → questionCountCustom の入力値
-
-→ resolveQuestionCount(rawValue, maxQuestions) で
-    1 ～ maxQuestions の範囲にクランプ
+[設定画面] ─「開始」→ [startQuiz()]
+  ├─ 候補・問題数を確定
+  ├─ バリデーション（候補 0 件 / 4択で 4 件未満 → エラー表示）
+  └─ renderQuestion()
+        ├─ 未出題の候補からランダムに currentAnswer を選択
+        ├─ currentQuestionClip をランダムに選択 → 0.5 秒後に再生
+        ├─ [4択] buildChoices() で正解 1 + ランダム誤答 3 を生成
+        └─ [名前入力] 入力フォームを表示（候補サジェストは最大 8 件）
+              ↓ 回答
+        [finalizeAnswer()]
+        ├─ score / resultEntries を更新（流れたクリップも記録）
+        ├─ recordAnswer() で習熟度を更新・保存
+        ├─ 正誤と正解画像・クリップのラベルを表示
+        └─ 「次へ」または「リザルト」へ
+              ↓ 全問終了
+        [showResultScreen()] → リザルト表示 → クラウド同期（設定時のみ）
 ```
+
+### 出題候補
+
+`TitleCalls` が 1 本以上あるエントリだけが候補です。さらに「通常 / 別衣装 / コラボ」の
+チェックボックスで絞り込みます。
+
+### 問題数
+
+`quiz-question-count-input` の値を `resolveQuestionCount` で 1 〜 上限にクランプします。
+上限は 4択モードでは `候補数 ÷ 4`（誤答選択肢も消費するため）、名前入力では `候補数` です。
+
+### 音声バージョンの設定
+
+旧世代の音声が 1 本も存在しないうちは、「旧バージョンの音声も出題する」チェックボックス自体を
+表示しません。`cache:refresh` で世代が追加されると自動的に現れます。
 
 ### ページ切り替えガード
 
-クイズ進行中にカード一覧タブへ切り替えようとすると、`setupQuiz` が `setPageSwitchGuard` コールバックで登録したガード関数が発動し、`window.confirm` でユーザーに確認を求めます。  
-「OK」を選択した場合は `resetToStartScreen()` でクイズをリセットしてから遷移します。
+クイズ進行中にカード一覧へ切り替えようとすると `window.confirm` で確認し、
+OK なら `resetToStartScreen()` でリセットしてから遷移します。
 
 ---
 
-## 8. 習熟度（プロフィシエンシー）の仕組み
+## 10. 習熟度と進捗データ
+
+### 保存先
 
 各生徒ごとに「回答回数 (`attempts`)」と「正解回数 (`correct`)」を `localStorage` に保存します。
 
-### ストレージキー
+| キー                                              | 説明                             |
+| ------------------------------------------------- | -------------------------------- |
+| `bluaka-title-call-quiz2.proficiency.v1`          | 現行の保存キー                   |
+| `bluaka-title-call-quiz.proficiency.v1`           | 旧キー（自動移行）               |
+| `bluaka-title-call-quiz.proficiency`              | 旧キー（自動移行）               |
+| `quizProficiency`                                 | 最古の旧キー（自動移行）         |
+| `bluaka-title-call-quiz2.syncCode.v1`             | クラウド同期の同期コード         |
+| `bluaka-title-call-quiz2.proficiencyUpdatedAt.v1` | 最終更新時刻（同期の新旧判定用） |
 
-| キー | 説明 |
-|---|---|
-| `bluaka-title-call-quiz2.proficiency.v1` | 現行の保存キー |
-| `bluaka-title-call-quiz.proficiency.v1` | 旧キー（自動移行） |
-| `bluaka-title-call-quiz.proficiency` | 旧キー（自動移行） |
-| `quizProficiency` | 最古の旧キー（自動移行） |
+読み書きは `src/lib/safeStorage.ts` を通すため、保存データが壊れていたり
+プライベートモードで書き込めなかったりしても、アプリ全体は動作を続けます。
 
-旧キーのデータは `migrateLegacyProficiency` で現行フォーマットに変換し、新キーで保存した後、旧キーを削除します。
+正答率は `Math.round((correct / attempts) * 1000) / 10` で小数点以下 1 桁まで表示します。
 
-### 正答率の計算
+### エクスポート / インポート
+
+クイズ画面のメニューから利用できます。
+
+- **エクスポート** … `{ formatVersion, exportedAt, proficiency }` の JSON を表示し、
+  クリップボードへのコピーとファイル保存ができます。
+- **インポート** … 貼り付けまたはファイル選択で読み込み、確認ダイアログの上で**置き換え**ます。
+  端末間のマージは行いません（仕様として単純さを優先）。
+
+### クラウド同期（任意）
+
+`VITE_SYNC_ENDPOINT` を設定してビルドしたときだけ、メニューに「クラウド同期」が現れます。
+
+- 認証の代わりに **同期コード（UUID v4）** を使います。実質パスワードなので他人に見せないでください。
+- 保存はクイズ終了時と手動操作のときだけ。回答ごとには送りません。
+- 競合は **更新時刻が新しい方を採用**し、クラウド側を採用する場合は確認ダイアログを挟みます。
+- 通信に失敗しても静かに `localStorage` 運用を継続します（ベストエフォート）。
+- サーバー側は `docs/spreadsheet-sync.gs` を Google Apps Script のウェブアプリとして
+  デプロイするだけです。手順はファイル冒頭のコメントを参照してください。
+
+---
+
+## 11. 運用手順（runbook）
+
+### SchaleDB に無い音声を手動で追加する（初音ミクなど）
+
+R2 に次のキーでアップロードするだけで、次回ビルドから配信・出題されます。
 
 ```
-accuracy = Math.round((correct / attempts) * 1000) / 10  // 小数点以下1桁のパーセンテージ
+audio/{生徒Id}/{任意のスラッグ}.g1.mp3
+例: audio/20007/miku_title.g1.mp3
 ```
 
-回答後に `#quiz-proficiency-text` に「○○ の正答率: X% (correct/attempts)」として表示されます。
+スラッグに使える文字は `[A-Za-z0-9_-]` です。ビルドログには `[r2-only]` として一覧表示されます。
+
+### 声優の降板・録り直しを取り込む
+
+```bash
+npm run local-cache:refresh
+```
+
+音源の ETag / サイズを `meta/audio-manifest.json` と比較し、変わっていれば
+**旧世代を残したまま** `g{最大+1}` として追加します。追加後、必要なら
+`src/data/audioLabels.ts` に表示名を追記してください。
+
+```ts
+export const AUDIO_CLIP_LABELS: Record<string, string> = {
+  'cherino_title.g1': '旧声優版',
+  'cherino_title.g2': '現行版',
+};
+```
+
+### クリップを別形態の声として帰属させる
+
+R2 上の置き場所（`audio/{生徒Id}/`）がそのまま帰属の宣言です。voice.json の掲載位置が
+実態と異なる場合（シュン（水着）の np0288 はシュエリンの声）は、ファイルを移動するだけで
+カード一覧・答え合わせの画像が追従します。
+
+```bash
+npm run r2:move -- np0288_title 10144
+npm run local-cache:fetch   # final.json を更新
+```
+
+全世代がまとめて移動し、ローカルの `public/` も追従します。存在判定・世代管理は
+clipId 単位なので、移動後に voice.json の掲載位置へ再取得されることはありません。
+
+手元に旧音源がある場合は、それを `g1` として先にアップロードしてから現行版を `g2` に置きます。
+
+### 配信から外す
+
+R2 から該当キーを削除します。ただし `voice.json` に掲載が残っている場合は次回ビルドで
+再取得されます。恒久的に除外したくなったら除外リストの導入を検討してください（現時点では未実装）。
+
+### バケットのバックアップ
+
+R2 を正本にしているため、バケットが単一障害点になります。容量は小さい（音声・画像あわせて
+数十 MB 程度）ので、年に数回ローカルへ手動バックアップしておくことを推奨します。
+
+### 同期コードを紛失した場合
+
+クラウド側のデータには到達できなくなります。`localStorage` が残っていれば新しいコードで
+保存し直してください。定期的なエクスポートを推奨します。
 
 ---
 
