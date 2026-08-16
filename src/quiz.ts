@@ -38,6 +38,11 @@ import {
 } from '@/lib/uiText'
 import { setupProgressPanel } from '@/progressPanel'
 import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
+import {
+  setupQuizShare,
+  type ChallengeDefinition,
+  type QuizShareController,
+} from '@/quizShareUi'
 
 const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
@@ -331,6 +336,11 @@ export const setupQuiz = (
   let storageWarningShown = false
   /** 回答直後の連打で選択肢の音声再生が誤発火しないようにするための時刻。 */
   let lastAnswerAt = 0
+  /** 共有URLから読み込んだ挑戦状。挑戦中のみ設定される。 */
+  let activeChallenge: ChallengeDefinition | null = null
+  /** 挑戦状で回答方式を切り替える前のユーザー選択。終了時に戻す。 */
+  let modeBeforeChallenge: string | null = null
+  let shareController: QuizShareController | null = null
   const kokonaAudio: HTMLAudioElement = new Audio(
     resolveAssetUrl('kokona-hanamaru.mp3'),
   )
@@ -476,8 +486,7 @@ export const setupQuiz = (
     setHidden(choicesRoot, isNameInputMode)
     setHidden(nameAnswerForm, !isNameInputMode || !isQuizRunning)
     if (quizModeDescription) {
-      quizModeDescription.textContent =
-        QUIZ_MODE_DESCRIPTION[currentMode] ?? ''
+      quizModeDescription.textContent = QUIZ_MODE_DESCRIPTION[currentMode] ?? ''
     }
   }
 
@@ -764,6 +773,7 @@ export const setupQuiz = (
   }
 
   const hideResult = () => {
+    shareController?.hideResultShare()
     setHidden(resultSection, true)
     setHidden(resultPerfectStamp, true)
     setHidden(resultPerfectMessage, true)
@@ -869,6 +879,21 @@ export const setupQuiz = (
   const resetToStartScreen = () => {
     stopAudio()
     stopKokonaAudio()
+    if (activeChallenge) {
+      activeChallenge = null
+      // 挑戦状で切り替えた回答方式をユーザーの元の選択へ戻す。
+      if (modeBeforeChallenge !== null) {
+        const radio = quizModeGroup.querySelector<HTMLInputElement>(
+          `input[name="quiz-mode"][value="${modeBeforeChallenge}"]`,
+        )
+        if (radio) {
+          radio.checked = true
+        }
+        modeBeforeChallenge = null
+      }
+      updateModeUI()
+    }
+    shareController?.hideResultShare()
     usedChoiceNames = new Set()
     currentAnswer = ''
     currentQuestionClip = null
@@ -956,6 +981,12 @@ export const setupQuiz = (
     startButton.textContent = QUIZ_UI_TEXT.playAgain
     hideAnswerFeedback()
     renderResult()
+    const { correctCount, totalCount } = summarizeQuizResults(resultEntries)
+    shareController?.showResultShare({
+      correctCount,
+      totalCount,
+      challenge: activeChallenge,
+    })
     showResultActions()
     updateCostumeHintText()
     updateProficiencyText()
@@ -963,7 +994,9 @@ export const setupQuiz = (
     progressPanel.pushInBackground()
   }
 
+  // 挑戦状(共有クイズ)も「決まった生徒のキューを順に出す」点で学習・復習と同じ扱い。
   const isPoolDrawMode = () =>
+    activeChallenge !== null ||
     currentDrawMode === QUIZ_DRAW_MODE_LEARNING ||
     currentDrawMode === QUIZ_DRAW_MODE_REVIEW
 
@@ -972,6 +1005,11 @@ export const setupQuiz = (
     // 4択の選択肢に使う候補。ランダムモードでは使用済みを除いた available、
     // 学習・復習モードでは全候補(選択肢としての再登場を許す)。
     let choicePool: readonly string[] = activeNames
+    if (activeChallenge) {
+      // 挑戦状は出題対象フィルタと無関係に始まるため、
+      // 4択の誤答候補は全生徒から選んで常に4択を成立させる。
+      choicePool = sortedCandidateNames
+    }
     if (isPoolDrawMode()) {
       const nextAnswer = roundQueue.shift()
       if (nextAnswer === undefined) {
@@ -1071,6 +1109,11 @@ export const setupQuiz = (
   }
 
   const startQuiz = () => {
+    // 挑戦中のリスタートは同じ挑戦状をやり直す。
+    if (activeChallenge) {
+      startChallengeQuiz(activeChallenge)
+      return true
+    }
     updateModeUI()
     refreshFilterState()
     if (activeNames.length < 1) {
@@ -1105,6 +1148,40 @@ export const setupQuiz = (
     startButton.textContent = QUIZ_UI_TEXT.restart
     renderQuestion()
     return true
+  }
+
+  /** 共有URLから読み込んだ挑戦状を、定義どおりの回答方式・出題リストで開始する。 */
+  const startChallengeQuiz = (challenge: ChallengeDefinition) => {
+    stopAudio()
+    stopKokonaAudio()
+    if (activeChallenge === null) {
+      modeBeforeChallenge = getQuizModeValue()
+    }
+    activeChallenge = challenge
+    const modeRadio = quizModeGroup.querySelector<HTMLInputElement>(
+      `input[name="quiz-mode"][value="${challenge.mode}"]`,
+    )
+    if (modeRadio) {
+      modeRadio.checked = true
+    }
+    updateModeUI()
+    usedChoiceNames = new Set()
+    currentAnswer = ''
+    currentQuestionClip = null
+    questionNumber = 0
+    resultEntries = []
+    roundQueue = shuffleArray(challenge.names)
+    totalQuestions = roundQueue.length
+    shouldShowCurrentAnswerStats = false
+    awaitingResult = false
+    hideAnswerFeedback()
+    hideResult()
+    showQuizProgressActions()
+    nextButton.textContent = QUIZ_UI_TEXT.next
+    nextButton.disabled = true
+    setQuizRunning(true)
+    startButton.textContent = QUIZ_UI_TEXT.restart
+    renderQuestion()
   }
 
   startButton.addEventListener('click', startQuiz)
@@ -1280,6 +1357,11 @@ export const setupQuiz = (
     }, 120)
   })
   window.addEventListener('resize', positionNameSuggestionsOverlay)
+
+  shareController = setupQuizShare({
+    entries: playableEntries,
+    onStartChallenge: startChallengeQuiz,
+  })
 
   loadProficiency()
   updateModeUI()

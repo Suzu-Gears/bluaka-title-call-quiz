@@ -388,6 +388,25 @@
             </div>
           </div>
           <section aria-label="クイズ" class="quiz-section">
+            <div
+              id="quiz-challenge-banner"
+              class="quiz-challenge-banner"
+              hidden
+            >
+              <p id="quiz-challenge-banner-text"></p>
+              <div class="quiz-challenge-banner-actions">
+                <button
+                  id="quiz-challenge-start-button"
+                  class="quiz-action-button"
+                  type="button"
+                >
+                  挑戦する
+                </button>
+                <button id="quiz-challenge-dismiss-button" type="button">
+                  閉じる
+                </button>
+              </div>
+            </div>
             <div id="quiz-setup-controls">
               <div class="quiz-setup-grid">
                 <div class="quiz-setup-main">
@@ -563,6 +582,13 @@
                   >
                     開始
                   </button>
+                  <button
+                    id="quiz-share-open-button"
+                    class="quiz-action-button quiz-share-open-button"
+                    type="button"
+                  >
+                    クイズを作って共有
+                  </button>
                 </aside>
               </div>
             </div>
@@ -637,6 +663,22 @@
             <section id="quiz-result" class="quiz-result" hidden>
               <h3>リザルト</h3>
               <p id="quiz-result-summary"></p>
+              <div id="quiz-result-share" class="quiz-result-share" hidden>
+                <button id="quiz-result-share-x-button" type="button">
+                  Xで結果をシェア
+                </button>
+                <button id="quiz-result-share-image-button" type="button">
+                  結果画像を共有
+                </button>
+                <button id="quiz-result-share-copy-button" type="button">
+                  結果をコピー
+                </button>
+              </div>
+              <p
+                id="quiz-result-share-status"
+                class="app-dialog-status"
+                role="status"
+              ></p>
               <div id="quiz-result-perfect-row" hidden>
                 <img
                   id="quiz-result-perfect-stamp"
@@ -784,8 +826,11 @@
         class="settings-download-progress"
         hidden
       >
-        <progress id="settings-download-progress-bar" value="0" max="1">
-        </progress>
+        <progress
+          id="settings-download-progress-bar"
+          value="0"
+          max="1"
+        ></progress>
         <span id="settings-download-progress-text"></span>
       </div>
       <div class="app-dialog-actions">
@@ -810,11 +855,7 @@
           キャッシュをクリア
         </button>
       </div>
-      <p
-        id="settings-cache-status"
-        class="app-dialog-status"
-        role="status"
-      ></p>
+      <p id="settings-cache-status" class="app-dialog-status" role="status"></p>
       <div class="filter-section-label">リセット</div>
       <p class="settings-note">
         進捗(クイズの正答記録)や設定をすべて消して初期状態に戻します。
@@ -828,11 +869,7 @@
           アプリを初期化
         </button>
       </div>
-      <p
-        id="settings-reset-status"
-        class="app-dialog-status"
-        role="status"
-      ></p>
+      <p id="settings-reset-status" class="app-dialog-status" role="status"></p>
       <div class="filter-section-label">情報</div>
       <p class="settings-note">
         <a
@@ -877,6 +914,95 @@
         </button>
         <button id="progress-dialog-close-button" type="button">閉じる</button>
       </div>
+    </dialog>
+    <dialog
+      id="quiz-share-dialog"
+      class="app-dialog quiz-share-dialog"
+      tabindex="-1"
+    >
+      <div class="filter-dialog-head">
+        <h3 class="filter-dialog-title">クイズを作って共有</h3>
+        <button
+          id="quiz-share-close-button"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <p class="app-dialog-description">
+        出題する生徒を選んで共有URLを作成します。URLを開いた人は同じクイズに挑戦できます。
+      </p>
+      <label class="app-dialog-field" for="quiz-share-title-input">
+        クイズのタイトル
+        <input
+          id="quiz-share-title-input"
+          type="text"
+          maxlength="40"
+          autocomplete="off"
+          placeholder="例: アビドス縛りクイズ"
+        />
+      </label>
+      <label class="app-dialog-field" for="quiz-share-mode-select">
+        回答方式
+        <select id="quiz-share-mode-select">
+          <option value="multiple-choice">4択</option>
+          <option value="name-input">名前入力</option>
+          <option value="name-input-lunatic">名前入力 ( Lunatic )</option>
+        </select>
+      </label>
+      <div class="filter-section-label">出題する生徒</div>
+      <div class="quiz-share-list-toolbar">
+        <input
+          id="quiz-share-search-input"
+          type="text"
+          autocomplete="off"
+          placeholder="生徒名で絞り込み"
+        />
+        <button id="quiz-share-select-visible-button" type="button">
+          表示中を全選択
+        </button>
+        <button id="quiz-share-clear-button" type="button">全解除</button>
+      </div>
+      <div id="quiz-share-student-list" class="quiz-share-student-list"></div>
+      <p id="quiz-share-selected-count" class="settings-note">0人選択中</p>
+      <details class="quiz-share-paste-details">
+        <summary>名前リストの貼り付けで選択（スプレッドシート対応）</summary>
+        <p class="settings-note">
+          改行・カンマ・タブ区切りの生徒名を貼り付けて反映できます。スプレッドシートの列をそのままコピペしてもOKです。
+        </p>
+        <textarea
+          id="quiz-share-paste-textarea"
+          class="app-dialog-textarea"
+          rows="4"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="アル&#10;ホシノ&#10;シロコ"
+        ></textarea>
+        <div class="app-dialog-actions">
+          <button id="quiz-share-paste-apply-button" type="button">
+            貼り付けた名前を選択に反映
+          </button>
+        </div>
+      </details>
+      <div class="app-dialog-actions">
+        <button id="quiz-share-generate-button" type="button">
+          共有URLを作成
+        </button>
+      </div>
+      <input
+        id="quiz-share-url-output"
+        class="quiz-share-url-output"
+        type="text"
+        readonly
+        hidden
+      />
+      <div id="quiz-share-url-actions" class="app-dialog-actions" hidden>
+        <button id="quiz-share-copy-button" type="button">URLをコピー</button>
+        <button id="quiz-share-tweet-button" type="button">Xでシェア</button>
+      </div>
+      <p id="quiz-share-status" class="app-dialog-status" role="status"></p>
     </dialog>
     <dialog id="sync-dialog" class="app-dialog" tabindex="-1">
       <h3>クラウド同期</h3>

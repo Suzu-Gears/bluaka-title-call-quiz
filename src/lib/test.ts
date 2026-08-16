@@ -47,6 +47,18 @@ import {
   selectReviewTargets,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
+import {
+  buildResultShareText,
+  buildSharedQuizUrl,
+  buildTweetIntentUrl,
+  decodeSharedQuizPayload,
+  encodeSharedQuizPayload,
+  extractSharedQuizParam,
+  matchPastedStudentNames,
+  normalizeSharedQuizPayload,
+  SHARED_QUIZ_MAX_ENTRIES,
+  SHARED_QUIZ_VERSION,
+} from '@/lib/quizShare'
 import { HttpStatusError, isNotFoundError } from '@/lib/schaleDBClient'
 import {
   isValidSyncCode,
@@ -921,10 +933,7 @@ const deterministicRandom = () => 0
     isValidSyncEndpointUrl('https://script.google.com/macros/s/XXXX/exec'),
     true,
   )
-  assert.equal(
-    isValidSyncEndpointUrl('  https://example.com/sync  '),
-    true,
-  )
+  assert.equal(isValidSyncEndpointUrl('  https://example.com/sync  '), true)
   assert.equal(isValidSyncEndpointUrl('http://example.com/sync'), false)
   assert.equal(isValidSyncEndpointUrl('script.google.com/macros'), false)
   assert.equal(isValidSyncEndpointUrl(''), false)
@@ -980,6 +989,125 @@ const deterministicRandom = () => 0
   assert.equal(normalizeCacheManifest(null), null)
   assert.equal(normalizeCacheManifest({ files: [] }), null)
   assert.equal(normalizeCacheManifest({ files: 'broken' }), null)
+}
+
+{
+  // 共有クイズ定義: エンコード→デコードの往復で元の内容へ戻る
+  const payload = {
+    v: SHARED_QUIZ_VERSION,
+    title: 'アビドス縛りクイズ',
+    mode: 'multiple-choice' as const,
+    ids: [10000, 10005, 10008, 10015],
+  }
+  const encoded = await encodeSharedQuizPayload(payload)
+  // URL ハッシュに安全に載せられる文字のみで構成されること
+  assert.match(encoded, /^[0-9A-Za-z._-]+$/)
+  const decoded = await decodeSharedQuizPayload(encoded)
+  assert.deepEqual(decoded, payload)
+}
+
+{
+  // 壊れた文字列・不正な JSON は null(例外を投げない)
+  assert.equal(await decodeSharedQuizPayload('broken'), null)
+  assert.equal(await decodeSharedQuizPayload('1.!!!'), null)
+  assert.equal(await decodeSharedQuizPayload('0.e30'), null) // {} は定義として不正
+}
+
+{
+  // 検証: ids は正の整数のみ・重複除去・上限で打ち切り。タイトルは40文字まで
+  const normalized = normalizeSharedQuizPayload({
+    v: SHARED_QUIZ_VERSION,
+    title: `  ${'あ'.repeat(50)}  `,
+    mode: 'name-input',
+    ids: [3, 3, -1, 0, 1.5, 'x', 7],
+  })
+  assert.ok(normalized)
+  assert.deepEqual(normalized.ids, [3, 7])
+  assert.equal(normalized.title.length, 40)
+  assert.equal(normalized.mode, 'name-input')
+
+  const oversized = normalizeSharedQuizPayload({
+    v: SHARED_QUIZ_VERSION,
+    title: '',
+    mode: 'multiple-choice',
+    ids: Array.from({ length: SHARED_QUIZ_MAX_ENTRIES + 100 }, (_, i) => i + 1),
+  })
+  assert.ok(oversized)
+  assert.equal(oversized.ids.length, SHARED_QUIZ_MAX_ENTRIES)
+
+  // バージョン違い・モード不正・空の ids は不正扱い
+  assert.equal(
+    normalizeSharedQuizPayload({
+      v: 99,
+      title: '',
+      mode: 'multiple-choice',
+      ids: [1],
+    }),
+    null,
+  )
+  assert.equal(
+    normalizeSharedQuizPayload({ v: 1, title: '', mode: 'unknown', ids: [1] }),
+    null,
+  )
+  assert.equal(
+    normalizeSharedQuizPayload({
+      v: 1,
+      title: '',
+      mode: 'multiple-choice',
+      ids: [],
+    }),
+    null,
+  )
+}
+
+{
+  // URL の組み立てとハッシュからの取り出し
+  const url = buildSharedQuizUrl('https://example.com/', '1.abc-_')
+  assert.equal(url, 'https://example.com/#c=1.abc-_')
+  assert.equal(extractSharedQuizParam('#c=1.abc-_'), '1.abc-_')
+  assert.equal(extractSharedQuizParam('c=1.abc-_'), '1.abc-_')
+  assert.equal(extractSharedQuizParam('#other=1'), null)
+  assert.equal(extractSharedQuizParam(''), null)
+}
+
+{
+  // スプレッドシート等からの貼り付け: 区切り文字と表記ゆれを吸収して照合する
+  const validNames = ['ホシノ', 'シロコ', 'アル', 'シュン（幼女）']
+  const { matched, unmatched } = matchPastedStudentNames(
+    'ほしの\nシロコ,アル\tしろこ\n存在しない生徒\n\n',
+    validNames,
+  )
+  assert.deepEqual(matched, ['ホシノ', 'シロコ', 'アル'])
+  assert.deepEqual(unmatched, ['存在しない生徒'])
+}
+
+{
+  // 結果シェア文: タイトル・スコア・ハッシュタグ・URL を含む。全問正解で花丸
+  const text = buildResultShareText({
+    title: 'アビドス縛り',
+    correctCount: 8,
+    totalCount: 10,
+    url: 'https://example.com/#c=xxx',
+  })
+  assert.ok(text.includes('「アビドス縛り」'))
+  assert.ok(text.includes('8/10問'))
+  assert.ok(text.includes('80%'))
+  assert.ok(text.includes('#ブルアカタイトルコールクイズ'))
+  assert.ok(text.endsWith('https://example.com/#c=xxx'))
+  assert.ok(!text.includes('花丸'))
+
+  const perfectText = buildResultShareText({
+    title: null,
+    correctCount: 10,
+    totalCount: 10,
+    url: 'https://example.com/',
+  })
+  assert.ok(perfectText.includes('タイトルコールクイズ'))
+  assert.ok(perfectText.includes('花丸'))
+
+  const intentUrl = buildTweetIntentUrl('テスト #タグ')
+  assert.ok(intentUrl.startsWith('https://twitter.com/intent/tweet?text='))
+  assert.ok(intentUrl.includes(encodeURIComponent('#タグ')))
 }
 
 console.log('All quiz tests passed.')

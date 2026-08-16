@@ -66,17 +66,48 @@ export const SYNC_UI_TEXT = {
     '保存先URLの形式が正しくありません。https:// で始まるURLを入力してください。',
   endpointSaved: '保存先を自分のスプレッドシートに変更しました。',
   endpointCleared: '保存先を既定（作者のシート）に戻しました。',
-  noEndpoint:
-    '保存先が設定されていません。保存先URLを入力してください。',
+  noEndpoint: '保存先が設定されていません。保存先URLを入力してください。',
   downloadConfirm:
     'クラウドのデータで現在の進捗を置き換えます。よろしいですか？',
+} as const
+
+export const QUIZ_SHARE_UI_TEXT = {
+  createDialogTitle: 'クイズを作って共有',
+  selectedCountSuffix: '人選択中',
+  pasteEmpty: '貼り付けるテキストを入力してください。',
+  pasteMatchedSuffix: '人を選択に追加しました。',
+  pasteUnmatchedPrefix: '見つからなかった名前',
+  generateNeedsSelection: '出題する生徒を1人以上選択してください。',
+  generateSucceeded: '共有URLを作成しました。コピーして友達に送ってください。',
+  generateFailed: '共有URLを作成できませんでした。',
+  copySucceeded: 'コピーしました。',
+  copyFailed:
+    'コピーできませんでした。テキストを選択して手動でコピーしてください。',
+  tweetDefaultQuizName: 'タイトルコールクイズ',
+  tweetInviteSuffix: 'に挑戦してみてください！',
+  challengeArrivedSuffix: 'の挑戦状が届いています！',
+  importBrokenUrl:
+    '共有URLを読み込めませんでした。URL が途中で切れていないか確認してください。',
+  importNoPlayableStudents:
+    '共有されたクイズに、現在のデータで出題できる生徒がいませんでした。',
+  imageFailed: '結果画像を作成できませんでした。',
+  imageDownloaded: '結果画像を保存しました。',
+  cardAppName: 'ブルアカ タイトルコールクイズ',
+  cardPerfect: '💮100点満点、花丸です！',
+  cardAccuracyPrefix: '正答率 ',
+  modeLabels: {
+    'multiple-choice': '4択',
+    'name-input': '名前入力',
+    'name-input-lunatic': '名前入力 ( Lunatic )',
+  } as Record<string, string>,
 } as const
 
 /** 回答方式(4択・名前入力)の説明。選択中の値に応じて設定画面に出す。 */
 export const QUIZ_MODE_DESCRIPTION: Record<string, string> = {
   'multiple-choice': '流れた音声の生徒を、4人の選択肢から選んで回答します。',
   'name-input': '生徒の名前を入力して回答します。入力中は候補が表示されます。',
-  'name-input-lunatic': '候補の表示なしで名前を入力する、上級者向けの回答方式です。',
+  'name-input-lunatic':
+    '候補の表示なしで名前を入力する、上級者向けの回答方式です。',
 }
 
 /** 出題モード(ランダム・学習・復習)の説明。 */
@@ -93,8 +124,7 @@ const formatCountWithRate = (
   count: number,
   totalCount: number,
 ): string => {
-  const rate =
-    totalCount > 0 ? Math.round((count / totalCount) * 1000) / 10 : 0
+  const rate = totalCount > 0 ? Math.round((count / totalCount) * 1000) / 10 : 0
   return `${label}: ${count} / ${totalCount} 人（${rate}%）`
 }
 

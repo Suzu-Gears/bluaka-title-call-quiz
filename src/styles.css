@@ -2133,3 +2133,195 @@ footer a {
     padding: 0.5rem 0.4rem;
   }
 }
+
+/* ===== クイズ共有(自作クイズ・挑戦状) ===== */
+
+/* 共有URLを開いたときに出す挑戦状バナー */
+.quiz-challenge-banner {
+  border: 2px solid var(--color-header-bg);
+  border-radius: 0.75rem;
+  background: #eaf4fd;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow-card);
+}
+
+.quiz-challenge-banner[hidden] {
+  display: none;
+}
+
+.quiz-challenge-banner p {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.quiz-challenge-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#quiz-challenge-dismiss-button {
+  border: 1px solid #d5dbe3;
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  padding: 0.4rem 0.9rem;
+  color: #2f3b52;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  cursor: pointer;
+}
+
+#quiz-challenge-dismiss-button:hover {
+  border-color: #9fc7ff;
+  background: #edf5ff;
+}
+
+/* 開始ボタンの下に置く二次アクション。水色で開始と区別する */
+.quiz-share-open-button {
+  width: 100%;
+  min-width: 0;
+  color: #314665;
+}
+
+.quiz-share-open-button::before {
+  background-color: #77dfff;
+}
+
+/* クイズ作成ダイアログ */
+.quiz-share-dialog .app-dialog-field {
+  margin-bottom: 0.6rem;
+}
+
+.quiz-share-dialog select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-bg-surface);
+  font-family: inherit;
+}
+
+.quiz-share-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.quiz-share-list-toolbar input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.quiz-share-list-toolbar button {
+  border: 1px solid #d5dbe3;
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  padding: 0.35rem 0.8rem;
+  color: #2f3b52;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.quiz-share-list-toolbar button:hover {
+  border-color: #9fc7ff;
+  background: #edf5ff;
+}
+
+.quiz-share-student-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.15rem 0.5rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  background: #f7fafd;
+}
+
+.quiz-share-student-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9em;
+  line-height: 1.6;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.quiz-share-student-item[hidden] {
+  display: none;
+}
+
+.quiz-share-paste-details {
+  margin-top: 0.75rem;
+  font-size: 0.9em;
+}
+
+.quiz-share-paste-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--color-navy);
+}
+
+.quiz-share-url-output {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.75rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.quiz-share-url-output[hidden] {
+  display: none;
+}
+
+/* リザルトの SNS シェアボタン行 */
+.quiz-result-share {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.quiz-result-share[hidden] {
+  display: none;
+}
+
+.quiz-result-share button {
+  border: 1px solid #d5dbe3;
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  padding: 0.4rem 0.9rem;
+  color: #2f3b52;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  cursor: pointer;
+}
+
+.quiz-result-share button:hover {
+  border-color: #9fc7ff;
+  background: #edf5ff;
+}
+
+#quiz-result-share-status:empty {
+  display: none;
+}
