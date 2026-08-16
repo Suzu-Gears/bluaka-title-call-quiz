@@ -48,103 +48,70 @@
           <button type="button" data-view-target="quiz-view">クイズ</button>
         </div>
         <section id="card-list">
-          <div class="panel-head">
-            <svg
-              class="panel-head-icon"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <rect
-                x="4"
-                y="2.5"
-                width="16"
-                height="19"
-                rx="2.5"
-                fill="#2f86d6"
-              />
-              <rect
-                x="6.5"
-                y="5"
-                width="11"
-                height="6.5"
-                rx="1"
-                fill="#ffffff"
-                opacity="0.92"
-              />
-              <rect
-                x="6.5"
-                y="13.5"
-                width="11"
-                height="1.8"
-                rx="0.9"
-                fill="#ffffff"
-                opacity="0.85"
-              />
-              <rect
-                x="6.5"
-                y="17"
-                width="8"
-                height="1.8"
-                rx="0.9"
-                fill="#ffffff"
-                opacity="0.85"
-              />
-            </svg>
-            <h2 class="panel-head-title">生徒リスト</h2>
-          </div>
-          <div class="grid" id="studentGrid">
-            <div class="controls-row">
-              <label class="search-wrapper" for="student-filter-input">
-                <span class="visually-hidden">名前フィルター</span>
-                <input
-                  id="student-filter-input"
-                  class="student-filter-input"
-                  type="text"
-                  placeholder="生徒の名前を入力"
-                  autocomplete="off"
+          <div class="list-head-sentinel" aria-hidden="true"></div>
+          <div class="list-head">
+            <div class="panel-head">
+              <svg
+                class="panel-head-icon"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect
+                  x="4"
+                  y="2.5"
+                  width="16"
+                  height="19"
+                  rx="2.5"
+                  fill="#2f86d6"
                 />
-              </label>
-              <fieldset class="category-filter-fieldset pill-filter-fieldset">
-                <legend>表示対象</legend>
-                <label
-                  ><input
-                    id="student-filter-normal"
-                    type="checkbox"
-                    checked
-                  />通常生徒</label
-                >
-                <label
-                  ><input
-                    id="student-filter-costume"
-                    type="checkbox"
-                    checked
-                  />別衣装</label
-                >
-                <label
-                  ><input
-                    id="student-filter-collaboration"
-                    type="checkbox"
-                    checked
-                  />コラボ</label
-                >
-              </fieldset>
-              <label class="sort-wrapper" for="student-sort-select">
-                並べ替え
-                <select id="student-sort-select">
-                  <option value="default-order">実装順</option>
-                  <option value="name-order">名前順</option>
-                </select>
+                <rect
+                  x="6.5"
+                  y="5"
+                  width="11"
+                  height="6.5"
+                  rx="1"
+                  fill="#ffffff"
+                  opacity="0.92"
+                />
+                <rect
+                  x="6.5"
+                  y="13.5"
+                  width="11"
+                  height="1.8"
+                  rx="0.9"
+                  fill="#ffffff"
+                  opacity="0.85"
+                />
+                <rect
+                  x="6.5"
+                  y="17"
+                  width="8"
+                  height="1.8"
+                  rx="0.9"
+                  fill="#ffffff"
+                  opacity="0.85"
+                />
+              </svg>
+              <h2 class="panel-head-title">生徒リスト</h2>
+            </div>
+            <div class="controls-row">
+              <div class="sort-controls">
                 <button
-                  id="student-sort-direction"
-                  class="sort-direction-button"
+                  id="student-search-toggle"
+                  class="toolbar-skew-button search-toggle-button"
                   type="button"
-                  data-direction="desc"
-                  aria-label="降順"
-                  title="降順"
+                  aria-expanded="false"
+                  aria-controls="student-search-bar"
+                  aria-label="生徒名で検索"
+                  title="生徒名で検索"
                 >
                   <svg
-                    class="sort-direction-icon"
+                    class="search-toggle-icon"
+                    width="24"
+                    height="24"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -152,27 +119,94 @@
                     <g
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2.4"
+                      stroke-width="2.6"
                       stroke-linecap="round"
                     >
-                      <path d="M3.5 6h9.5" />
-                      <path d="M3.5 12h9.5" />
-                      <path d="M3.5 18h9.5" />
-                    </g>
-                    <g
-                      class="sort-direction-arrow"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.4"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M18.5 5.5v12.5" />
-                      <path d="M15.2 14.8l3.3 3.5 3.3-3.5" />
+                      <circle cx="10" cy="10" r="6" />
+                      <path d="M14.5 14.5l5.5 5.5" />
                     </g>
                   </svg>
                 </button>
-              </label>
+                <button
+                  id="student-filter-open"
+                  class="toolbar-skew-button filter-open-button"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-label="フィルター"
+                  title="フィルター"
+                >
+                  <svg
+                    class="filter-open-icon"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M3.5 3.2h17l-6.5 7.8v9.9l-4-2.4v-7.5z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.2"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <label class="visually-hidden" for="student-sort-select"
+                  >並べ替え</label
+                >
+                <select id="student-sort-select">
+                  <option value="default-order">実装順</option>
+                  <option value="name-order">名前順</option>
+                </select>
+                <button
+                  id="student-sort-direction"
+                  class="sort-direction-button toolbar-skew-button"
+                  type="button"
+                  data-direction="desc"
+                  aria-label="降順"
+                  title="降順"
+                >
+                  <svg
+                    class="sort-direction-icon"
+                    width="33"
+                    height="24"
+                    viewBox="0 0 33 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <!-- 端面は角(丸くしない)。矢印は塗りにして、斜めストロークの
+                         アンチエイリアスで横棒より薄く見えるのを防ぐ。
+                         横棒と矢印の間は矢印半分ほど空ける -->
+                    <g fill="none" stroke="currentColor" stroke-width="2.4">
+                      <path d="M1.5 6h18.6" />
+                      <path d="M1.5 12h18.6" />
+                      <path d="M1.5 18h18.6" />
+                    </g>
+                    <g class="sort-direction-arrow" fill="currentColor">
+                      <path d="M26.5 4.8h2.4v10h-2.4z" />
+                      <path d="M23.9 14.8h7.6l-3.8 4.6z" />
+                    </g>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="grid-frame">
+            <div class="grid-scroll">
+              <div id="student-search-bar" class="student-search-bar" hidden>
+                <label class="search-wrapper" for="student-filter-input">
+                  <span class="visually-hidden">名前フィルター</span>
+                  <input
+                    id="student-filter-input"
+                    class="student-filter-input"
+                    type="text"
+                    placeholder="生徒の名前を入力してください"
+                    autocomplete="off"
+                  />
+                </label>
+              </div>
+              <div class="grid" id="studentGrid"></div>
             </div>
           </div>
         </section>
@@ -180,6 +214,8 @@
           <div class="panel-head">
             <svg
               class="panel-head-icon"
+              width="24"
+              height="24"
               viewBox="0 0 24 24"
               aria-hidden="true"
               focusable="false"
@@ -303,7 +339,8 @@
                     </div>
                   </div>
                   <fieldset class="quiz-filter-fieldset pill-filter-fieldset">
-                    <legend class="quiz-banner">出題対象</legend>
+                    <legend class="visually-hidden">出題対象</legend>
+                    <div class="quiz-banner" aria-hidden="true">出題対象</div>
                     <div class="pill-row">
                       <label
                         ><input
@@ -481,7 +518,7 @@
           </section>
         </section>
       </div>
-      <footer style="text-align: center">
+      <footer>
         <div>
           <small id="footer-version"></small>
           <a
@@ -504,6 +541,62 @@
         </small>
       </footer>
     </div>
+    <dialog id="filter-dialog" class="app-dialog filter-dialog">
+      <div class="filter-dialog-head">
+        <h3 class="filter-dialog-title">フィルター</h3>
+        <button
+          id="filter-dialog-close"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <div class="filter-dialog-body">
+        <div class="filter-section-label">表示対象</div>
+        <fieldset class="category-filter-fieldset pill-filter-fieldset">
+          <legend class="visually-hidden">表示対象</legend>
+          <label
+            ><input
+              id="student-filter-normal"
+              type="checkbox"
+              checked
+            />通常生徒</label
+          >
+          <label
+            ><input
+              id="student-filter-costume"
+              type="checkbox"
+              checked
+            />別衣装</label
+          >
+          <label
+            ><input
+              id="student-filter-collaboration"
+              type="checkbox"
+              checked
+            />コラボ</label
+          >
+        </fieldset>
+      </div>
+      <div class="filter-dialog-actions">
+        <button
+          id="filter-cancel-button"
+          class="filter-action-button filter-cancel-button"
+          type="button"
+        >
+          キャンセル
+        </button>
+        <button
+          id="filter-confirm-button"
+          class="filter-action-button filter-confirm-button"
+          type="button"
+        >
+          確認
+        </button>
+      </div>
+    </dialog>
     <dialog id="progress-dialog" class="app-dialog">
       <h3 id="progress-dialog-title">進捗データ</h3>
       <p id="progress-dialog-description" class="app-dialog-description"></p>

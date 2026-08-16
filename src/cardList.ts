@@ -228,14 +228,8 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     cards.sort((a, b) => {
       const aValue = Number(a.dataset[key] ?? 0)
       const bValue = Number(b.dataset[key] ?? 0)
-      // 整数部(生徒の順位)だけ方向を反転し、小数部(同名グループ内のフォーム順)は
-      // 降順でも代表フォームが先頭に来るよう常に昇順を保つ。
-      const aBase = Math.floor(aValue)
-      const bBase = Math.floor(bValue)
-      if (aBase !== bBase) {
-        return direction === 'asc' ? aBase - bBase : bBase - aBase
-      }
-      return aValue - bValue
+      // SchaleDB 本家に合わせ、同名グループ内のフォーム順(小数部)も方向に従って反転する。
+      return direction === 'asc' ? aValue - bValue : bValue - aValue
     })
     cards.forEach((card) => grid.appendChild(card))
   }
@@ -257,10 +251,124 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   }
 
   let lastAppliedStudentFilter = filterInput?.value ?? ''
+
+  /**
+   * 名前検索中は昇順/降順に関わらず「名前順の昇順」で表示する
+   * (検索結果の並びが方向設定で反転すると探しにくいため)。
+   * 検索を消すと保存済みの並び設定に戻る。
+   */
+  const applySortForCurrentState = () => {
+    const isSearching =
+      normalizeNameInputForSearch(lastAppliedStudentFilter) !== ''
+    if (isSearching) {
+      sortCards('name-order', 'asc')
+    } else if (sortSelect) {
+      sortCards(sortSelect.value, sortDirection)
+    }
+  }
+
   const applyStudentFilterInput = (inputValue: string) => {
     lastAppliedStudentFilter = inputValue
     filterCards(inputValue)
+    applySortForCurrentState()
   }
+
+  // 虫眼鏡ボタンで検索欄の表示を切り替える(ゲームの一覧画面と同じ挙動)。
+  // 閉じたときは絞り込みも解除する(見えない条件で絞られたままにしない)。
+  const searchToggle = document.getElementById(
+    'student-search-toggle',
+  ) as HTMLButtonElement | null
+  const searchBar = document.getElementById('student-search-bar')
+  searchToggle?.addEventListener('click', () => {
+    if (!searchBar) return
+    const willShow = searchBar.hidden
+    searchBar.hidden = !willShow
+    searchToggle.classList.toggle('is-active', willShow)
+    searchToggle.setAttribute('aria-expanded', String(willShow))
+    // 吸着時の「カードが溶ける縁」を検索欄の下へ切り替えるためのフラグ
+    document
+      .getElementById('card-list')
+      ?.classList.toggle('search-open', willShow)
+    // フォーカスは自動で移さない(モバイルでいきなりキーボードが出るのを避ける)。
+    if (!willShow) {
+      if (filterInput) {
+        filterInput.value = ''
+      }
+      applyStudentFilterInput('')
+    }
+  })
+
+  // ヘッダー帯が画面上部に吸着している間だけ背景を塗る(静止時は枠の色を透かす)。
+  const listHead = document.querySelector<HTMLElement>('.list-head')
+  const listHeadSentinel = document.querySelector<HTMLElement>(
+    '.list-head-sentinel',
+  )
+  if (listHead && listHeadSentinel && 'IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      listHead.classList.toggle('is-stuck', !entry.isIntersecting)
+    }).observe(listHeadSentinel)
+  }
+
+  // 帯の実高さを CSS 変数へ反映する(検索バーの吸着位置 top の基準になる)。
+  const cardListSection = document.getElementById('card-list')
+  if (listHead && cardListSection && 'ResizeObserver' in window) {
+    const syncListHeadHeight = () => {
+      cardListSection.style.setProperty(
+        '--list-head-height',
+        `${listHead.offsetHeight}px`,
+      )
+    }
+    new ResizeObserver(syncListHeadHeight).observe(listHead)
+    syncListHeadHeight()
+  }
+
+  // フィルターダイアログ(ゲームの表示設定風)。チェックの変更は即時反映しつつ、
+  // 開いた時点の状態を控えておき、キャンセル・×・Esc では巻き戻す。確認は閉じるだけ。
+  const filterDialog = document.getElementById(
+    'filter-dialog',
+  ) as HTMLDialogElement | null
+  const filterOpenButton = document.getElementById(
+    'student-filter-open',
+  ) as HTMLButtonElement | null
+  const filterCheckboxes = [normalFilter, costumeFilter, collaborationFilter]
+  let filterSnapshot: boolean[] = []
+
+  const restoreFilterSnapshot = () => {
+    filterCheckboxes.forEach((checkbox, index) => {
+      if (checkbox) {
+        checkbox.checked = filterSnapshot[index] ?? true
+      }
+    })
+    filterCards(lastAppliedStudentFilter)
+    persistSettings()
+  }
+
+  filterOpenButton?.addEventListener('click', () => {
+    if (!filterDialog) return
+    filterSnapshot = filterCheckboxes.map((checkbox) =>
+      Boolean(checkbox?.checked),
+    )
+    filterDialog.showModal()
+  })
+  document
+    .getElementById('filter-cancel-button')
+    ?.addEventListener('click', () => {
+      restoreFilterSnapshot()
+      filterDialog?.close()
+    })
+  document
+    .getElementById('filter-dialog-close')
+    ?.addEventListener('click', () => {
+      restoreFilterSnapshot()
+      filterDialog?.close()
+    })
+  // Esc で閉じたときもキャンセル扱いにする
+  filterDialog?.addEventListener('cancel', restoreFilterSnapshot)
+  document
+    .getElementById('filter-confirm-button')
+    ?.addEventListener('click', () => {
+      filterDialog?.close()
+    })
 
   // 並び替え候補が 2 つ以下の間は押すたびに切り替わるトグルボタンにする。
   // 3 つ以上に増えたらこのブロックは何もせず、セレクトでの選択に自動で戻る。
@@ -269,7 +377,7 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     const button = document.createElement('button')
     button.type = 'button'
     button.id = 'student-sort-mode-toggle'
-    button.className = 'sort-mode-toggle'
+    button.className = 'sort-mode-toggle toolbar-skew-button'
     sortSelect.insertAdjacentElement('beforebegin', button)
     sortSelect.hidden = true
     return button
@@ -286,20 +394,18 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     sortSelect.selectedIndex =
       (sortSelect.selectedIndex + 1) % sortSelect.options.length
     updateSortModeToggleLabel()
-    sortCards(sortSelect.value, sortDirection)
+    applySortForCurrentState()
     persistSettings()
   })
 
   sortSelect?.addEventListener('change', () => {
-    sortCards(sortSelect.value, sortDirection)
+    applySortForCurrentState()
     persistSettings()
   })
   sortDirectionButton?.addEventListener('click', () => {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
     updateSortDirectionButton()
-    if (sortSelect) {
-      sortCards(sortSelect.value, sortDirection)
-    }
+    applySortForCurrentState()
     persistSettings()
   })
   filterInput?.addEventListener('compositionupdate', () => {
@@ -319,9 +425,7 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   })
 
   // 復元した設定を初期表示に反映する。
-  if (sortSelect) {
-    sortCards(sortSelect.value, sortDirection)
-  }
+  applySortForCurrentState()
   filterCards(lastAppliedStudentFilter)
 
   let fittyInstances: FittyInstance[] = setupFitty()

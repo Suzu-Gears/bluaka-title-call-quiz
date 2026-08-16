@@ -125,7 +125,23 @@ h1 {
     var(--color-marker-yellow) 78% 94%,
     transparent 94% 100%
   );
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ゲームの見出し風の白い縁取り文字。
+   見出し(ページタイトル・パネルヘッダー)はここで一括管理する。
+   -webkit-text-stroke はブラウザ差で字が痩せるため、多方向 text-shadow で縁取る。 */
+h1,
+.panel-head-title {
+  --text-outline: #fff;
+  text-shadow:
+    2px 0 0 var(--text-outline),
+    -2px 0 0 var(--text-outline),
+    0 2px 0 var(--text-outline),
+    0 -2px 0 var(--text-outline),
+    1.5px 1.5px 0 var(--text-outline),
+    -1.5px 1.5px 0 var(--text-outline),
+    1.5px -1.5px 0 var(--text-outline),
+    -1.5px -1.5px 0 var(--text-outline);
 }
 
 .content {
@@ -226,6 +242,28 @@ h1 {
   box-shadow: var(--shadow-panel);
 }
 
+/* 生徒リスト: ゲーム準拠の半透明の枠。下地の #aee1f3 に重ねると #84bad1 に
+   見える色として rgba(34,95,130,0.3) を逆算(0.7*aee1f3 + 0.3*この色 = 84bad1)。
+   ヘッダー帯はこの1枚だけ、リスト周囲のリングは .grid-frame との重ね掛けで
+   1段濃くなる(本家の2重枠)。角はUIボタンの平行四辺形と同程度に尖らせる。 */
+#card-list {
+  padding: 0;
+  background: rgba(34, 95, 130, 0.3);
+  border-radius: 4px;
+  /* 検索欄と同じ灰色の細いボーダー */
+  border: 1px solid #c6ccd3;
+}
+
+/* grid-scroll を均等な幅(10px)で囲う2つ目の枠。幅は #card-list と同一で、
+   上下のパディングも左右(幅の差)と同じ値にする */
+.grid-frame {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  background: rgba(34, 95, 130, 0.3);
+  border-radius: 0 0 3px 3px;
+}
+
 #quiz-view[hidden],
 #card-list[hidden] {
   display: none;
@@ -252,24 +290,35 @@ h1 {
   color: var(--color-navy);
 }
 
-.grid {
+/* カード一覧の白い「ページ」。角はUIボタンと同程度に尖らせ、枠のリングに囲まれる。
+   ノート風の点線罫はこの要素に一度だけ敷く(content-box クリップで
+   左右は padding ぶん内側に控え、検索欄の左右にも同じ罫線が見える)。 */
+.grid-scroll {
   box-sizing: border-box;
   padding: 0.75rem;
-  border-radius: 12px;
-  background: var(--color-bg-surface);
+  border-radius: 4px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4.7' height='18.7'%3E%3Crect y='18.2' width='2.7' height='0.5' rx='0.25' fill='%23cbdeeb'/%3E%3C/svg%3E")
+      content-box,
+    linear-gradient(#eef6fa, #eef6fa) border-box;
+}
+
+/* 検索で絞り込んで枚数が少なくても、カードサイズを維持するため auto-fill を使う
+   (auto-fit だと空トラックが潰れ、残ったカードが 1fr で行いっぱいに広がる) */
+.grid {
   display: grid;
   justify-content: center;
   place-items: center;
   width: 100%;
   gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   font-size: 16px;
   font-family: sans-serif;
 }
 
 @media (min-resolution: 160dpi), (-webkit-min-device-pixel-ratio: 2) {
   .grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 16px;
     font-size: 20px;
     font-family: 'Kosugi Maru', sans-serif;
@@ -278,49 +327,212 @@ h1 {
 
 @media (min-resolution: 250dpi), (-webkit-min-device-pixel-ratio: 3) {
   .grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 8px;
     font-size: 16px;
     font-family: 'Kosugi Maru', sans-serif;
   }
 }
 
-.controls-row {
-  grid-column: 1 / -1;
-  justify-self: stretch;
+/* 低解像度ディスプレイ(Windows の等倍〜150%表示など)でウィンドウを狭めたとき、
+   基準の minmax(120px) だと2列の巨大カードになってしまうため、
+   狭い幅に限って最小幅を下げて高解像度端末と同じ3〜4列の見え方に寄せる。 */
+@media (max-width: 640px) and (max-resolution: 159dpi) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 8px;
+  }
+}
+
+/* 吸着判定用の番兵。これが画面外に出たら .list-head が吸着中と判定する */
+.list-head-sentinel {
+  height: 0;
+}
+
+/* パネル見出し+ツールバーのヘッダー帯(ゲームの生徒リスト上部バー)。
+   幅があるときは見出しとボタン群が1列に並び、ページをスクロールすると
+   画面上部に吸着する。 */
+.list-head {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: nowrap;
-  width: 100%;
+  row-gap: 0.25rem;
+  column-gap: 0.75rem;
+  box-sizing: border-box;
+  padding: 0.5rem 0.85rem;
+  border-radius: 3px 3px 0 0;
+  /* 静止時は透明にして枠の半透明色をそのまま透かす(二重に重ねて濃くしない) */
+  background: transparent;
+}
+
+.list-head .panel-head {
+  padding: 0;
+}
+
+/* 吸着中の帯: ページ背景(.main と同じ fixed 配置のレイヤー)+枠の半透明色を
+   敷いて、裏を通るカードを完全に隠す。帯の背後に見えるのはページ背景だけになる。
+   検索バーを開くと帯が伸びるため、以下の縁の位置もそのぶん下へオフセットする。 */
+.list-head.is-stuck {
+  background:
+    linear-gradient(rgba(34, 95, 130, 0.3), rgba(34, 95, 130, 0.3)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.13) 0 56px,
+      transparent 56px 112px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.13) 0 56px,
+      transparent 56px 112px
+    ),
+    linear-gradient(180deg, #d3ecfa 0%, #b7ddf3 55%, #c7e6f7 100%);
+  background-attachment: scroll, fixed, fixed, fixed;
+}
+
+/* 帯の直下にくっつくリング(grid-frame の上辺)。静止時と同じく
+   半透明色の2枚重ねをページ背景の上に再現する。
+   高さはリング10px+白領域の角丸4px(角の切り欠きの裏にリング色を見せる) */
+.list-head.is-stuck::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 14px;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(34, 95, 130, 0.3), rgba(34, 95, 130, 0.3)),
+    linear-gradient(rgba(34, 95, 130, 0.3), rgba(34, 95, 130, 0.3)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.13) 0 56px,
+      transparent 56px 112px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.13) 0 56px,
+      transparent 56px 112px
+    ),
+    linear-gradient(180deg, #d3ecfa 0%, #b7ddf3 55%, #c7e6f7 100%);
+  background-attachment: scroll, scroll, fixed, fixed, fixed;
+}
+
+/* リングの下 = grid-scroll(ページ)の上縁。上の角丸(4px)をここに残しつつ、
+   検索欄の下と同じプロファイル(白8px+フェード14px)でカードが溶けて消える */
+.list-head.is-stuck::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 10px;
+  right: 10px;
+  height: 22px;
+  pointer-events: none;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(
+    180deg,
+    #eef6fa 0,
+    #eef6fa 8px,
+    rgba(238, 246, 250, 0) 22px
+  );
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  mask-image: linear-gradient(180deg, #000 0, #000 8px, transparent 22px);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0,
+    #000 8px,
+    transparent 22px
+  );
+}
+
+/* 虫眼鏡で開く検索バー。ページ(白領域)の先頭に flow で挿入される1行で、
+   グリッドの padding を負マージンで打ち消してページ全幅に流し込む
+   (上に重なる箱ではなく、ページ上端の一部として見せる)。
+   スクロール時は帯+リングの直下=ページの縁の位置に貼り付いて残る。
+   --list-head-height は JS(ResizeObserver)が帯の実高さを反映する */
+.student-search-bar {
+  position: sticky;
+  top: calc(var(--list-head-height, 3.2rem) + 10px);
+  z-index: 40;
+  box-sizing: border-box;
+  margin: -0.75rem -0.75rem 0.5rem;
+  padding: 0.6rem 0.75rem;
+  /* 静止時は透明にして、ページの罫線が検索欄の左右にも見えるようにする */
+  background: transparent;
+  border-radius: 4px 4px 0 0;
+}
+
+/* 吸着中だけページと同じ塗り(白+罫線)で裏のカードを隠す */
+.list-head.is-stuck ~ .grid-frame .student-search-bar {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4.7' height='18.7'%3E%3Crect y='18.2' width='2.7' height='0.5' rx='0.25' fill='%23cbdeeb'/%3E%3C/svg%3E")
+      content-box,
+    linear-gradient(#eef6fa, #eef6fa) border-box;
+}
+
+/* 吸着中は検索欄の下あたりでカードが溶けて消える(白8px+フェード14px) */
+.list-head.is-stuck ~ .grid-frame .student-search-bar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 22px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    #eef6fa 0,
+    #eef6fa 8px,
+    rgba(238, 246, 250, 0) 22px
+  );
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  mask-image: linear-gradient(180deg, #000 0, #000 8px, transparent 22px);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0,
+    #000 8px,
+    transparent 22px
+  );
+}
+
+/* 検索欄が開いている間は、縁の白フェード(検索欄の裏に隠れる)を消す */
+#card-list.search-open .list-head.is-stuck::after {
+  display: none;
+}
+
+.student-search-bar[hidden] {
+  display: none;
 }
 
 .search-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9em;
-  flex: 1 1 14rem;
-  min-width: 0;
+  display: block;
+  max-width: 480px;
+  margin-inline: auto;
 }
 
-/* ゲームの検索バー: 白い角丸ボックス + 虫めがねアイコン */
+/* ゲームの検索バー: 白い角丸ボックス + 虫めがねアイコン。
+   プレースホルダー・入力文字とも中央寄せ(左右の padding も揃えて真ん中に) */
 .student-filter-input {
   width: 100%;
   min-width: 8rem;
   box-sizing: border-box;
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  /* grid-scroll と同じ角丸 */
+  border-radius: 4px;
   background-color: var(--color-bg-surface);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232e6ac7' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6'/%3E%3Cpath d='M15 15l5 5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-size: 1.1em;
   background-position: 0.6em center;
-  padding: 0.5rem 0.6rem 0.5rem 2.2em;
+  padding: 0.5rem 2.2em;
   font-size: 1rem;
-  font-family: inherit;
+  font-family: 'Kosugi Maru', sans-serif;
   color: var(--color-navy);
+  text-align: center;
 }
 
 .student-filter-input::placeholder {
@@ -332,6 +544,12 @@ h1 {
   outline-offset: 1px;
 }
 
+/* 検索欄は影なし・灰色ボーダー */
+.student-search-bar .student-filter-input {
+  box-shadow: none;
+  border-color: #c6ccd3;
+}
+
 /* 表示対象・出題対象で共通の、ゲーム風ピル型トグル */
 .pill-filter-fieldset {
   margin: 0;
@@ -340,23 +558,16 @@ h1 {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.pill-filter-fieldset legend {
-  float: left;
-  margin-right: 0.35rem;
-  font-size: 0.85em;
-  font-weight: 700;
-  color: var(--color-navy);
+  /* 行間(row-gap)は折り返したときにラベルとピルが詰まって見えないよう広めに取る */
+  gap: 0.6rem 0.4rem;
 }
 
 .pill-filter-fieldset label {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.85em;
   font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
   color: #41618a;
   border: 1px solid var(--color-border-default);
   border-radius: 999px;
@@ -386,74 +597,286 @@ h1 {
   margin: 0;
 }
 
-.sort-wrapper {
-  display: inline-flex;
+.controls-row {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9em;
-  font-weight: 700;
-  color: var(--color-navy);
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  /* 幅があるときは見出しと同じ行の右端に寄せる(入らなければ自然に折り返す) */
+  margin-left: auto;
+  box-sizing: border-box;
+  /* ツールバー(検索・フィルタ・並べ替え)の文字サイズはここで一元管理する。
+     子要素には個別の font-size を当てず、継承させること。
+     例外は検索入力の 1rem のみ(iOS のフォーカスズーム回避のため 16px 未満にしない)。 */
+  font-size: 0.9rem;
 }
 
-/* 並び替えが 2 択の間だけ出す切り替えボタン(JS が select の代わりに生成する) */
-.sort-mode-toggle {
+/* 検索・並び替えのツールバー右側グループ(ゲームの 🔍/漏斗/Lv/≡↓ の並び) */
+.sort-controls {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
-  padding: 0.4rem 0.8rem;
-  font-size: 0.95em;
+  gap: 0.45rem;
+  padding-block: 0.25rem;
+}
+
+.sort-controls select {
+  font-size: inherit;
+}
+
+/* ツールバー共通の角丸平行四辺形ボタン(出題方式などと同じ意匠) */
+.toolbar-skew-button {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  height: 2.35rem;
+  padding-inline: 0.9em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  font-size: inherit;
   font-weight: 700;
   font-family: inherit;
   color: var(--color-navy);
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(31, 68, 109, 0.08);
   transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
+    color 0.15s ease,
+    transform 0.05s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.sort-mode-toggle::after {
-  content: '⇄';
-  color: #2e6ac7;
+.toolbar-skew-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-10deg);
+  border-radius: 0.25em;
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
+  transition: background-color 0.15s ease;
+}
+
+.toolbar-skew-button:hover::before {
+  background-color: var(--color-bg-surface-hover);
+}
+
+.toolbar-skew-button:active {
+  transform: scale(0.96);
+}
+
+.toolbar-skew-button:focus-visible {
+  outline: none;
+}
+
+.toolbar-skew-button:focus-visible::before {
+  outline: 0.2em solid #f3e756;
+}
+
+/* フィルター(漏斗)ボタン */
+.filter-open-button {
+  padding-inline: 0.78em;
+  color: #466398;
+}
+
+.filter-open-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ゲームの「表示設定」ダイアログ風のフィルターポップアップ */
+.filter-dialog {
+  width: min(440px, calc(100vw - 2rem));
+}
+
+.filter-dialog-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.filter-dialog-title {
+  margin: 0;
+  padding: 0 0.5em 0.1em;
+  font-size: 1.2rem;
   font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  color: var(--color-navy);
+  /* タイトル下の黄色いアンダーライン(ゲームのダイアログ見出しと同じ) */
+  background: linear-gradient(
+    transparent 0% 82%,
+    var(--color-marker-yellow) 82% 96%,
+    transparent 96% 100%
+  );
 }
 
-.sort-mode-toggle:hover {
-  border-color: var(--color-border-hover);
-  background: var(--color-bg-surface-hover);
+.filter-dialog-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--color-navy);
+  cursor: pointer;
+  padding: 0.1em 0.3em;
 }
 
-.sort-mode-toggle:focus-visible {
+.filter-dialog-close:hover {
+  color: #d03c3c;
+}
+
+.filter-dialog-close:focus-visible {
   outline: 2px solid var(--color-focus-strong);
   outline-offset: 2px;
 }
 
-/* ゲームの「≡↓」ボタンと同じ、3本線+矢印のアイコンボタン */
-.sort-direction-button {
+/* ゲームの「| ポジション」風のセクション見出し(左に水色バー+下に点線) */
+.filter-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed #c3d3e2;
+  font-weight: 700;
+  color: var(--color-navy);
+}
+
+.filter-section-label::before {
+  content: '';
+  width: 3px;
+  height: 1em;
+  background: #35b5f5;
+  border-radius: 2px;
+}
+
+.filter-dialog-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+/* キャンセル/確認はクイズの操作ボタン(開始/もう一度再生)と同じ意匠。
+   高さ・文字サイズも共通変数に載せる。グラデーションは使わない */
+.filter-action-button {
+  position: relative;
+  isolation: isolate;
+  height: var(--quiz-control-height);
+  min-width: 8rem;
+  padding-inline: 0.75em;
+  border: none;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
-  width: 2.35rem;
-  height: 2.35rem;
-  padding: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
-  color: var(--color-navy);
+  font-size: var(--quiz-control-font-size);
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(31, 68, 109, 0.08);
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
+  transition: transform 0.05s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
+.filter-action-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-10deg);
+  border-radius: 0.25em;
+  box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
+  transition: background-color 0.2s ease;
+}
+
+.filter-action-button:active {
+  transform: scale(0.95);
+}
+
+.filter-action-button:focus-visible {
+  outline: none;
+}
+
+.filter-action-button:focus-visible::before {
+  outline: 0.2em solid #f3e756;
+}
+
+/* キャンセル: 出題方式の非選択セグメントと同じ配色 */
+.filter-cancel-button {
+  color: #496f8f;
+}
+
+.filter-cancel-button::before {
+  background-color: #f4f5f6;
+}
+
+/* 確認: 「もう一度再生」ボタンと同じ配色 */
+.filter-confirm-button {
+  color: #314665;
+}
+
+.filter-confirm-button::before {
+  background-color: #77dfff;
+}
+
+/* 検索トグル: 開いている間はゲームと同じく青く光る */
+.search-toggle-button {
+  padding-inline: 0.78em;
+  /* ゲーム実機からサンプリングした虫眼鏡の色 */
+  color: #466398;
+}
+
+.search-toggle-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  /* 平行四辺形の傾きに対する光学調整。少し左に寄せる */
+  margin-right: 0.22em;
+}
+
+.search-toggle-button.is-active {
+  color: #fff;
+}
+
+.search-toggle-button.is-active::before {
+  background-color: #2e9be5;
+}
+
+.search-toggle-button.is-active:hover::before {
+  background-color: #3faaf2;
+}
+
+/* 並び替えトグル(実装順/名前順)は丸ゴシックで表示する */
+.sort-mode-toggle {
+  font-family: 'Kosugi Maru', sans-serif;
+}
+
+/* ゲームの「≡↓」ボタンと同じ、3本線+矢印のアイコンボタン。
+   色はゲーム実機のサンプリング値(横棒と矢印で異なるのが本家仕様) */
+.sort-direction-button {
+  /* ボタン幅を元の約1.4倍に広げる(アイコンは中央のまま) */
+  padding-inline: 1.25em;
+  /* 横棒(stroke: currentColor) */
+  color: #3e444a;
+}
+
+.sort-direction-arrow {
+  fill: #466b8b;
+}
+
+/* 横長アイコン(33:24)。高さ基準で幅は viewBox の比率に任せる */
 .sort-direction-icon {
-  width: 1.4rem;
   height: 1.4rem;
+  width: auto;
 }
 
 .sort-direction-arrow {
@@ -464,16 +887,6 @@ h1 {
 
 .sort-direction-button[data-direction='asc'] .sort-direction-arrow {
   transform: rotate(180deg);
-}
-
-.sort-direction-button:hover {
-  border-color: var(--color-border-hover);
-  background: var(--color-bg-surface-hover);
-}
-
-.sort-direction-button:focus-visible {
-  outline: 2px solid var(--color-focus-strong);
-  outline-offset: 2px;
 }
 
 .grid-item {
@@ -593,7 +1006,7 @@ h1 {
   vertical-align: 0.05em;
 }
 
-/* 生徒リストの白いエリア(.grid)と同じ層: パネル直下・全幅・角丸12px */
+/* 生徒リストの白いエリアと同じ層: パネル直下・全幅・角丸12px */
 .quiz-section {
   --quiz-image-max-width: 108px;
   width: 100%;
@@ -875,12 +1288,9 @@ h1 {
   display: block;
 }
 
-.quiz-filter-fieldset legend.quiz-banner {
-  float: left;
-  margin: 0 0 0.6rem;
-  /* .pill-filter-fieldset legend の紺文字・小サイズより優先させる */
-  color: #fff;
-  font-size: 0.95rem;
+.quiz-filter-fieldset .quiz-banner {
+  /* 出題方式側の flex gap(0.5rem)と同じ間隔にする */
+  margin: 0 0 0.5rem;
 }
 
 .pill-row {
@@ -889,6 +1299,14 @@ h1 {
   flex-wrap: wrap;
   gap: 0.4rem;
   padding-inline: 0.2rem;
+}
+
+/* クイズ画面のピルは出題方式のセグメントと高さ・文字サイズを揃える */
+.quiz-filter-fieldset .pill-row label {
+  box-sizing: border-box;
+  height: var(--quiz-control-height);
+  padding: 0 1em;
+  font-size: var(--quiz-control-font-size);
 }
 
 /* 「掃討」パネル風: 問題数カウンターを淡色ボックスに収める */
@@ -901,6 +1319,9 @@ h1 {
 
 .quiz-count-panel {
   box-sizing: border-box;
+  /* グリッドアイテムの最小幅がカウンターの中身に引っ張られて
+     白エリアからはみ出さないようにする */
+  min-width: 0;
   border: 1px solid #dde7f1;
   border-radius: 10px;
   background: #eef3f9;
@@ -910,19 +1331,35 @@ h1 {
 .quiz-count-panel .quiz-question-count-wrapper {
   margin-top: 0;
   width: 100%;
+  min-width: 0;
   gap: 0.6rem;
   align-items: stretch;
 }
 
-.quiz-count-panel .quiz-question-count-input-controls {
-  justify-content: center;
+/* 幅が足りるときは中央寄せ、足りないときは左端からスクロールできる margin-auto 方式。
+   justify-content: center だと、あふれた際に左端が切れてスクロールできなくなる。 */
+.quiz-count-panel .quiz-question-count-input-controls > :first-child {
+  margin-inline-start: auto;
+}
+
+.quiz-count-panel .quiz-question-count-input-controls > :last-child {
+  margin-inline-end: auto;
 }
 
 /* 「任務開始」風の大きな開始ボタン */
 .quiz-start-cta {
   width: 100%;
+  min-width: 0;
   height: 3rem;
   font-size: 1.3rem;
+}
+
+/* 幅が狭い端末ではクイズ操作系をひとまわり小さくして収める */
+@media (max-width: 420px) {
+  :root {
+    --quiz-control-height: 2.4rem;
+    --quiz-control-font-size: 1rem;
+  }
 }
 
 /* 状態表示はエラー等があるときだけ出す */
@@ -1411,10 +1848,20 @@ footer {
   padding: 0 0 1rem;
   width: 100%;
   color: #3d5573;
+  text-align: center;
 }
 
 footer a {
   color: #2e6ac7;
+}
+
+/* 幅が狭い端末では中央寄せの改行が不格好になるため左寄せにする */
+@media (max-width: 640px) {
+  footer {
+    box-sizing: border-box;
+    padding-inline: 1rem;
+    text-align: left;
+  }
 }
 
 @media (max-width: 740px) {
@@ -1431,17 +1878,56 @@ footer a {
   }
 }
 
+/* スマホでは生徒リストの枠を画面端いっぱいまで広げる(白背景は維持する)。
+   横の余白を最小化することで、解像度メディアクエリの列数が旧版と同じになる。 */
 @media (max-width: 480px) {
   .quiz-section {
     padding: 0.75rem;
   }
 
-  #card-list,
+  #card-list {
+    /* .content の左右パディング(1rem)を打ち消して全幅にする */
+    width: calc(100% + 2rem);
+    margin-inline: -1rem;
+    border-inline: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
   #quiz-view {
     padding: 0.5rem;
   }
 
-  .grid {
-    padding: 0.5rem;
+  .list-head {
+    padding: 0.4rem 0.5rem;
+    border-radius: 0;
+  }
+
+  /* 狭い画面では grid-scroll を grid-frame と同じ幅にする
+     (カードの端〜画面端の距離と上縁までの距離の不一致を無くす) */
+  .grid-frame {
+    padding: 6px 0;
+    border-radius: 0;
+  }
+
+  .grid-scroll {
+    padding: 0.4rem 0.2rem;
+  }
+
+  /* リング幅6pxに合わせて吸着時の縁の位置も調整(左右のリングは無し) */
+  .list-head.is-stuck::before {
+    height: 10px;
+  }
+
+  .list-head.is-stuck::after {
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+  }
+
+  .student-search-bar {
+    top: calc(var(--list-head-height, 3.2rem) + 6px);
+    margin: -0.4rem -0.2rem 0.4rem;
+    padding: 0.5rem 0.4rem;
   }
 }
