@@ -37,7 +37,12 @@ export interface TitleCallClip {
   generation: number
   /** 配信パス兼 R2 キー。例: 'audio/10143/ch0355_title.g1.mp3' */
   file: string
-  /** このクリップが属する生徒 Id(同名グループ内のどのメンバーか) */
+  /**
+   * このクリップを「どの形態(メンバー)の声か」として表示するかの生徒 Id。
+   * 既定は R2 上のフォルダの Id。voice.json の帰属が実態と異なる場合
+   * (シュン（水着）の np0288 はシュエリン側)は audioClipOverrides で付け替える。
+   * カード一覧での所属カードと、答え合わせ・リザルトの画像がこの Id になる。
+   */
   ownerId: number
   source: TitleCallSource
   /** 任意の表示名。例: '旧声優版' */

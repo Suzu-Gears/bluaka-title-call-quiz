@@ -1,4 +1,6 @@
 import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -117,6 +119,26 @@ export async function putObjectJson(key: string, data: unknown): Promise<void> {
       Body: JSON.stringify(data, null, 2),
       ContentType: 'application/json',
     }),
+  )
+}
+
+/** バケット内コピー。移動は copy + delete で行う。 */
+export async function copyObject(
+  sourceKey: string,
+  destinationKey: string,
+): Promise<void> {
+  await getClient().send(
+    new CopyObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      CopySource: `${R2_BUCKET_NAME}/${encodeURIComponent(sourceKey)}`,
+      Key: destinationKey,
+    }),
+  )
+}
+
+export async function deleteObject(key: string): Promise<void> {
+  await getClient().send(
+    new DeleteObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
   )
 }
 

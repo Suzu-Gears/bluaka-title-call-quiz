@@ -9,13 +9,19 @@ import {
   normalizeQuizAnswer,
   resolveStudentCategory,
 } from '@/lib/quizProgress'
-import { orderClipsForBrowsing } from '@/lib/titleCallClips'
+import { clipsForMember, orderClipsForBrowsing } from '@/lib/titleCallClips'
 import { formatClipBadge, SORT_DIRECTION_LABEL } from '@/lib/uiText'
 
 const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 
+/**
+ * カードはメンバー(形態)ごとに 1 枚生成する(SchaleDB の一覧と同じ見え方)。
+ * 名前は同名グループ共通。memberIndex は同名グループ内での表示順の維持に使う。
+ */
 export const createCard = (
   entry: QuizEntry,
+  memberId: number,
+  memberIndex: number,
   clips: readonly TitleCallClip[],
 ): HTMLElement => {
   const item = document.createElement('div')
@@ -27,8 +33,9 @@ export const createCard = (
     entry.Costume,
     entry.IsCollaboration,
   )
-  item.dataset.defaultOrder = String(entry.DefaultOrder)
-  item.dataset.nameSortOrder = String(entry.NameSortOrder)
+  // 同名グループのカードが隣り合ったまま全体順を保てるよう、小数で枝番を振る。
+  item.dataset.defaultOrder = String(entry.DefaultOrder + memberIndex / 10)
+  item.dataset.nameSortOrder = String(entry.NameSortOrder + memberIndex / 10)
   item.dataset.hasAudio = String(clips.length > 0)
   item.dataset.clipIndex = '0'
 
@@ -36,7 +43,7 @@ export const createCard = (
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
-  image.src = resolveAssetUrl(formatImageKey(entry.PrimaryId))
+  image.src = resolveAssetUrl(formatImageKey(memberId))
   image.alt = entry.Name
   image.onerror = () => {
     image.src = DEFAULT_IMAGE
@@ -100,10 +107,14 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   ;[...entries]
     .sort((a, b) => a.DefaultOrder - b.DefaultOrder)
     .forEach((entry) => {
-      const clips = orderClipsForBrowsing(entry.TitleCalls)
-      const card = createCard(entry, clips)
-      clipsByCard.set(card, clips)
-      grid.appendChild(card)
+      entry.ImageIds.forEach((memberId, memberIndex) => {
+        const clips = orderClipsForBrowsing(
+          clipsForMember(entry.TitleCalls, memberId),
+        )
+        const card = createCard(entry, memberId, memberIndex, clips)
+        clipsByCard.set(card, clips)
+        grid.appendChild(card)
+      })
     })
 
   const sortSelect = document.getElementById(

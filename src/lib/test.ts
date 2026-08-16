@@ -45,6 +45,7 @@ import {
 import { HttpStatusError, isNotFoundError } from '@/lib/schaleDBClient'
 import { isValidSyncCode, parseSyncPayload } from '@/lib/syncClient'
 import {
+  clipsForMember,
   hasMultipleGenerations,
   orderClipsForBrowsing,
   pickRandomClip,
@@ -67,6 +68,7 @@ import {
   checkTitleCallSchema,
   clipIdFromAudioClip,
   extractTitleCalls,
+  planTitleCallDownloads,
   resolveVoiceAssetUrl,
 } from '@/lib/voiceData'
 
@@ -392,6 +394,46 @@ const deterministicRandom = () => 0
   )
 }
 
+// --- 取得計画(clipId 単位のグローバル存在判定) ---
+{
+  const titleCalls = new Map<number, string[]>([
+    [10005, ['jp_hoshino/hoshino_title.mp3']],
+    [10143, ['jp_ch0355/ch0355_title.mp3', 'jp_ch0355/np0288_title.mp3']],
+  ])
+
+  // np0288 が R2 上で 10144 のフォルダへ移動されていても、
+  // clipId が存在する限り voice.json の掲載位置(10143)へ再取得されない。
+  const relocated = planTitleCallDownloads(
+    titleCalls,
+    new Set(['hoshino_title', 'ch0355_title', 'np0288_title']),
+  )
+  assert.deepEqual(relocated.downloads, [])
+  assert.deepEqual(relocated.unusable, [])
+
+  // 未取得のクリップだけが対象になり、保存先は voice.json の掲載メンバー
+  const fresh = planTitleCallDownloads(titleCalls, new Set(['hoshino_title']))
+  assert.deepEqual(fresh.downloads, [
+    {
+      studentId: 10143,
+      clipId: 'ch0355_title',
+      audioClip: 'jp_ch0355/ch0355_title.mp3',
+    },
+    {
+      studentId: 10143,
+      clipId: 'np0288_title',
+      audioClip: 'jp_ch0355/np0288_title.mp3',
+    },
+  ])
+
+  // キー規約で扱えない AudioClip は unusable として報告される
+  const broken = planTitleCallDownloads(
+    new Map([[1, ['a/日本語.mp3', 'a/ok_title.mp3']]]),
+    new Set(),
+  )
+  assert.equal(broken.downloads.length, 1)
+  assert.equal(broken.unusable.length, 1)
+}
+
 // --- アセットキー規約 ---
 {
   assert.deepEqual(parseAudioKey('audio/10143/np0288_title.g1.mp3'), {
@@ -420,7 +462,8 @@ const deterministicRandom = () => 0
   assert.equal(formatImageKey(10143), 'image/10143.webp')
   assert.equal(parseImageKey('image/10143.webp'), 10143)
   assert.equal(parseImageKey('image/x.webp'), null)
-  assert.equal(formatClipRef(parts), '10143/ch0355_title.g3')
+  // ラベルキーはフォルダ(生徒Id)を含めない。移動しても参照が壊れないようにする。
+  assert.equal(formatClipRef('ch0355_title', 3), 'ch0355_title.g3')
   assert.equal(isValidClipId('ch0355_title'), true)
   assert.equal(isValidClipId('ch0355.title'), false)
 }
@@ -481,6 +524,28 @@ const deterministicRandom = () => 0
     pickRandomClip(shun, () => 1),
     null,
   )
+
+  // メンバー(形態)ごとのカードが再生するクリップ:
+  // 自分に帰属するものがあればそれのみ、無ければグループ共有で全クリップ。
+  const shunWithOwners = [
+    { ...clip('ch0355_title', 1), ownerId: 10143 },
+    { ...clip('np0288_title', 1), ownerId: 10144 },
+  ]
+  assert.deepEqual(
+    clipsForMember(shunWithOwners, 10143).map((c) => c.clipId),
+    ['ch0355_title'],
+  )
+  assert.deepEqual(
+    clipsForMember(shunWithOwners, 10144).map((c) => c.clipId),
+    ['np0288_title'],
+  )
+  // ホシノ（臨戦）の dealer 形態: 自分のクリップが無い → 共有音声を再生
+  const rinsenShared = [{ ...clip('ch0258_title', 1), ownerId: 10098 }]
+  assert.deepEqual(
+    clipsForMember(rinsenShared, 10099).map((c) => c.clipId),
+    ['ch0258_title'],
+  )
+  assert.deepEqual(clipsForMember([], 10099), [])
 }
 
 // --- QuizEntry の組み立て ---
@@ -561,7 +626,9 @@ const deterministicRandom = () => 0
     { studentId: 10017, clipId: 'cherino_title', generation: 2 },
     { studentId: 10098, clipId: 'ch0258_title', generation: 1 },
     { studentId: 10143, clipId: 'ch0355_title', generation: 1 },
-    { studentId: 10143, clipId: 'np0288_title', generation: 1 },
+    // np0288 はシュエリンの声。R2 上で 10144 のフォルダに置くことが帰属の宣言になる
+    // (voice.json 上の掲載は 10143 側のままでよい)。
+    { studentId: 10144, clipId: 'np0288_title', generation: 1 },
     // R2 にだけ存在(手動で置いた初音ミク)
     { studentId: 20007, clipId: 'miku_title', generation: 1 },
     // students.json に無い Id(孤児)
@@ -579,7 +646,7 @@ const deterministicRandom = () => 0
     students,
     audioKeys,
     titleCalls,
-    labels: { '10017/cherino_title.g1': '旧声優版' },
+    labels: { 'cherino_title.g1': '旧声優版' },
   })
 
   const byName = new Map(entries.map((entry) => [entry.Name, entry]))
@@ -598,8 +665,16 @@ const deterministicRandom = () => 0
   assert.equal(shunSwimsuit.TitleCalls.length, 2, '2 音声とも残る')
   assert.deepEqual(
     shunSwimsuit.TitleCalls.map((clip) => clip.file),
-    ['audio/10143/ch0355_title.g1.mp3', 'audio/10143/np0288_title.g1.mp3'],
+    ['audio/10143/ch0355_title.g1.mp3', 'audio/10144/np0288_title.g1.mp3'],
   )
+  // R2 上のフォルダがそのまま帰属になる(np0288 はシュエリン=10144)
+  assert.deepEqual(
+    shunSwimsuit.TitleCalls.map((clip) => clip.ownerId),
+    [10143, 10144],
+  )
+  // voice.json の掲載が 10143 側でも、clipId のグローバル判定で schaledb 扱いになる
+  assert.equal(shunSwimsuit.TitleCalls[1].source, 'schaledb')
+  assert.equal(byName.get('ホシノ')!.TitleCalls[0].ownerId, 10005)
 
   const cherino = byName.get('チェリノ')!
   assert.equal(cherino.TitleCalls.length, 2)
@@ -720,8 +795,11 @@ const deterministicRandom = () => 0
     now,
   )
   assert.equal(Object.keys(manifest.clips).length, 1)
+  // 旧形式のキー(`${studentId}/${clipId}`)は clipId のみへ移行される
+  assert.ok(manifest.clips['cherino_title'])
+  assert.equal(manifest.clips['10017/cherino_title'], undefined)
 
-  const previous = manifest.clips['10017/cherino_title']
+  const previous = manifest.clips['cherino_title']
   assert.equal(hasSourceChanged(previous, { etag: '"abc"', size: 100 }), false)
   assert.equal(hasSourceChanged(previous, { etag: '"zzz"', size: 100 }), true)
   // ETag が片方に無ければサイズで判断

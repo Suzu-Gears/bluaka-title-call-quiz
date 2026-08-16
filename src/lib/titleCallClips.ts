@@ -43,6 +43,19 @@ export function selectPlayableClips(
 }
 
 /**
+ * カード一覧で、あるメンバー(形態)のカードが再生するクリップ集合。
+ * そのメンバーに帰属するクリップがあればそれを、無ければグループ共有として
+ * 全クリップを返す(ホシノ（臨戦）の dealer 形態は共通音声を鳴らす)。
+ */
+export function clipsForMember(
+  clips: readonly TitleCallClip[],
+  memberId: number,
+): TitleCallClip[] {
+  const own = clips.filter((clip) => clip.ownerId === memberId)
+  return own.length > 0 ? own : [...clips]
+}
+
+/**
  * カード一覧の順送り用の並び。最新世代を先に、過去の世代を後ろに置く。
  * 1 回目のタップが必ず現行版になるようにするため。
  */

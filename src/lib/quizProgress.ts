@@ -125,8 +125,11 @@ export function normalizeNameInputForSearch(rawInput: string): string {
     return ''
   }
   const shouldTrimLast =
-    isTransientNameInputQuery(rawInput) && TRAILING_ROMAJI_PATTERN.test(normalizedInput)
-  const trimmedInput = shouldTrimLast ? normalizedInput.slice(0, -1) : normalizedInput
+    isTransientNameInputQuery(rawInput) &&
+    TRAILING_ROMAJI_PATTERN.test(normalizedInput)
+  const trimmedInput = shouldTrimLast
+    ? normalizedInput.slice(0, -1)
+    : normalizedInput
   if (!trimmedInput) {
     return ''
   }
@@ -211,11 +214,14 @@ export function resolveMultipleChoiceMaxQuestions(
   return Math.floor(candidateCount / choiceCount)
 }
 
-export function summarizeQuizResults(results: readonly QuizResultSummaryEntry[]) {
+export function summarizeQuizResults(
+  results: readonly QuizResultSummaryEntry[],
+) {
   const totalCount = results.length
   const correctCount = results.filter((entry) => entry.isCorrect).length
   const wrongCount = Math.max(0, totalCount - correctCount)
-  const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 1000) / 10 : 0
+  const accuracy =
+    totalCount > 0 ? Math.round((correctCount / totalCount) * 1000) / 10 : 0
   return {
     totalCount,
     correctCount,

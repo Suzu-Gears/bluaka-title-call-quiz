@@ -4,7 +4,6 @@ import {
   AUDIO_MANIFEST_KEY,
   type AudioKeyParts,
   formatAudioKey,
-  formatClipSeriesRef,
   parseAudioKey,
 } from '@/lib/assetKeys'
 import {
@@ -59,13 +58,18 @@ const existingKeys = (
   .map(parseAudioKey)
   .filter((parts): parts is AudioKeyParts => parts !== null)
 
-const latestGenerationBySeries = new Map<string, number>()
+// clipId 単位で「最新世代」と「実際に置かれているフォルダ(帰属メンバー)」を把握する。
+// 新しい世代は voice.json の掲載位置ではなく、既存世代と同じフォルダへ追加する
+// (クリップを本来の形態のフォルダへ移動している場合に帰属を維持するため)。
+const seriesByClipId = new Map<string, { folderId: number; latest: number }>()
 for (const key of existingKeys) {
-  const seriesRef = formatClipSeriesRef(key.studentId, key.clipId)
-  latestGenerationBySeries.set(
-    seriesRef,
-    Math.max(latestGenerationBySeries.get(seriesRef) ?? 0, key.generation),
-  )
+  const current = seriesByClipId.get(key.clipId)
+  if (!current || key.generation > current.latest) {
+    seriesByClipId.set(key.clipId, {
+      folderId: key.studentId,
+      latest: key.generation,
+    })
+  }
 }
 
 const manifestRaw = useR2
@@ -79,15 +83,14 @@ const recorded: string[] = []
 const failed: string[] = []
 let checked = 0
 
-for (const [studentId, audioClips] of titleCalls) {
+for (const audioClips of titleCalls.values()) {
   for (const audioClip of audioClips) {
     const clipId = clipIdFromAudioClip(audioClip)
     if (!clipId) {
       continue
     }
-    const seriesRef = formatClipSeriesRef(studentId, clipId)
-    const latestGeneration = latestGenerationBySeries.get(seriesRef)
-    if (latestGeneration === undefined) {
+    const series = seriesByClipId.get(clipId)
+    if (!series) {
       // まだ 1 度も取得していない系列。通常ビルド側の差分補充に任せる。
       continue
     }
@@ -97,21 +100,21 @@ for (const [studentId, audioClips] of titleCalls) {
     const signature = await headRemoteAsset(sourceUrl)
     await sleep(DEFAULT_REQUEST_INTERVAL_MS)
     if (!signature) {
-      failed.push(`${seriesRef} (HEAD 失敗)`)
+      failed.push(`${clipId} (HEAD 失敗)`)
       continue
     }
 
-    const previous = manifest.clips[seriesRef]
+    const previous = manifest.clips[clipId]
     if (!previous) {
       // 指紋が未記録なら、比較の基準としてまず現在値を記録する。
-      manifest = upsertClipRecord(manifest, seriesRef, {
-        generation: latestGeneration,
+      manifest = upsertClipRecord(manifest, clipId, {
+        generation: series.latest,
         sourceUrl,
         etag: signature.etag,
         size: signature.size,
         checkedAt: now(),
       })
-      recorded.push(seriesRef)
+      recorded.push(clipId)
       continue
     }
 
@@ -119,9 +122,10 @@ for (const [studentId, audioClips] of titleCalls) {
       continue
     }
 
-    const nextGeneration = latestGeneration + 1
+    const nextGeneration = series.latest + 1
     const parts: AudioKeyParts = {
-      studentId,
+      // 既存世代と同じフォルダに追加する(帰属を維持)。
+      studentId: series.folderId,
       clipId,
       generation: nextGeneration,
     }
@@ -133,14 +137,17 @@ for (const [studentId, audioClips] of titleCalls) {
       if (useR2) {
         await uploadFileToR2(localPath, key, 'audio/mpeg')
       }
-      manifest = upsertClipRecord(manifest, seriesRef, {
+      manifest = upsertClipRecord(manifest, clipId, {
         generation: nextGeneration,
         sourceUrl,
         etag: downloaded.etag ?? signature.etag,
         size: downloaded.size ?? signature.size,
         checkedAt: now(),
       })
-      latestGenerationBySeries.set(seriesRef, nextGeneration)
+      seriesByClipId.set(clipId, {
+        folderId: series.folderId,
+        latest: nextGeneration,
+      })
       added.push(key)
       console.log(`新しい世代を追加: ${key}`)
     } catch (error) {

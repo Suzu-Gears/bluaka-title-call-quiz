@@ -7,7 +7,6 @@ import {
   AUDIO_MANIFEST_KEY,
   type AudioKeyParts,
   formatAudioKey,
-  formatClipSeriesRef,
   formatImageKey,
   parseAudioKey,
   parseImageKey,
@@ -54,8 +53,8 @@ import {
 } from '@/lib/schaleDBClient'
 import {
   checkTitleCallSchema,
-  clipIdFromAudioClip,
   extractTitleCalls,
+  planTitleCallDownloads,
   resolveVoiceAssetUrl,
 } from '@/lib/voiceData'
 
@@ -215,11 +214,6 @@ export async function buildAssets(): Promise<BuildAssetsResult> {
         .filter((id): id is number => id !== null)
     : listLocalImageIds()
 
-  const audioSeries = new Set(
-    existingAudioKeys.map((key) =>
-      formatClipSeriesRef(key.studentId, key.clipId),
-    ),
-  )
   const imageIdSet = new Set(existingImageIds)
 
   let manifest = await loadAudioManifest(useR2)
@@ -228,56 +222,49 @@ export async function buildAssets(): Promise<BuildAssetsResult> {
   const pendingAudio: string[] = []
   const addedKeys: AudioKeyParts[] = []
 
-  // --- 音声の差分補充: voice.json にあって R2(またはローカル)に無い系列だけ取得 ---
-  for (const [studentId, audioClips] of titleCalls) {
-    for (const audioClip of audioClips) {
-      const clipId = clipIdFromAudioClip(audioClip)
-      if (!clipId) {
-        console.warn(
-          `キー規約で扱えない AudioClip をスキップします: ${audioClip} (Id=${studentId})`,
-        )
-        continue
-      }
-      const seriesRef = formatClipSeriesRef(studentId, clipId)
-      if (audioSeries.has(seriesRef)) {
-        continue
-      }
+  // --- 音声の差分補充 ---
+  // 存在判定は clipId 単位(グローバル)。R2 上でクリップを本来の形態のフォルダへ
+  // 移動していても、voice.json の掲載位置に基づいて再取得されることはない。
+  const existingClipIds = new Set(existingAudioKeys.map((key) => key.clipId))
+  const plan = planTitleCallDownloads(titleCalls, existingClipIds)
+  for (const item of plan.unusable) {
+    console.warn(`キー規約で扱えない AudioClip をスキップします: ${item}`)
+  }
 
-      const parts: AudioKeyParts = { studentId, clipId, generation: 1 }
-      const key = formatAudioKey(parts)
-      const sourceUrl = resolveVoiceAssetUrl(audioClip)
-      const localPath = path.join(PUBLIC_DIR, key)
-      try {
-        const signature = await downloadBinary(sourceUrl, localPath)
-        if (useR2) {
-          await uploadFileToR2(localPath, key, 'audio/mpeg')
-        }
-        manifest = upsertClipRecord(manifest, seriesRef, {
-          generation: 1,
-          sourceUrl,
-          etag: signature.etag,
-          size: signature.size,
-          checkedAt: new Date().toISOString(),
-        })
-        audioSeries.add(seriesRef)
-        addedKeys.push(parts)
-        addedAudio.push(key)
-        console.log(`音声を追加: ${key}`)
-      } catch (error) {
-        if (isNotFoundError(error)) {
-          // 実装直後の生徒は voice.json に載っていても音源がまだ置かれていない。
-          // 次回以降のビルドで自動的に拾えるため、失敗としては数えない。
-          pendingAudio.push(`${key} (Id=${studentId})`)
-          console.log(`音源が未公開のためスキップ: ${sourceUrl}`)
-        } else {
-          failedAudio.push(`${key} (${(error as Error).message})`)
-          console.error(
-            `音声の取得に失敗: ${sourceUrl}: ${(error as Error).message}`,
-          )
-        }
+  for (const { studentId, clipId, audioClip } of plan.downloads) {
+    const parts: AudioKeyParts = { studentId, clipId, generation: 1 }
+    const key = formatAudioKey(parts)
+    const sourceUrl = resolveVoiceAssetUrl(audioClip)
+    const localPath = path.join(PUBLIC_DIR, key)
+    try {
+      const signature = await downloadBinary(sourceUrl, localPath)
+      if (useR2) {
+        await uploadFileToR2(localPath, key, 'audio/mpeg')
       }
-      await sleep(requestIntervalMs)
+      manifest = upsertClipRecord(manifest, clipId, {
+        generation: 1,
+        sourceUrl,
+        etag: signature.etag,
+        size: signature.size,
+        checkedAt: new Date().toISOString(),
+      })
+      addedKeys.push(parts)
+      addedAudio.push(key)
+      console.log(`音声を追加: ${key}`)
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        // 実装直後の生徒は voice.json に載っていても音源がまだ置かれていない。
+        // 次回以降のビルドで自動的に拾えるため、失敗としては数えない。
+        pendingAudio.push(`${key} (Id=${studentId})`)
+        console.log(`音源が未公開のためスキップ: ${sourceUrl}`)
+      } else {
+        failedAudio.push(`${key} (${(error as Error).message})`)
+        console.error(
+          `音声の取得に失敗: ${sourceUrl}: ${(error as Error).message}`,
+        )
+      }
     }
+    await sleep(requestIntervalMs)
   }
 
   // --- 画像の差分補充: 全メンバー分 ---

@@ -69,16 +69,11 @@ export function formatImageKey(studentId: number): string {
   return `${IMAGE_KEY_PREFIX}${studentId}.webp`
 }
 
-/** ラベル定義ファイルと音声マニフェストで使う、世代まで含めた識別子。 */
-export function formatClipRef({
-  studentId,
-  clipId,
-  generation,
-}: AudioKeyParts): string {
-  return `${studentId}/${clipId}.g${generation}`
-}
-
-/** 世代を含まない、クリップ系列の識別子。世代採番のグループ化に使う。 */
-export function formatClipSeriesRef(studentId: number, clipId: string): string {
-  return `${studentId}/${clipId}`
+/**
+ * ラベル定義で使う、世代まで含めたクリップ識別子。
+ * clipId は SchaleDB 全体で一意なため、フォルダ(生徒Id)は含めない。
+ * これによりクリップを別メンバーのフォルダへ移動しても参照が壊れない。
+ */
+export function formatClipRef(clipId: string, generation: number): string {
+  return `${clipId}.g${generation}`
 }

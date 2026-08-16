@@ -1,9 +1,10 @@
 import type { RemoteAssetSignature } from '@/lib/schaleDBClient'
 
 /**
- * 各クリップ系列(生徒Id + clipId)について、最後に取り込んだ音源の指紋を記録する。
- * cache:refresh はこれと現在の SchaleDB 側 HEAD を比較し、
+ * 各クリップ系列(clipId 単位。SchaleDB 全体で一意)について、最後に取り込んだ
+ * 音源の指紋を記録する。cache:refresh はこれと現在の SchaleDB 側 HEAD を比較し、
  * 差異があれば「録り直し」とみなして新しい世代を追加する。
+ * キーに生徒 Id を含めないため、クリップを別フォルダへ移動しても記録が追従する。
  */
 
 export const AUDIO_MANIFEST_VERSION = 1
@@ -20,7 +21,7 @@ export interface AudioManifestEntry {
 export interface AudioManifest {
   version: number
   updatedAt: string
-  /** キーは `${studentId}/${clipId}` */
+  /** キーは clipId */
   clips: Record<string, AudioManifestEntry>
 }
 
@@ -39,8 +40,15 @@ export function normalizeAudioManifest(
   const clips: Record<string, AudioManifestEntry> = {}
 
   if (source.clips && typeof source.clips === 'object') {
-    for (const [ref, value] of Object.entries(source.clips)) {
+    for (const [rawRef, value] of Object.entries(source.clips)) {
       if (!value || typeof value !== 'object') {
+        continue
+      }
+      // 旧形式のキー(`${studentId}/${clipId}`)は clipId のみへ移行する。
+      const ref = rawRef.includes('/')
+        ? (rawRef.split('/').pop() ?? '')
+        : rawRef
+      if (!ref) {
         continue
       }
       const entry = value as Partial<AudioManifestEntry>

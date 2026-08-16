@@ -91,6 +91,53 @@ export function resolveVoiceAssetUrl(audioClip: string): string {
   return `${VOICE_ASSET_BASE_URL}${audioClip.replace(/^\/+/, '')}`
 }
 
+export interface TitleCallDownload {
+  /** voice.json 上の掲載メンバー。新規クリップの保存先フォルダになる。 */
+  studentId: number
+  clipId: string
+  audioClip: string
+}
+
+export interface TitleCallDownloadPlan {
+  downloads: TitleCallDownload[]
+  /** キー規約で扱えない AudioClip(警告対象) */
+  unusable: string[]
+}
+
+/**
+ * voice.json のうち、まだ R2 に存在しないクリップだけを取得対象にする。
+ *
+ * 存在判定は clipId 単位でグローバルに行う(clipId は SchaleDB 全体で一意)。
+ * フォルダ(生徒Id)を判定に含めないため、クリップを本来の形態のフォルダへ
+ * 移動しても(シュン（水着）の np0288 を 10144 側へ置くなど)、voice.json の
+ * 掲載位置に基づいて再ダウンロードされることがない。
+ */
+export function planTitleCallDownloads(
+  titleCalls: ReadonlyMap<number, readonly string[]>,
+  existingClipIds: ReadonlySet<string>,
+): TitleCallDownloadPlan {
+  const downloads: TitleCallDownload[] = []
+  const unusable: string[] = []
+  const planned = new Set<string>()
+
+  for (const [studentId, audioClips] of titleCalls) {
+    for (const audioClip of audioClips) {
+      const clipId = clipIdFromAudioClip(audioClip)
+      if (!clipId) {
+        unusable.push(`${audioClip} (Id=${studentId})`)
+        continue
+      }
+      if (existingClipIds.has(clipId) || planned.has(clipId)) {
+        continue
+      }
+      planned.add(clipId)
+      downloads.push({ studentId, clipId, audioClip })
+    }
+  }
+
+  return { downloads, unusable }
+}
+
 export interface TitleCallSchemaCheckParams {
   studentIds: readonly number[]
   voiceIds: readonly number[]

@@ -283,6 +283,15 @@ export const setupQuiz = (
       : DEFAULT_IMAGE
   }
 
+  /** 流れたクリップの形態(シュエリンならシュエリン)の画像を出す。 */
+  const imageUrlForClip = (
+    clip: TitleCallClip | null,
+    fallbackName: string,
+  ): string =>
+    clip
+      ? resolveAssetUrl(formatImageKey(clip.ownerId))
+      : imageUrlForName(fallbackName)
+
   // 旧世代の音声が 1 本も無いうちは、設定項目自体を出さない。
   if (oldGenerationWrapper) {
     const hasAnyOldGeneration = playableEntries.some((entry) =>
@@ -556,7 +565,7 @@ export const setupQuiz = (
 
   const updateAnswerFeedback = (name: string) => {
     if (!answerFeedback || !answerImage || !answerName || !name) return
-    answerImage.src = imageUrlForName(name)
+    answerImage.src = imageUrlForClip(currentQuestionClip, name)
     answerImage.onerror = () => {
       answerImage.src = DEFAULT_IMAGE
     }
@@ -640,7 +649,7 @@ export const setupQuiz = (
       const item = document.createElement('article')
       item.className = `quiz-result-item ${entry.isCorrect ? 'correct' : 'wrong'}`
       const image = document.createElement('img')
-      image.src = imageUrlForName(entry.correctAnswer)
+      image.src = imageUrlForClip(entry.clip, entry.correctAnswer)
       image.alt = entry.correctAnswer
       image.onerror = () => {
         image.src = DEFAULT_IMAGE

@@ -1,4 +1,5 @@
-import { formatAudioKey, type AudioKeyParts } from '@/lib/assetKeys'
+import { AUDIO_CLIP_LABELS } from '@/data/audioLabels'
+import { type AudioKeyParts } from '@/lib/assetKeys'
 import { loadSchaleDBSnapshot } from '@/lib/assetPipeline'
 import { buildQuizEntries } from '@/lib/jsonUtils'
 import { selectPlayableClips } from '@/lib/titleCallClips'
@@ -21,6 +22,7 @@ const { entries, orphanAudioKeys } = buildQuizEntries({
   students,
   audioKeys,
   titleCalls,
+  labels: AUDIO_CLIP_LABELS,
 })
 
 console.log(`生徒レコード: ${students.length}`)
@@ -112,7 +114,7 @@ if (cherinoId) {
       { studentId: cherinoId, clipId: 'cherino_title', generation: 2 },
     ],
     titleCalls,
-    labels: { [`${cherinoId}/cherino_title.g1`]: '旧声優版' },
+    labels: { 'cherino_title.g1': '旧声優版' },
   })
   const cherino = withG2.entries.find((e) => e.Name === 'チェリノ')!
   console.log('\n--- 世代追加シミュレーション(チェリノ g2)')
@@ -121,13 +123,7 @@ if (cherinoId) {
   )
   console.log(
     `  既定: ${selectPlayableClips(cherino.TitleCalls, false)
-      .map((c) =>
-        formatAudioKey({
-          studentId: c.ownerId,
-          clipId: c.clipId,
-          generation: c.generation,
-        }),
-      )
+      .map((c) => c.file)
       .join(', ')}`,
   )
   console.log(

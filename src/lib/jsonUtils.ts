@@ -86,7 +86,7 @@ export interface BuildQuizEntriesParams {
   audioKeys: readonly AudioKeyParts[]
   /** voice.json 由来の AudioClip パス。source 判定にのみ使う。 */
   titleCalls: ReadonlyMap<number, readonly string[]>
-  /** クリップの表示名。キーは formatClipRef の形式。 */
+  /** クリップの表示名。キーは formatClipRef の形式(`{clipId}.g{世代}`)。 */
   labels?: Readonly<Record<string, string>>
 }
 
@@ -128,16 +128,17 @@ export function buildQuizEntries({
     }
   }
 
-  const schaledbClipIds = new Map<number, Set<string>>()
-  for (const [studentId, clips] of titleCalls) {
-    const clipIds = new Set<string>()
+  // clipId は SchaleDB 全体で一意なので、掲載有無の判定はグローバルに行う。
+  // これにより voice.json の掲載メンバーと R2 上のフォルダ(実際の帰属)が
+  // 異なっていても 'schaledb' と正しく判定される(シュン（水着）の np0288 など)。
+  const schaledbClipIds = new Set<string>()
+  for (const clips of titleCalls.values()) {
     for (const audioClip of clips) {
       const clipId = clipIdFromAudioClip(audioClip)
       if (clipId) {
-        clipIds.add(clipId)
+        schaledbClipIds.add(clipId)
       }
     }
-    schaledbClipIds.set(studentId, clipIds)
   }
 
   const groups = new Map<string, Student[]>()
@@ -161,20 +162,19 @@ export function buildQuizEntries({
     for (const member of sortedMembers) {
       for (const key of audioByStudent.get(member.Id) ?? []) {
         // 同一 clipId + 世代が複数メンバーの下に置かれていても 1 つに畳む。
-        const dedupeKey = `${key.clipId}.g${key.generation}`
+        const dedupeKey = formatClipRef(key.clipId, key.generation)
         if (seenClips.has(dedupeKey)) {
           continue
         }
         seenClips.add(dedupeKey)
-        const label = labels[formatClipRef(key)]
+        const label = labels[dedupeKey]
         clips.push({
           clipId: key.clipId,
           generation: key.generation,
           file: formatAudioKey(key),
+          // R2 上の置き場所(フォルダの生徒 Id)がそのまま帰属の宣言。
           ownerId: key.studentId,
-          source: schaledbClipIds.get(key.studentId)?.has(key.clipId)
-            ? 'schaledb'
-            : 'r2-only',
+          source: schaledbClipIds.has(key.clipId) ? 'schaledb' : 'r2-only',
           ...(label ? { label } : {}),
         })
       }

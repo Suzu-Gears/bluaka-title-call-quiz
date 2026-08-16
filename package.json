@@ -13,6 +13,7 @@
     "local-cache:purge": "tsx ./src/scripts/purgeCache.ts",
     "data:verify": "tsx ./src/scripts/verifyPipeline.ts",
     "r2:check": "tsx --env-file=.env ./src/scripts/checkR2.ts",
+    "r2:move": "tsx --env-file=.env ./src/scripts/moveAudio.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx ./src/lib/test.ts"
   },
