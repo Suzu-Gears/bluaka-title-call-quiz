@@ -80,12 +80,12 @@ export const setupSettings = (): void => {
   ) as HTMLDialogElement | null
   const closeButton = document.getElementById('settings-dialog-close')
   const networkState = document.getElementById('settings-network-state')
-  const currentVersionText = document.getElementById(
-    'settings-current-version',
-  )
+  const currentVersionText = document.getElementById('settings-current-version')
   const latestVersionText = document.getElementById('settings-latest-version')
   const updateNote = document.getElementById('settings-update-note')
-  const statusText = document.getElementById('settings-status')
+  const downloadStatusText = document.getElementById('settings-download-status')
+  const cacheStatusText = document.getElementById('settings-cache-status')
+  const resetStatusText = document.getElementById('settings-reset-status')
   const checkUpdateButton = document.getElementById(
     'settings-check-update',
   ) as HTMLButtonElement | null
@@ -96,9 +96,7 @@ export const setupSettings = (): void => {
     'settings-apply-update',
   ) as HTMLButtonElement | null
   const cacheSizeLine = document.getElementById('settings-cache-size-line')
-  const downloadProgress = document.getElementById(
-    'settings-download-progress',
-  )
+  const downloadProgress = document.getElementById('settings-download-progress')
   const downloadProgressBar = document.getElementById(
     'settings-download-progress-bar',
   ) as HTMLProgressElement | null
@@ -127,11 +125,18 @@ export const setupSettings = (): void => {
 
   openButton.hidden = false
 
-  const setStatus = (message: string) => {
-    if (statusText) {
-      statusText.textContent = message
+  const setElementText = (element: HTMLElement | null, message: string) => {
+    if (element) {
+      element.textContent = message
     }
   }
+  // 操作結果は各セクションの直下に出す(最下部だと見えないため)
+  const setDownloadStatus = (message: string) =>
+    setElementText(downloadStatusText, message)
+  const setCacheStatus = (message: string) =>
+    setElementText(cacheStatusText, message)
+  const setResetStatus = (message: string) =>
+    setElementText(resetStatusText, message)
 
   const setUpdateNote = (message: string) => {
     if (updateNote) {
@@ -178,9 +183,7 @@ export const setupSettings = (): void => {
     if (applyUpdateButton) {
       applyUpdateButton.hidden = !updateAvailable
     }
-    setUpdateNote(
-      updateAvailable ? '新しいバージョンがあります。' : '',
-    )
+    setUpdateNote(updateAvailable ? '新しいバージョンがあります。' : '')
   }
 
   /** 更新確認。showResult が真のときだけ結果をステータス欄へ出す。 */
@@ -273,13 +276,15 @@ export const setupSettings = (): void => {
       }
       manifest ??= await fetchCacheManifest()
       if (!manifest) {
-        setStatus('ファイル一覧を取得できませんでした。通信環境を確認してください。')
+        setDownloadStatus(
+          'ファイル一覧を取得できませんでした。通信環境を確認してください。',
+        )
         return
       }
       isDownloading = true
       downloadAllButton.disabled = true
       downloadAbortController = new AbortController()
-      setStatus('保存状況を確認しています...')
+      setDownloadStatus('保存状況を確認しています...')
       try {
         const result = await downloadAllAssets(
           manifest,
@@ -288,20 +293,20 @@ export const setupSettings = (): void => {
             if (cancelDownloadButton?.hidden) {
               cancelDownloadButton.hidden = false
               cancelDownloadButton.disabled = false
-              setStatus('ダウンロードしています...')
+              setDownloadStatus('ダウンロードしています...')
             }
             setDownloadProgress(progress.doneBytes, progress.totalBytes, true)
           },
           downloadAbortController.signal,
         )
         if (result.aborted) {
-          setStatus(
+          setDownloadStatus(
             'ダウンロードをキャンセルしました。保存済みの分は残っており、次回は続きから再開します。',
           )
         } else if (result.plannedCount === 0) {
-          setStatus('すべて保存済みです。')
+          setDownloadStatus('すべて保存済みです。')
         } else {
-          setStatus(
+          setDownloadStatus(
             result.ok
               ? 'すべてのデータを保存しました。'
               : `${result.failedCount} 件のファイルを取得できませんでした。あとでもう一度お試しください。`,
@@ -331,11 +336,11 @@ export const setupSettings = (): void => {
   clearCacheButton?.addEventListener('click', () => {
     void (async () => {
       clearCacheButton.disabled = true
-      setStatus('キャッシュを削除しています...')
+      setCacheStatus('キャッシュを削除しています...')
       await clearServiceWorkersAndCaches()
       // 解除したままだとオフライン起動できなくなるため、その場で登録し直す
       registerAppServiceWorker()
-      setStatus('キャッシュをクリアしました。')
+      setCacheStatus('キャッシュをクリアしました。')
       clearCacheButton.disabled = false
       void renderCacheSizeLine()
     })()
@@ -350,7 +355,7 @@ export const setupSettings = (): void => {
     }
     void (async () => {
       resetButton.disabled = true
-      setStatus('初期化しています...')
+      setResetStatus('初期化しています...')
       removeAllAppStorage()
       await clearServiceWorkersAndCaches()
       window.location.reload()
@@ -360,7 +365,9 @@ export const setupSettings = (): void => {
   // --- 開閉 ----------------------------------------------------------------
 
   openButton.addEventListener('click', () => {
-    setStatus('')
+    setDownloadStatus('')
+    setCacheStatus('')
+    setResetStatus('')
     renderNetworkState()
     dialog.showModal()
     // showModal は最初のフォーカス可能要素(×ボタン)へフォーカスを移し、

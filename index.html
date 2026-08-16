@@ -756,20 +756,19 @@
       <div class="filter-section-label">アップデート</div>
       <p id="settings-update-note" class="settings-note" hidden></p>
       <div class="app-dialog-actions">
+        <button id="settings-check-update" type="button">更新を確認</button>
         <button
-          id="settings-check-update"
+          id="settings-apply-update"
           class="settings-badge-host"
           type="button"
+          hidden
         >
-          更新を確認
+          更新を適用
           <span
             id="settings-update-button-badge"
             class="settings-badge"
             hidden
           ></span>
-        </button>
-        <button id="settings-apply-update" type="button" hidden>
-          更新を適用
         </button>
       </div>
       <div class="filter-section-label">データのダウンロード</div>
@@ -797,6 +796,11 @@
           キャンセル
         </button>
       </div>
+      <p
+        id="settings-download-status"
+        class="app-dialog-status"
+        role="status"
+      ></p>
       <div class="filter-section-label">キャッシュ</div>
       <p class="settings-note">
         表示や音声がおかしいときに使ってください。進捗は消えません。
@@ -806,6 +810,11 @@
           キャッシュをクリア
         </button>
       </div>
+      <p
+        id="settings-cache-status"
+        class="app-dialog-status"
+        role="status"
+      ></p>
       <div class="filter-section-label">リセット</div>
       <p class="settings-note">
         進捗(クイズの正答記録)や設定をすべて消して初期状態に戻します。
@@ -819,6 +828,11 @@
           アプリを初期化
         </button>
       </div>
+      <p
+        id="settings-reset-status"
+        class="app-dialog-status"
+        role="status"
+      ></p>
       <div class="filter-section-label">情報</div>
       <p class="settings-note">
         <a
@@ -828,7 +842,6 @@
           >GitHub</a
         >
       </p>
-      <p id="settings-status" class="app-dialog-status" role="status"></p>
     </dialog>
     <dialog id="progress-dialog" class="app-dialog" tabindex="-1">
       <h3 id="progress-dialog-title">進捗データ</h3>

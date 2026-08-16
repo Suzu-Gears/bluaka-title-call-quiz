@@ -212,6 +212,15 @@ h1 {
   border-color: var(--color-bg-surface);
 }
 
+/* セクション直下の操作結果メッセージ。空のときは場所を取らない */
+.settings-dialog .app-dialog-status {
+  min-height: 0;
+}
+
+.settings-dialog .app-dialog-status:empty {
+  display: none;
+}
+
 /* 設定ダイアログのセクション間隔と注記 */
 .settings-dialog .filter-section-label {
   margin-top: 1.1rem;
