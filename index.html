@@ -36,8 +36,97 @@
   </head>
   <body>
     <div class="main">
-      <header>
-        <h1>ブルアカ タイトルコールクイズ</h1>
+      <header class="app-header">
+        <div class="app-header-inner">
+          <!-- fitty は親要素の clientWidth(padding込み)を基準に拡大するため、
+               padding を持たないこのラッパーで計測幅を正しくする -->
+          <div class="app-title-fit">
+            <h1 id="app-title">ブルアカ タイトルコールクイズ</h1>
+          </div>
+          <button
+            id="settings-open"
+            class="settings-button"
+            type="button"
+            aria-haspopup="dialog"
+            aria-label="設定"
+            title="設定"
+            hidden
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <!-- 8歯の歯車 -->
+              <g fill="currentColor">
+                <rect x="10.45" y="1.6" width="3.1" height="4.6" rx="0.7" />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(45 12 12)"
+                />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(90 12 12)"
+                />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(135 12 12)"
+                />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(180 12 12)"
+                />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(225 12 12)"
+                />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(270 12 12)"
+                />
+                <rect
+                  x="10.45"
+                  y="1.6"
+                  width="3.1"
+                  height="4.6"
+                  rx="0.7"
+                  transform="rotate(315 12 12)"
+                />
+                <path
+                  fill-rule="evenodd"
+                  d="M12 4.4a7.6 7.6 0 1 0 0 15.2a7.6 7.6 0 1 0 0-15.2zm0 4.2a3.4 3.4 0 1 1 0 6.8a3.4 3.4 0 1 1 0-6.8z"
+                />
+              </g>
+            </svg>
+            <span id="settings-badge" class="settings-badge" hidden></span>
+          </button>
+        </div>
       </header>
       <div class="content">
         <p id="app-error" class="app-error" role="alert" hidden></p>
@@ -521,12 +610,6 @@
       <footer>
         <div>
           <small id="footer-version"></small>
-          <a
-            href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >GitHub</a
-          >
         </div>
         <small>
           当WEBサイトはNexon、Nexon GamesおよびYostarとは一切関係ありません。<br />
@@ -596,6 +679,64 @@
           確認
         </button>
       </div>
+    </dialog>
+    <dialog
+      id="settings-dialog"
+      class="app-dialog filter-dialog settings-dialog"
+    >
+      <div class="filter-dialog-head">
+        <h3 class="filter-dialog-title">設定</h3>
+        <button
+          id="settings-dialog-close"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <div class="filter-section-label">アップデート</div>
+      <p id="settings-version-line" class="settings-note"></p>
+      <div class="app-dialog-actions">
+        <button id="settings-check-update" type="button">
+          更新を確認して適用
+        </button>
+      </div>
+      <div class="filter-section-label">キャッシュ</div>
+      <p class="settings-note">
+        表示や音声がおかしいときに使ってください。進捗は消えません。
+      </p>
+      <div class="app-dialog-actions">
+        <button id="settings-clear-cache" type="button">
+          キャッシュをクリア
+        </button>
+        <button id="settings-redownload" type="button">
+          すべて再ダウンロード
+        </button>
+      </div>
+      <div class="filter-section-label">リセット</div>
+      <p class="settings-note">
+        進捗(クイズの正答記録)や設定をすべて消して初期状態に戻します。
+      </p>
+      <div class="app-dialog-actions">
+        <button
+          id="settings-reset-app"
+          class="settings-danger-button"
+          type="button"
+        >
+          アプリを初期化
+        </button>
+      </div>
+      <div class="filter-section-label">情報</div>
+      <p class="settings-note">
+        <a
+          href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+      </p>
+      <p id="settings-status" class="app-dialog-status" role="status"></p>
     </dialog>
     <dialog id="progress-dialog" class="app-dialog">
       <h3 id="progress-dialog-title">進捗データ</h3>

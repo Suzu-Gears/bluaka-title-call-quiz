@@ -1,6 +1,9 @@
 import '@fontsource/kosugi-maru'
 
+import fitty from 'fitty'
+
 import { setupStudentGrid } from '@/cardList'
+import { applyPendingAppUpdate } from '@/lib/appUpdate'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import {
   FINAL_DATA_SCHEMA_VERSION,
@@ -9,6 +12,7 @@ import {
 } from '@/lib/interfaces'
 import { APP_ERROR_TEXT } from '@/lib/uiText'
 import { setupQuiz } from '@/quiz'
+import { isPwaMode, setupSettings } from '@/settings'
 import './quizModeControl.css'
 import './quizQuestionCountControl.css'
 import './styles.css'
@@ -39,6 +43,32 @@ const setupPageSwitch = () => {
       )
     })
   })
+}
+
+/** タイトルは改行させず、設定アイコンが入りきらない幅では文字を縮める。 */
+const setupTitleFit = () => {
+  const title = document.getElementById('app-title')
+  if (!title) return
+  const maxSize = parseFloat(window.getComputedStyle(title).fontSize)
+  const instance = fitty(title, { minSize: 12, maxSize, multiLine: false })
+
+  // 初期化直後はレイアウトや Web フォント(Kosugi Maru)適用前の幅で
+  // 計測されることがあり、そのままだとタイトルがヘッダーからはみ出す。
+  // 描画確定後とフォント読み込み完了時に測り直して防ぐ。
+  const refit = () => {
+    instance.fit()
+  }
+  requestAnimationFrame(refit)
+  window.setTimeout(refit, 300)
+  window.addEventListener('load', refit)
+  if ('fonts' in document) {
+    void document.fonts.ready.then(() => {
+      fitty.fitAll()
+    })
+    document.fonts.addEventListener('loadingdone', () => {
+      fitty.fitAll()
+    })
+  }
 }
 
 const setFooterVersion = () => {
@@ -84,6 +114,13 @@ const loadEntries = async (): Promise<QuizEntry[]> => {
 document.addEventListener('touchstart', () => {}, { passive: true })
 
 const bootstrap = async () => {
+  // 通常のブラウザタブでは黙って自動更新する。
+  // PWA(スタンドアロン)では設定画面からの手動更新+バッジ表示に切り替える。
+  if (!isPwaMode()) {
+    void applyPendingAppUpdate()
+  }
+  setupSettings()
+  setupTitleFit()
   setupPageSwitch()
   setFooterVersion()
   const entries = await loadEntries()
