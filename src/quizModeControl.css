@@ -10,11 +10,13 @@
   display: flex;
   align-items: center;
   gap: 1px;
-  height: 2.4em;
+  /* ボタン本体の高さ + 上下の影ぶんの余白。全クイズコントロールで共通 */
+  height: calc(var(--quiz-control-height) + 2 * var(--quiz-control-pad));
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   overflow-x: auto;
-  padding-block: 0.3em;
+  padding-block: var(--quiz-control-pad);
   padding-inline-start: 0.5em;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -26,7 +28,7 @@
   position: relative;
   flex-shrink: 0;
   height: 100%;
-  font-size: 1.2em;
+  font-size: var(--quiz-control-font-size);
   background: transparent;
   border: none;
   padding-inline: 1em;
@@ -47,7 +49,10 @@
   border-radius: 0;
   background-color: #f4f5f6;
   box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-radius 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-radius 0.2s ease;
 }
 
 .quiz-mode-component-wrapper .para:first-child::before {
@@ -80,17 +85,14 @@
   pointer-events: none;
   font-weight: 700;
   font-family:
-    'ヒラギノ丸ゴ Pro',
-    'Hiragino Maru Gothic Pro',
-    'HG丸ｺﾞｼｯｸM-PRO',
-    'HGMaruGothicMPRO',
-    sans-serif;
+    'ヒラギノ丸ゴ Pro', 'Hiragino Maru Gothic Pro', 'HG丸ｺﾞｼｯｸM-PRO',
+    'HGMaruGothicMPRO', sans-serif;
   color: #496f8f;
   transition: color 0.2s ease;
 }
 
 .quiz-mode-component-wrapper .para:has(.radio-input:checked)::before {
-  background-color: #496f8f;
+  background-color: var(--color-navy-deep);
 }
 
 .quiz-mode-component-wrapper .para:has(.radio-input:checked) .radio-label {

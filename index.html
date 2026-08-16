@@ -43,24 +43,69 @@
         <p id="app-error" class="app-error" role="alert" hidden></p>
         <div class="page-switch">
           <button type="button" data-view-target="card-list" class="is-active">
-            カード一覧
+            生徒リスト
           </button>
           <button type="button" data-view-target="quiz-view">クイズ</button>
         </div>
         <section id="card-list">
+          <div class="panel-head">
+            <svg
+              class="panel-head-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect
+                x="4"
+                y="2.5"
+                width="16"
+                height="19"
+                rx="2.5"
+                fill="#2f86d6"
+              />
+              <rect
+                x="6.5"
+                y="5"
+                width="11"
+                height="6.5"
+                rx="1"
+                fill="#ffffff"
+                opacity="0.92"
+              />
+              <rect
+                x="6.5"
+                y="13.5"
+                width="11"
+                height="1.8"
+                rx="0.9"
+                fill="#ffffff"
+                opacity="0.85"
+              />
+              <rect
+                x="6.5"
+                y="17"
+                width="8"
+                height="1.8"
+                rx="0.9"
+                fill="#ffffff"
+                opacity="0.85"
+              />
+            </svg>
+            <h2 class="panel-head-title">生徒リスト</h2>
+          </div>
           <div class="grid" id="studentGrid">
             <div class="controls-row">
               <label class="search-wrapper" for="student-filter-input">
-                名前フィルター
+                <span class="visually-hidden">名前フィルター</span>
                 <input
                   id="student-filter-input"
                   class="student-filter-input"
                   type="text"
-                  placeholder="生徒名"
+                  placeholder="生徒の名前を入力"
                   autocomplete="off"
                 />
               </label>
-              <fieldset class="category-filter-fieldset">
+              <fieldset class="category-filter-fieldset pill-filter-fieldset">
                 <legend>表示対象</legend>
                 <label
                   ><input
@@ -94,201 +139,261 @@
                   id="student-sort-direction"
                   class="sort-direction-button"
                   type="button"
+                  data-direction="desc"
+                  aria-label="降順"
+                  title="降順"
                 >
-                  昇順
+                  <svg
+                    class="sort-direction-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <g
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                    >
+                      <path d="M3.5 6h9.5" />
+                      <path d="M3.5 12h9.5" />
+                      <path d="M3.5 18h9.5" />
+                    </g>
+                    <g
+                      class="sort-direction-arrow"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M18.5 5.5v12.5" />
+                      <path d="M15.2 14.8l3.3 3.5 3.3-3.5" />
+                    </g>
+                  </svg>
                 </button>
               </label>
             </div>
           </div>
         </section>
         <section id="quiz-view" hidden>
-          <section aria-label="クイズ" class="quiz-section">
-            <div class="quiz-header-row">
-              <h2>クイズ</h2>
-              <div class="quiz-menu">
-                <button
-                  id="quiz-menu-button"
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded="false"
-                  aria-controls="quiz-menu-panel"
-                >
-                  メニュー
-                </button>
-                <div
-                  id="quiz-menu-panel"
-                  class="quiz-menu-panel"
-                  role="menu"
-                  hidden
-                >
-                  <button
-                    id="quiz-menu-restart-button"
-                    type="button"
-                    role="menuitem"
-                    disabled
-                  >
-                    リスタート
-                  </button>
-                  <button
-                    id="quiz-menu-reset-screen-button"
-                    type="button"
-                    role="menuitem"
-                  >
-                    クイズ設定画面に戻る
-                  </button>
-                  <button
-                    id="quiz-export-progress-button"
-                    type="button"
-                    role="menuitem"
-                  >
-                    進捗をエクスポート
-                  </button>
-                  <button
-                    id="quiz-import-progress-button"
-                    type="button"
-                    role="menuitem"
-                  >
-                    進捗をインポート
-                  </button>
-                  <button
-                    id="quiz-sync-button"
-                    type="button"
-                    role="menuitem"
-                    hidden
-                  >
-                    クラウド同期
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div id="quiz-setup-controls">
-              <div class="quiz-mode-wrapper">
-                出題方式
-                <div
-                  id="quiz-mode-group"
-                  class="radio-group quiz-mode-component-wrapper"
-                >
-                  <label class="para" ontouchstart="">
-                    <input
-                      type="radio"
-                      name="quiz-mode"
-                      value="multiple-choice"
-                      class="radio-input"
-                      checked
-                    />
-                    <span class="radio-label">4択</span>
-                  </label>
-                  <label class="para" ontouchstart="">
-                    <input
-                      type="radio"
-                      name="quiz-mode"
-                      value="name-input"
-                      class="radio-input"
-                    />
-                    <span class="radio-label">名前入力</span>
-                  </label>
-                  <label class="para" ontouchstart="">
-                    <input
-                      type="radio"
-                      name="quiz-mode"
-                      value="name-input-lunatic"
-                      class="radio-input"
-                    />
-                    <span class="radio-label">名前入力 (Lunatic)</span>
-                  </label>
-                </div>
-              </div>
-              <fieldset class="quiz-filter-fieldset">
-                <legend>出題対象</legend>
-                <label
-                  ><input
-                    id="quiz-filter-normal"
-                    type="checkbox"
-                    checked
-                  />通常</label
-                >
-                <label
-                  ><input
-                    id="quiz-filter-costume"
-                    type="checkbox"
-                  />別衣装</label
-                >
-                <label
-                  ><input
-                    id="quiz-filter-collaboration"
-                    type="checkbox"
-                  />コラボ生徒</label
-                >
-              </fieldset>
-              <label
-                id="quiz-old-generation-wrapper"
-                class="quiz-old-generation-wrapper"
+          <div class="panel-head">
+            <svg
+              class="panel-head-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect
+                x="2.5"
+                y="2.5"
+                width="19"
+                height="15"
+                rx="3.5"
+                fill="#2f86d6"
+              />
+              <path d="M8 20.8l1.6-3.6h4.2L10.3 21z" fill="#2f86d6" />
+              <text
+                x="12"
+                y="14.6"
+                text-anchor="middle"
+                font-size="11.5"
+                font-weight="700"
+                fill="#ffffff"
+                font-family="'Kosugi Maru', sans-serif"
+              >
+                ?
+              </text>
+            </svg>
+            <h2 class="panel-head-title">クイズ</h2>
+            <div class="quiz-menu">
+              <button
+                id="quiz-menu-button"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="quiz-menu-panel"
+              >
+                メニュー
+              </button>
+              <div
+                id="quiz-menu-panel"
+                class="quiz-menu-panel"
+                role="menu"
                 hidden
               >
-                <input id="quiz-include-old-generations" type="checkbox" />
-                旧バージョンの音声も出題する
-              </label>
-              <label
-                class="quiz-question-count-wrapper"
-                for="quiz-question-count-input"
-                >問題数
-                <div
-                  class="quiz-question-count-input-controls button-group quiz-question-count-component-wrapper"
+                <button
+                  id="quiz-menu-restart-button"
+                  type="button"
+                  role="menuitem"
+                  disabled
                 >
-                  <button
-                    id="quiz-question-count-min-button"
-                    class="para"
-                    type="button"
-                  >
-                    <span class="btn min">MIN</span>
-                  </button>
-                  <button
-                    id="quiz-question-count-minus-button"
-                    class="para"
-                    type="button"
-                    aria-label="問題数を1減らす"
-                  >
-                    <span class="btn minus">－</span>
-                  </button>
-                  <div class="para">
-                    <input
-                      id="quiz-question-count-input"
-                      class="counter"
-                      type="number"
-                      min="1"
-                      max="10"
-                      step="1"
-                      value="10"
-                      inputmode="numeric"
-                    />
+                  リスタート
+                </button>
+                <button
+                  id="quiz-menu-reset-screen-button"
+                  type="button"
+                  role="menuitem"
+                >
+                  クイズ設定画面に戻る
+                </button>
+                <button
+                  id="quiz-export-progress-button"
+                  type="button"
+                  role="menuitem"
+                >
+                  進捗をエクスポート
+                </button>
+                <button
+                  id="quiz-import-progress-button"
+                  type="button"
+                  role="menuitem"
+                >
+                  進捗をインポート
+                </button>
+                <button
+                  id="quiz-sync-button"
+                  type="button"
+                  role="menuitem"
+                  hidden
+                >
+                  クラウド同期
+                </button>
+              </div>
+            </div>
+          </div>
+          <section aria-label="クイズ" class="quiz-section">
+            <div id="quiz-setup-controls">
+              <div class="quiz-setup-grid">
+                <div class="quiz-setup-main">
+                  <div class="quiz-mode-wrapper">
+                    <div class="quiz-banner">出題方式</div>
+                    <div
+                      id="quiz-mode-group"
+                      class="radio-group quiz-mode-component-wrapper"
+                    >
+                      <label class="para" ontouchstart="">
+                        <input
+                          type="radio"
+                          name="quiz-mode"
+                          value="multiple-choice"
+                          class="radio-input"
+                          checked
+                        />
+                        <span class="radio-label">4択</span>
+                      </label>
+                      <label class="para" ontouchstart="">
+                        <input
+                          type="radio"
+                          name="quiz-mode"
+                          value="name-input"
+                          class="radio-input"
+                        />
+                        <span class="radio-label">名前入力</span>
+                      </label>
+                      <label class="para" ontouchstart="">
+                        <input
+                          type="radio"
+                          name="quiz-mode"
+                          value="name-input-lunatic"
+                          class="radio-input"
+                        />
+                        <span class="radio-label">名前入力 ( Lunatic )</span>
+                      </label>
+                    </div>
+                  </div>
+                  <fieldset class="quiz-filter-fieldset pill-filter-fieldset">
+                    <legend class="quiz-banner">出題対象</legend>
+                    <div class="pill-row">
+                      <label
+                        ><input
+                          id="quiz-filter-normal"
+                          type="checkbox"
+                          checked
+                        />通常生徒</label
+                      >
+                      <label
+                        ><input
+                          id="quiz-filter-costume"
+                          type="checkbox"
+                        />別衣装</label
+                      >
+                      <label
+                        ><input
+                          id="quiz-filter-collaboration"
+                          type="checkbox"
+                        />コラボ</label
+                      >
+                    </div>
+                  </fieldset>
+                </div>
+                <aside class="quiz-setup-action">
+                  <div class="quiz-count-panel">
+                    <label
+                      class="quiz-question-count-wrapper"
+                      for="quiz-question-count-input"
+                    >
+                      <span class="quiz-banner">問題数</span>
+                      <div
+                        class="quiz-question-count-input-controls button-group quiz-question-count-component-wrapper"
+                      >
+                        <button
+                          id="quiz-question-count-min-button"
+                          class="para"
+                          type="button"
+                        >
+                          <span class="btn min">MIN</span>
+                        </button>
+                        <button
+                          id="quiz-question-count-minus-button"
+                          class="para"
+                          type="button"
+                          aria-label="問題数を1減らす"
+                        >
+                          <span class="btn minus">－</span>
+                        </button>
+                        <div class="para">
+                          <input
+                            id="quiz-question-count-input"
+                            class="counter"
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="1"
+                            value="10"
+                            inputmode="numeric"
+                          />
+                        </div>
+                        <button
+                          id="quiz-question-count-plus-button"
+                          class="para"
+                          type="button"
+                          aria-label="問題数を1増やす"
+                        >
+                          <span class="btn plus">＋</span>
+                        </button>
+                        <button
+                          id="quiz-question-count-max-button"
+                          class="para"
+                          type="button"
+                        >
+                          <span class="btn max">MAX</span>
+                        </button>
+                      </div>
+                    </label>
                   </div>
                   <button
-                    id="quiz-question-count-plus-button"
-                    class="para"
-                    type="button"
-                    aria-label="問題数を1増やす"
-                  >
-                    <span class="btn plus">＋</span>
-                  </button>
-                  <button
-                    id="quiz-question-count-max-button"
-                    class="para"
+                    id="quiz-start-button"
+                    class="quiz-action-button quiz-start-cta"
                     type="button"
                   >
-                    <span class="btn max">MAX</span>
+                    開始
                   </button>
-                </div>
-              </label>
+                </aside>
+              </div>
             </div>
-            <p id="quiz-status">「開始」を押すとクイズを開始します。</p>
+            <p id="quiz-status" role="status"></p>
             <div class="quiz-controls">
-              <button
-                id="quiz-start-button"
-                class="quiz-action-button"
-                type="button"
-              >
-                開始
-              </button>
               <button
                 id="quiz-next-button"
                 class="quiz-action-button"

@@ -11,11 +11,13 @@
   display: flex;
   align-items: center;
   gap: 0.25em;
-  height: 2.4em;
+  /* ボタン本体の高さ + 上下の影ぶんの余白。全クイズコントロールで共通 */
+  height: calc(var(--quiz-control-height) + 2 * var(--quiz-control-pad));
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   overflow-x: auto;
-  padding-block: 0.3em;
+  padding-block: var(--quiz-control-pad);
   padding-inline: 0.5em;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -23,11 +25,12 @@
   touch-action: manipulation;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .para {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .para {
   position: relative;
   flex-shrink: 0;
   height: 100%;
-  font-size: 1.2em;
+  font-size: var(--quiz-control-font-size);
   background: transparent;
   border: none;
   padding-inline: 0.5em;
@@ -38,7 +41,8 @@
   justify-content: center;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .para::before {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .para::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -46,37 +50,44 @@
   border-radius: 0.25em;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para {
   transition: transform 0.05s ease;
   cursor: pointer;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para:active {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para:active {
   transform: scale(0.95);
   cursor: default;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para:disabled {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para:disabled {
   pointer-events: none;
   cursor: not-allowed;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para::before {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para::before {
   background-color: #f4f5f6;
   box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .para:has(.counter)::before {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .para:has(.counter)::before {
   background-color: #4e5b6e;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .para:has(.counter) {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .para:has(.counter) {
   height: calc(var(--quiz-question-count-input-height-ratio) * 100%);
   align-self: flex-end;
 }
 
 .quiz-question-count-input-controls.quiz-question-count-component-wrapper .btn,
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .counter {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .counter {
   position: relative;
   padding: 0;
   border: none;
@@ -84,11 +95,8 @@
   font-size: 1em;
   font-weight: 700;
   font-family:
-    'ヒラギノ丸ゴ Pro',
-    'Hiragino Maru Gothic Pro',
-    'HG丸ｺﾞｼｯｸM-PRO',
-    'HGMaruGothicMPRO',
-    sans-serif;
+    'ヒラギノ丸ゴ Pro', 'Hiragino Maru Gothic Pro', 'HG丸ｺﾞｼｯｸM-PRO',
+    'HGMaruGothicMPRO', sans-serif;
   text-align: center;
 }
 
@@ -97,26 +105,31 @@
   color: #496f8f;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .btn.plus {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .btn.plus {
   color: #3dcfff;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .btn.minus {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .btn.minus {
   color: #fe6f00;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para:disabled .btn {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para:disabled
+  .btn {
   color: #828282;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para:disabled::before {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para:disabled::before {
   background-color: #cdcecf;
 }
 
 #quiz-question-count-input.counter {
   width: 3em;
   color: #fff;
-  font-size: 1rem;
+  font-size: inherit;
   appearance: textfield;
 }
 
@@ -130,13 +143,16 @@
   outline: none;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para:focus {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para:focus {
   outline: none;
   border: none;
 }
 
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper button.para:focus-visible::before,
-.quiz-question-count-input-controls.quiz-question-count-component-wrapper .para:has(.counter):focus-within::before {
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  button.para:focus-visible::before,
+.quiz-question-count-input-controls.quiz-question-count-component-wrapper
+  .para:has(.counter):focus-within::before {
   outline: 0.2em solid #f3e756;
 }
 

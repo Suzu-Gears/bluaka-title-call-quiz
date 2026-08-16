@@ -2,8 +2,8 @@ import appRoot from 'app-root-path'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { AUDIO_CLIP_LABELS } from '@/data/audioLabels'
 import {
+  AUDIO_LABELS_KEY,
   AUDIO_MANIFEST_KEY,
   type AudioKeyParts,
   formatAudioKey,
@@ -32,6 +32,7 @@ import {
   saveText,
 } from '@/lib/fileOperations'
 import {
+  type AudioClipMetaMap,
   FINAL_DATA_SCHEMA_VERSION,
   type FinalData,
   type Student,
@@ -66,6 +67,7 @@ export const AUDIO_DIR = path.join(PUBLIC_DIR, 'audio')
 export const IMAGE_DIR = path.join(PUBLIC_DIR, 'image')
 export const FINAL_JSON_PATH = path.join(PUBLIC_DIR, 'data/final.json')
 const LOCAL_MANIFEST_PATH = path.join(TMP_DIR, 'audio-manifest.json')
+const LOCAL_LABELS_PATH = path.join(TMP_DIR, 'audio-labels.json')
 
 /** 失敗がこの件数を超えたらビルドを失敗させる(劣化したサイトを黙って配信しないため)。 */
 const DEFAULT_FAILURE_THRESHOLD = 5
@@ -142,6 +144,44 @@ export async function saveAudioManifest(
   if (useR2) {
     await putObjectJson(AUDIO_MANIFEST_KEY, manifest)
   }
+}
+
+/**
+ * クリップの表示名・声優名を R2 の meta/audio-labels.json から読む。
+ * 旧声優版などのメタ情報は音声ファイルと同じく R2 が正本で、
+ * バケット上の JSON を直接編集すれば次のビルドで final.json に反映される。
+ */
+async function loadAudioClipLabels(useR2: boolean): Promise<AudioClipMetaMap> {
+  const raw = useR2
+    ? ((await getObjectJson(AUDIO_LABELS_KEY)) ??
+      readLocalJSONIfValid(LOCAL_LABELS_PATH))
+    : readLocalJSONIfValid(LOCAL_LABELS_PATH)
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {}
+  }
+  const labels: AudioClipMetaMap = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string') {
+      labels[key] = value
+      continue
+    }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const record = value as Record<string, unknown>
+      labels[key] = {
+        ...(typeof record.label === 'string' ? { label: record.label } : {}),
+        ...(typeof record.voiceActor === 'string'
+          ? { voiceActor: record.voiceActor }
+          : {}),
+      }
+      continue
+    }
+    console.warn(`audio-labels.json の値を解釈できずスキップします: ${key}`)
+  }
+  if (useR2) {
+    // オフライン(ローカルビルド)でも同じ表示になるようミラーを残す。
+    saveJSON(LOCAL_LABELS_PATH, labels)
+  }
+  return labels
 }
 
 export interface SchaleDBSnapshot {
@@ -330,11 +370,12 @@ export async function buildAssets(): Promise<BuildAssetsResult> {
   }
 
   // --- final.json の生成 ---
+  const clipLabels = await loadAudioClipLabels(useR2)
   const { entries, orphanAudioKeys } = buildQuizEntries({
     students,
     audioKeys,
     titleCalls,
-    labels: AUDIO_CLIP_LABELS,
+    labels: clipLabels,
   })
 
   const finalData: FinalData = {

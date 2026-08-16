@@ -164,6 +164,12 @@ const deterministicRandom = () => 0
 {
   assert.equal(normalizeQuizAnswer('  ｱｲﾘ  '), 'アイリ')
   assert.equal(normalizeQuizAnswer('Ａ b　c'), 'abc')
+  // ひらがな入力もカタカナの正式名と同一視する
+  assert.equal(normalizeQuizAnswer('はなこ'), normalizeQuizAnswer('ハナコ'))
+  assert.equal(
+    normalizeQuizAnswer('ほしの(臨戦)'),
+    normalizeQuizAnswer('ホシノ（臨戦）'),
+  )
 }
 
 {
@@ -646,7 +652,11 @@ const deterministicRandom = () => 0
     students,
     audioKeys,
     titleCalls,
-    labels: { 'cherino_title.g1': '旧声優版' },
+    labels: {
+      // オブジェクト形式(声優名付き)と文字列の省略記法の両方を検証する
+      'cherino_title.g1': { label: '旧声優版', voiceActor: '旧テスト' },
+      'cherino_title.g2': '現行版',
+    },
   })
 
   const byName = new Map(entries.map((entry) => [entry.Name, entry]))
@@ -679,7 +689,13 @@ const deterministicRandom = () => 0
   const cherino = byName.get('チェリノ')!
   assert.equal(cherino.TitleCalls.length, 2)
   assert.equal(cherino.TitleCalls[0].label, '旧声優版')
-  assert.equal(cherino.TitleCalls[1].label, undefined)
+  assert.equal(cherino.TitleCalls[0].voiceActor, '旧テスト')
+  assert.equal(cherino.TitleCalls[1].label, '現行版')
+  assert.equal(
+    cherino.TitleCalls[1].voiceActor,
+    undefined,
+    '文字列の省略記法は声優名を持たない',
+  )
   assert.deepEqual(
     selectPlayableClips(cherino.TitleCalls, false).map((c) => c.generation),
     [2],

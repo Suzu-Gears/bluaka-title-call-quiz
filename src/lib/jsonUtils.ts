@@ -3,7 +3,12 @@ import {
   formatAudioKey,
   formatClipRef,
 } from '@/lib/assetKeys'
-import type { QuizEntry, Student, TitleCallClip } from '@/lib/interfaces'
+import type {
+  AudioClipMetaMap,
+  QuizEntry,
+  Student,
+  TitleCallClip,
+} from '@/lib/interfaces'
 import { sortTitleCallClips } from '@/lib/titleCallClips'
 import { clipIdFromAudioClip } from '@/lib/voiceData'
 
@@ -86,8 +91,11 @@ export interface BuildQuizEntriesParams {
   audioKeys: readonly AudioKeyParts[]
   /** voice.json 由来の AudioClip パス。source 判定にのみ使う。 */
   titleCalls: ReadonlyMap<number, readonly string[]>
-  /** クリップの表示名。キーは formatClipRef の形式(`{clipId}.g{世代}`)。 */
-  labels?: Readonly<Record<string, string>>
+  /**
+   * クリップの表示名・声優名(meta/audio-labels.json 由来)。
+   * キーは formatClipRef の形式(`{clipId}.g{世代}`)。文字列はラベルのみの省略記法。
+   */
+  labels?: Readonly<AudioClipMetaMap>
 }
 
 export interface BuildQuizEntriesResult {
@@ -167,7 +175,10 @@ export function buildQuizEntries({
           continue
         }
         seenClips.add(dedupeKey)
-        const label = labels[dedupeKey]
+        const meta = labels[dedupeKey]
+        const label = typeof meta === 'string' ? meta : meta?.label
+        const voiceActor =
+          typeof meta === 'string' ? undefined : meta?.voiceActor
         clips.push({
           clipId: key.clipId,
           generation: key.generation,
@@ -176,6 +187,7 @@ export function buildQuizEntries({
           ownerId: key.studentId,
           source: schaledbClipIds.has(key.clipId) ? 'schaledb' : 'r2-only',
           ...(label ? { label } : {}),
+          ...(voiceActor ? { voiceActor } : {}),
         })
       }
     }

@@ -9,25 +9,21 @@ export const APP_ERROR_TEXT = {
 } as const
 
 export const QUIZ_UI_TEXT = {
-  initialStatus: '「開始」を押すとクイズを開始します。',
+  // 設定画面の状態表示はエラー系メッセージ専用。案内文は出さない(見れば分かるため)。
+  initialStatus: '',
   migratedLegacySave: '旧セーブデータを移行しました。',
-  questionCountChanged: '問題数を変更しました。「開始」を押してください。',
   audioPlaybackFailed: '音声を再生できませんでした。もう一度お試しください。',
   next: '次へ',
   start: '開始',
   restart: 'リスタート',
   playAgain: 'もう一度',
   result: 'リザルト',
-  modeChanged: '出題方式を変更しました。「開始」を押してください。',
-  candidateFilterChanged: '出題対象を変更しました。「開始」を押してください。',
-  audioVersionChanged:
-    '出題する音声バージョンを変更しました。「開始」を押してください。',
   startValidationNeedOneCandidate:
     'クイズを開始できません。選択中の条件で生徒データを1件以上用意してください。',
   startValidationNeedFourCandidates:
     'クイズを開始できません。選択中の条件で生徒データを4件以上用意してください。',
   pageLeaveConfirm:
-    '現在クイズ中です。進行中のデータは保存されません。\nクイズを中断してカード一覧に移動しますか？',
+    '現在クイズ中です。進行中のデータは保存されません。\nクイズを中断して生徒リストに移動しますか？',
   unanswered: '（未回答）',
   correctLabel: '正解',
   incorrectLabel: '不正解',

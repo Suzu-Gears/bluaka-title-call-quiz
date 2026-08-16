@@ -1,4 +1,3 @@
-import { AUDIO_CLIP_LABELS } from '@/data/audioLabels'
 import { type AudioKeyParts } from '@/lib/assetKeys'
 import { loadSchaleDBSnapshot } from '@/lib/assetPipeline'
 import { buildQuizEntries } from '@/lib/jsonUtils'
@@ -18,11 +17,12 @@ for (const [studentId, clips] of titleCalls) {
   }
 }
 
+// 表示名・声優名(meta/audio-labels.json)はビルド時に R2 から読まれるため、
+// この検証ではラベル無しで組み立てる。
 const { entries, orphanAudioKeys } = buildQuizEntries({
   students,
   audioKeys,
   titleCalls,
-  labels: AUDIO_CLIP_LABELS,
 })
 
 console.log(`生徒レコード: ${students.length}`)
@@ -114,12 +114,16 @@ if (cherinoId) {
       { studentId: cherinoId, clipId: 'cherino_title', generation: 2 },
     ],
     titleCalls,
-    labels: { 'cherino_title.g1': '旧声優版' },
+    labels: {
+      'cherino_title.g1': { label: '旧声優版', voiceActor: '旧テスト' },
+    },
   })
   const cherino = withG2.entries.find((e) => e.Name === 'チェリノ')!
   console.log('\n--- 世代追加シミュレーション(チェリノ g2)')
   cherino.TitleCalls.forEach((clip) =>
-    console.log(`  ${clip.file} label=${clip.label ?? '(なし)'}`),
+    console.log(
+      `  ${clip.file} label=${clip.label ?? '(なし)'} voiceActor=${clip.voiceActor ?? '(現行)'}`,
+    ),
   )
   console.log(
     `  既定: ${selectPlayableClips(cherino.TitleCalls, false)

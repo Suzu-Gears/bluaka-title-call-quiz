@@ -180,9 +180,6 @@ src/
 ├── styles.css               # 全体スタイルシート                                    [クライアント]
 ├── server-constants.ts      # 環境変数定数                                          [サーバー]
 │
-├── data/
-│   └── audioLabels.ts       # クリップの表示名（「旧声優版」など）を人手で付ける      [共通]
-│
 ├── lib/
 │   ├── interfaces.ts        # QuizEntry / TitleCallClip などの型定義                 [共通]
 │   ├── assetKeys.ts         # R2・public のキー規約（パース／組み立て）              [共通]
@@ -254,8 +251,10 @@ docs/
   そのまま入ります**。つまり R2 の置き場所が帰属の宣言です。voice.json の掲載位置が実態と
   異なる場合（シュン（水着）の np0288 はシュエリン側）は `npm run r2:move` でファイルを
   移動すれば、以後の再取得・世代管理も自動で追従します（存在判定が clipId 単位のため）。
-- `label` は `src/data/audioLabels.ts` で人手で付ける表示名（例: 「旧声優版」）。キーは
-  `{clipId}.g{世代}` でフォルダを含まないため、移動しても壊れません。
+- `label` / `voiceActor` は R2 の `meta/audio-labels.json` で人手で付ける表示名・声優名
+  （例: 「旧声優版」）。キーは `{clipId}.g{世代}` でフォルダを含まないため、移動しても壊れません。
+  `voiceActor` を付けたクリップは、カード一覧でそのバージョンを選択中に CV 帯の表示が
+  差し替わります（未設定なら現行声優 `CharacterVoice`）。
 - 習熟度の localStorage キーは従来どおり **表示名**のため、データ移行は不要です。
 
 ---
@@ -500,15 +499,20 @@ npm run local-cache:refresh
 ```
 
 音源の ETag / サイズを `meta/audio-manifest.json` と比較し、変わっていれば
-**旧世代を残したまま** `g{最大+1}` として追加します。追加後、必要なら
-`src/data/audioLabels.ts` に表示名を追記してください。
+**旧世代を残したまま** `g{最大+1}` として追加します。追加後、R2 バケットの
+`meta/audio-labels.json` に表示名・旧声優名を追記してください（音声ファイルと同じく
+R2 が正本で、ソースコードの変更は不要です。次のビルドで `final.json` に反映されます）。
 
-```ts
-export const AUDIO_CLIP_LABELS: Record<string, string> = {
-  'cherino_title.g1': '旧声優版',
-  'cherino_title.g2': '現行版',
-};
+```json
+{
+  "cherino_title.g1": { "label": "旧声優版", "voiceActor": "○○" },
+  "cherino_title.g2": "現行版"
+}
 ```
+
+値は文字列（ラベルのみの省略記法）か `{ label, voiceActor }` オブジェクトです。
+`voiceActor` を付けると、カード一覧でそのバージョンを選択中は CV 帯が差し替わります。
+なお旧世代はカード一覧のバッジ（切替ボタン）からのみ再生でき、クイズには出題されません。
 
 ### クリップを別形態の声として帰属させる
 

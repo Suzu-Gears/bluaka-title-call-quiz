@@ -1,14 +1,28 @@
 :root {
-  --color-border-default: #ddd;
-  --color-border-hover: #999;
+  --color-border-default: #cfdcea;
+  --color-border-hover: #9db8d4;
   --color-focus-strong: #1e88e5;
   --color-focus-soft: rgba(0, 123, 255, 0.7);
-  --color-bg-main: #f4fcfd;
+  --color-bg-main: #bfe0f3;
   --color-bg-surface: #fff;
   --color-bg-surface-hover: #f6faff;
   --color-header-bg: #1e88e5;
   --color-text-muted: #555;
   --color-overlay-dark: rgb(28 42 65 / 70%);
+  /* ゲーム UI 由来の配色 */
+  --color-navy: #2b4665;
+  /* ゲームのタブ(All)の塗りつぶし色。タブ・出題方式・ピルの選択状態で共通 */
+  --color-navy-deep: #1d3a5c;
+  --color-panel-glass: rgba(255, 255, 255, 0.5);
+  --color-panel-border: rgba(255, 255, 255, 0.85);
+  --color-marker-yellow: #ffe94a;
+  --shadow-panel: 0 4px 16px rgba(31, 68, 109, 0.14);
+  --shadow-card: 0 2px 6px rgba(31, 68, 109, 0.22);
+  /* クイズ操作系コントロールの共通サイズ(開始/次へ/回答する/出題方式/問題数) */
+  --quiz-control-height: 2.6rem;
+  --quiz-control-font-size: 1.1rem;
+  /* 斜めボタンの影ぶんの余白。ラッパーの高さ計算にも使う */
+  --quiz-control-pad: 0.3rem;
 }
 
 body {
@@ -16,18 +30,44 @@ body {
   padding: 0;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ネイティブの矢印を消し、ゲームのフィルターボックス風のシェブロンを描く */
 select {
+  appearance: none;
+  -webkit-appearance: none;
   border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  background: var(--color-bg-surface);
-  padding: 0.4rem 0.6rem;
-  font-size: 0.9em;
+  border-radius: 8px;
+  background-color: var(--color-bg-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%232b4665'%3E%3Cpath d='M3.2 5.5h9.6L8 11.2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6em center;
+  background-size: 0.85em;
+  padding: 0.45rem 2.1em 0.45rem 0.8rem;
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--color-navy);
   cursor: pointer;
   font-family: inherit;
+  box-shadow: 0 1px 2px rgba(31, 68, 109, 0.08);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 select:hover {
   border-color: var(--color-border-hover);
+  background-color: var(--color-bg-surface-hover);
 }
 
 select:focus-visible {
@@ -35,27 +75,57 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+select option {
+  font-weight: 700;
+  color: var(--color-navy);
+  background: var(--color-bg-surface);
+}
+
 .main {
   margin: 0;
   padding: 0;
+  min-height: 100vh;
   background-color: var(--color-bg-main);
+  /* ゲームのホーム画面風: 淡い水色 + 大きなひし形パターン */
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.13) 0 56px,
+      transparent 56px 112px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.13) 0 56px,
+      transparent 56px 112px
+    ),
+    linear-gradient(180deg, #d3ecfa 0%, #b7ddf3 55%, #c7e6f7 100%);
+  background-attachment: fixed;
   font-family: sans-serif;
 }
 
 header {
   width: 100%;
-  padding: 1.5rem 0;
+  padding: 1.2rem 0 0.4rem;
   text-align: center;
-  background-color: var(--color-header-bg);
-  color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  color: var(--color-navy);
 }
 
 h1 {
   margin: 0;
-  padding: 0;
-  font-size: 2rem;
+  padding: 0 0.4em 0.1em;
+  display: inline-block;
+  font-size: 1.8rem;
   font-weight: bold;
+  font-family: 'Kosugi Maru', sans-serif;
+  color: var(--color-navy);
+  /* ゲームの画面タイトルにある黄色いアンダーライン */
+  background: linear-gradient(
+    transparent 0% 78%,
+    var(--color-marker-yellow) 78% 94%,
+    transparent 94% 100%
+  );
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .content {
@@ -69,35 +139,124 @@ h1 {
   align-items: center;
 }
 
+/* ゲームの All / STRIKER / SPECIAL 風タブ。出題方式と同じ平行四辺形セグメント */
 .page-switch {
   margin-top: 1rem;
   display: flex;
-  gap: 0.5rem;
+  gap: 1px;
   width: 100%;
-  max-width: 720px;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: 0.3rem 0.5em;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 .page-switch button {
-  border: 1px solid var(--color-border-default);
-  border-radius: 999px;
-  background: var(--color-bg-surface);
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  border: none;
+  background: transparent;
   padding: 0.5rem 1rem;
+  color: #496f8f;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
   cursor: pointer;
+  transition:
+    color 0.2s ease,
+    transform 0.05s ease;
+}
+
+.page-switch button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-10deg);
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 0.16em 0.1em rgb(0 0 0 / 20%);
+  transition: background-color 0.2s ease;
+}
+
+.page-switch button:first-child::before {
+  border-radius: 0.25em 0 0 0.25em;
+}
+
+.page-switch button:last-child::before {
+  border-radius: 0 0.25em 0.25em 0;
+}
+
+.page-switch button:not(.is-active):hover::before {
+  background-color: var(--color-bg-surface-hover);
+}
+
+.page-switch button:not(.is-active):active {
+  transform: scale(0.97);
+}
+
+.page-switch button:focus-visible {
+  outline: none;
+}
+
+.page-switch button:focus-visible::before {
+  outline: 0.2em solid #f3e756;
 }
 
 .page-switch .is-active {
   color: var(--color-bg-surface);
-  background: var(--color-header-bg);
-  border-color: var(--color-header-bg);
 }
 
+.page-switch .is-active::before {
+  background-color: var(--color-navy-deep);
+}
+
+/* 半透明のガラスパネル(ゲームの一覧画面の枠) */
 #card-list,
 #quiz-view {
   width: 100%;
+  box-sizing: border-box;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 2px solid var(--color-panel-border);
+  border-radius: 16px;
+  background: var(--color-panel-glass);
+  box-shadow: var(--shadow-panel);
+}
+
+#quiz-view[hidden],
+#card-list[hidden] {
+  display: none;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.1rem 0.35rem 0.55rem;
+}
+
+.panel-head-icon {
+  width: 1.5em;
+  height: 1.5em;
+  filter: drop-shadow(0 1px 1px rgba(31, 68, 109, 0.25));
+}
+
+.panel-head-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  color: var(--color-navy);
 }
 
 .grid {
-  margin-block-start: 1rem;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--color-bg-surface);
   display: grid;
   justify-content: center;
   place-items: center;
@@ -142,35 +301,89 @@ h1 {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9em;
+  flex: 1 1 14rem;
+  min-width: 0;
 }
 
+/* ゲームの検索バー: 白い角丸ボックス + 虫めがねアイコン */
 .student-filter-input {
-  min-width: 10rem;
-  padding: 0.45rem 0.6rem;
+  width: 100%;
+  min-width: 8rem;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background-color: var(--color-bg-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232e6ac7' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6'/%3E%3Cpath d='M15 15l5 5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 1.1em;
+  background-position: 0.6em center;
+  padding: 0.5rem 0.6rem 0.5rem 2.2em;
   font-size: 1rem;
+  font-family: inherit;
+  color: var(--color-navy);
 }
 
-.category-filter-fieldset {
+.student-filter-input::placeholder {
+  color: #9fb4c9;
+}
+
+.student-filter-input:focus-visible {
+  outline: 2px solid var(--color-focus-strong);
+  outline-offset: 1px;
+}
+
+/* 表示対象・出題対象で共通の、ゲーム風ピル型トグル */
+.pill-filter-fieldset {
   margin: 0;
   border: 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.category-filter-fieldset legend {
+.pill-filter-fieldset legend {
   float: left;
   margin-right: 0.35rem;
   font-size: 0.85em;
-  color: var(--color-text-muted);
+  font-weight: 700;
+  color: var(--color-navy);
 }
 
-.category-filter-fieldset label {
+.pill-filter-fieldset label {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.9em;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #41618a;
+  border: 1px solid var(--color-border-default);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.pill-filter-fieldset label:has(input:checked) {
+  background: var(--color-navy-deep);
+  border-color: var(--color-navy-deep);
+  color: #fff;
+}
+
+.pill-filter-fieldset label:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus-strong);
+  outline-offset: 2px;
+}
+
+.pill-filter-fieldset input {
+  accent-color: #33c1ff;
+  margin: 0;
 }
 
 .sort-wrapper {
@@ -178,18 +391,83 @@ h1 {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9em;
+  font-weight: 700;
+  color: var(--color-navy);
 }
 
-.sort-direction-button {
+/* 並び替えが 2 択の間だけ出す切り替えボタン(JS が select の代わりに生成する) */
+.sort-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
   border: 1px solid var(--color-border-default);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--color-bg-surface);
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.95em;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-navy);
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(31, 68, 109, 0.08);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.sort-mode-toggle::after {
+  content: '⇄';
+  color: #2e6ac7;
+  font-weight: 700;
+}
+
+.sort-mode-toggle:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-surface-hover);
+}
+
+.sort-mode-toggle:focus-visible {
+  outline: 2px solid var(--color-focus-strong);
+  outline-offset: 2px;
+}
+
+/* ゲームの「≡↓」ボタンと同じ、3本線+矢印のアイコンボタン */
+.sort-direction-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-navy);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(31, 68, 109, 0.08);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.sort-direction-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.sort-direction-arrow {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.15s ease;
+}
+
+.sort-direction-button[data-direction='asc'] .sort-direction-arrow {
+  transform: rotate(180deg);
 }
 
 .sort-direction-button:hover {
-  border-color: #aaa;
+  border-color: var(--color-border-hover);
   background: var(--color-bg-surface-hover);
 }
 
@@ -204,7 +482,7 @@ h1 {
   text-align: center;
   cursor: pointer;
   width: 100%;
-  border-radius: 8px;
+  border-radius: 6px;
   outline: none;
 }
 
@@ -222,12 +500,13 @@ h1 {
 
 .voice-actor-container {
   position: absolute;
-  bottom: 0;
-  width: 100%;
+  bottom: 3px;
+  left: 3px;
+  right: 3px;
   height: 18%;
   background-color: var(--color-overlay-dark);
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -242,11 +521,16 @@ h1 {
   color: #ffffff;
 }
 
+/* ゲームのカードと同じく白いフチ付きフレームにする */
 .grid-item img {
   width: 100%;
   aspect-ratio: 1/1.1;
+  box-sizing: border-box;
   object-fit: cover;
-  border-radius: 8px;
+  border: 3px solid var(--color-bg-surface);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  background-color: #dcecf7;
   transition: transform 0.3s;
   user-select: none;
   user-drag: none;
@@ -289,38 +573,41 @@ h1 {
   display: inline-block;
   white-space: nowrap;
   color: #60676f;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+}
+
+/* 黄色いマーカーは名前のテキスト部分だけに敷く(🔇には敷かない) */
+.name-text {
   background: linear-gradient(
     transparent 0% 65%,
     #f9f49b 65% 80%,
     transparent 80% 100%
   );
-  font-weight: 700;
-  font-family: 'Kosugi Maru', sans-serif;
 }
 
+.mute-indicator {
+  margin-left: 0.2em;
+  font-size: 0.85em;
+  line-height: 1;
+  vertical-align: 0.05em;
+}
+
+/* 生徒リストの白いエリア(.grid)と同じ層: パネル直下・全幅・角丸12px */
 .quiz-section {
   --quiz-image-max-width: 108px;
-  margin-top: 1rem;
-  margin-inline: auto;
   width: 100%;
-  max-width: 720px;
   box-sizing: border-box;
-  border: 1px solid #ddd;
-  border-radius: 1rem;
+  border: none;
+  border-radius: 12px;
   padding: 1rem;
   background: #fff;
   position: relative;
 }
 
-.quiz-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.quiz-header-row h2 {
-  margin: 0;
+/* パネルヘッダー右端のメニュー(クイズ画面のみ) */
+.panel-head .quiz-menu {
+  margin-left: auto;
 }
 
 .quiz-menu {
@@ -346,7 +633,8 @@ h1 {
 .quiz-name-answer-form button[type='submit'] {
   position: relative;
   isolation: isolate;
-  min-height: 2.2rem;
+  height: var(--quiz-control-height);
+  font-size: var(--quiz-control-font-size);
   background: transparent;
   border: none;
   padding-inline: 0.75em;
@@ -408,8 +696,8 @@ h1 {
 .quiz-action-button {
   position: relative;
   isolation: isolate;
-  height: 2.4em;
-  font-size: 1.2em;
+  height: var(--quiz-control-height);
+  font-size: var(--quiz-control-font-size);
   background: transparent;
   border: none;
   padding-inline: 0.75em;
@@ -475,10 +763,6 @@ h1 {
   background-color: #77dfff;
 }
 
-#quiz-start-button {
-  margin-inline: auto;
-}
-
 #quiz-menu-button:not(:disabled):hover,
 .quiz-menu-panel button:not(:disabled):hover {
   border-color: #9fc7ff;
@@ -522,12 +806,127 @@ h1 {
 }
 
 #quiz-setup-controls {
-  margin-top: 0.75rem;
+  margin-top: 0;
   display: grid;
   gap: 0.5rem;
 }
 
 #quiz-setup-controls[hidden] {
+  display: none;
+}
+
+/* 任務情報ダイアログ風: 左に設定項目、右に問題数+開始ボタン */
+.quiz-setup-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+@media (min-width: 660px) {
+  .quiz-setup-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(230px, 1fr);
+  }
+}
+
+.quiz-setup-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+}
+
+/* 「任務目標(☆)」風の紺バナー見出し。
+   他のボタン・切替UIと同じ skewX(-10deg) の平行四辺形+小さな角丸 */
+.quiz-banner {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.32rem 0.9rem;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+}
+
+.quiz-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-10deg);
+  border-radius: 0.25em;
+  background: linear-gradient(
+    100deg,
+    var(--color-navy-deep) 0%,
+    #2f5c8f 80%,
+    #3c74b0 100%
+  );
+}
+
+.quiz-setup-main .quiz-mode-wrapper {
+  margin-top: 0;
+  width: 100%;
+  align-items: stretch;
+}
+
+.quiz-filter-fieldset.pill-filter-fieldset {
+  display: block;
+}
+
+.quiz-filter-fieldset legend.quiz-banner {
+  float: left;
+  margin: 0 0 0.6rem;
+  /* .pill-filter-fieldset legend の紺文字・小サイズより優先させる */
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.pill-row {
+  clear: both;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-inline: 0.2rem;
+}
+
+/* 「掃討」パネル風: 問題数カウンターを淡色ボックスに収める */
+.quiz-setup-action {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
+  align-content: space-between;
+}
+
+.quiz-count-panel {
+  box-sizing: border-box;
+  border: 1px solid #dde7f1;
+  border-radius: 10px;
+  background: #eef3f9;
+  padding: 0.6rem;
+}
+
+.quiz-count-panel .quiz-question-count-wrapper {
+  margin-top: 0;
+  width: 100%;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+.quiz-count-panel .quiz-question-count-input-controls {
+  justify-content: center;
+}
+
+/* 「任務開始」風の大きな開始ボタン */
+.quiz-start-cta {
+  width: 100%;
+  height: 3rem;
+  font-size: 1.3rem;
+}
+
+/* 状態表示はエラー等があるときだけ出す */
+#quiz-status:empty {
   display: none;
 }
 
@@ -539,23 +938,13 @@ h1 {
   padding-block: 0.3em;
 }
 
-#quiz-result-actions[hidden] {
+/* ボタンが全部 hidden のときは行ごと畳んで余白を残さない */
+.quiz-controls:not(:has(button:not([hidden]))) {
   display: none;
 }
 
-.quiz-filter-fieldset {
-  margin: 0;
-  border: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.quiz-filter-fieldset label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+#quiz-result-actions[hidden] {
+  display: none;
 }
 
 .quiz-name-answer-form {
@@ -839,13 +1228,15 @@ h1 {
   color: #d03c3c;
 }
 
+/* 正解・誤答は淡色の塗りと枠で示す(濃色だと選択肢の文字が読めないため) */
 button.correct {
-  background: #0d9848;
-  color: #fff;
+  background: #def5e6;
+  border-color: #7fd6a4;
 }
 
 button.wrong-selected {
   background: #ffe7e7;
+  border-color: #f0b4b4;
 }
 
 #quiz-proficiency-text {
@@ -857,7 +1248,6 @@ button.wrong-selected {
 .app-error {
   margin: 1rem 0 0;
   width: 100%;
-  max-width: 720px;
   box-sizing: border-box;
   border: 1px solid #f0b4b4;
   border-radius: 0.6rem;
@@ -873,9 +1263,9 @@ button.wrong-selected {
 
 .clip-badge {
   position: absolute;
-  top: 0.35rem;
-  right: 0.35rem;
-  max-width: calc(100% - 0.7rem);
+  top: 0.55rem;
+  right: 0.55rem;
+  max-width: calc(100% - 1.1rem);
   box-sizing: border-box;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
@@ -893,14 +1283,26 @@ button.wrong-selected {
   display: none;
 }
 
-.quiz-old-generation-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+/* 複数バージョン持ちカードのバッジは切替ボタンになる */
+button.clip-switch {
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  font-family: inherit;
+  cursor: pointer;
 }
 
-.quiz-old-generation-wrapper[hidden] {
-  display: none;
+button.clip-switch::after {
+  content: ' ⇄';
+  color: #7fd7ff;
+}
+
+button.clip-switch:hover {
+  background: rgb(28 42 65 / 88%);
+}
+
+button.clip-switch:focus-visible {
+  outline: 2px solid #f3e756;
+  outline-offset: 1px;
 }
 
 .quiz-answer-clip-label {
@@ -1006,8 +1408,13 @@ button.wrong-selected {
 footer {
   margin: 0;
   margin-block-start: 2rem;
-  padding: 0;
+  padding: 0 0 1rem;
   width: 100%;
+  color: #3d5573;
+}
+
+footer a {
+  color: #2e6ac7;
 }
 
 @media (max-width: 740px) {
@@ -1027,5 +1434,14 @@ footer {
 @media (max-width: 480px) {
   .quiz-section {
     padding: 0.75rem;
+  }
+
+  #card-list,
+  #quiz-view {
+    padding: 0.5rem;
+  }
+
+  .grid {
+    padding: 0.5rem;
   }
 }

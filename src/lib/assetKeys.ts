@@ -23,6 +23,12 @@ const IMAGE_KEY_PATTERN = /^image\/(\d+)\.webp$/
 export const AUDIO_KEY_PREFIX = 'audio/'
 export const IMAGE_KEY_PREFIX = 'image/'
 export const AUDIO_MANIFEST_KEY = 'meta/audio-manifest.json'
+/**
+ * クリップの表示名・声優名の正本。R2 バケット上で直接編集する
+ * (音声ファイルを R2 に置くのとセットで、コード変更なしに反映できる)。
+ * 形式: { "<clipId>.g<世代>": "ラベル" | { label?, voiceActor? } }
+ */
+export const AUDIO_LABELS_KEY = 'meta/audio-labels.json'
 
 export function isValidClipId(clipId: string): boolean {
   return CLIP_ID_PATTERN.test(clipId)

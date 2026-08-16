@@ -10,9 +10,24 @@ import {
   resolveStudentCategory,
 } from '@/lib/quizProgress'
 import { clipsForMember, orderClipsForBrowsing } from '@/lib/titleCallClips'
+import {
+  loadCardListSettings,
+  saveCardListSettings,
+  type SortDirection,
+} from '@/lib/uiSettings'
 import { formatClipBadge, SORT_DIRECTION_LABEL } from '@/lib/uiText'
 
 const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
+
+/** CV 帯のテキスト。前後の NBSP はマーカー幅の余白(fitty の計測対象)。 */
+const formatVoiceActorText = (voiceActorName: string): string =>
+  `  CV.${voiceActorName}  `
+
+/** 選択中クリップに声優名があればそれを、無ければ現行声優を表示する。 */
+const resolveVoiceActorName = (
+  card: HTMLElement,
+  clip: TitleCallClip | undefined,
+): string => clip?.voiceActor ?? card.dataset.characterVoice ?? ''
 
 /**
  * カードはメンバー(形態)ごとに 1 枚生成する(SchaleDB の一覧と同じ見え方)。
@@ -38,6 +53,7 @@ export const createCard = (
   item.dataset.nameSortOrder = String(entry.NameSortOrder + memberIndex / 10)
   item.dataset.hasAudio = String(clips.length > 0)
   item.dataset.clipIndex = '0'
+  item.dataset.characterVoice = entry.CharacterVoice
 
   const imageContainer = document.createElement('div')
   imageContainer.className = 'image-container'
@@ -49,17 +65,32 @@ export const createCard = (
     image.src = DEFAULT_IMAGE
   }
 
-  const badge = document.createElement('div')
-  badge.className = 'clip-badge'
+  // 複数バージョンあるカードだけ、バッジを切替ボタンにする。
+  // タップでの再生とは分離し、能動的に切り替えてから聴く導線にする。
   const badgeText = formatClipBadge(0, clips.length, clips[0]?.label)
-  badge.textContent = badgeText
-  badge.hidden = badgeText.length === 0
+  let badge: HTMLElement
+  if (clips.length > 1) {
+    const switchButton = document.createElement('button')
+    switchButton.type = 'button'
+    switchButton.className = 'clip-badge clip-switch'
+    switchButton.title = '音声バージョンを切り替え'
+    switchButton.setAttribute('aria-label', '音声バージョンを切り替え')
+    switchButton.textContent = badgeText
+    badge = switchButton
+  } else {
+    badge = document.createElement('div')
+    badge.className = 'clip-badge'
+    badge.textContent = badgeText
+    badge.hidden = badgeText.length === 0
+  }
 
   const voiceActorContainer = document.createElement('div')
   voiceActorContainer.className = 'voice-actor-container'
   const voiceActor = document.createElement('div')
   voiceActor.className = 'voice-actor'
-  voiceActor.textContent = `  CV.${entry.CharacterVoice}  `
+  voiceActor.textContent = formatVoiceActorText(
+    clips[0]?.voiceActor ?? entry.CharacterVoice,
+  )
   voiceActorContainer.appendChild(voiceActor)
   imageContainer.append(image, badge, voiceActorContainer)
 
@@ -70,8 +101,18 @@ export const createCard = (
   const baseNameLabel = entry.Name.includes('（')
     ? ` ${entry.Name}`
     : ` ${entry.Name} `
-  nameNode.textContent =
-    clips.length > 0 ? baseNameLabel : `${baseNameLabel} 🔇`
+  // 黄色いマーカーは名前部分だけに敷きたいので、テキストと🔇は別の span に分ける。
+  const nameText = document.createElement('span')
+  nameText.className = 'name-text'
+  nameText.textContent = baseNameLabel
+  nameNode.appendChild(nameText)
+  if (clips.length === 0) {
+    const muteIndicator = document.createElement('span')
+    muteIndicator.className = 'mute-indicator'
+    muteIndicator.textContent = '🔇'
+    muteIndicator.title = 'タイトルコール音声なし'
+    nameNode.appendChild(muteIndicator)
+  }
   nameContainer.appendChild(nameNode)
 
   item.append(imageContainer, nameContainer)
@@ -136,14 +177,65 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     'student-sort-direction',
   ) as HTMLButtonElement | null
 
-  let sortDirection: 'asc' | 'desc' = 'asc'
-  const sortCards = (sortMode: string, direction: 'asc' | 'desc') => {
+  // 前回の表示設定(カテゴリ・並び替え・昇順降順)を復元する。名前フィルターは一時的な絞り込みなので保存しない。
+  const savedSettings = loadCardListSettings()
+  if (normalFilter && savedSettings.showNormal !== undefined) {
+    normalFilter.checked = savedSettings.showNormal
+  }
+  if (costumeFilter && savedSettings.showCostume !== undefined) {
+    costumeFilter.checked = savedSettings.showCostume
+  }
+  if (collaborationFilter && savedSettings.showCollaboration !== undefined) {
+    collaborationFilter.checked = savedSettings.showCollaboration
+  }
+  if (
+    sortSelect &&
+    savedSettings.sortMode !== undefined &&
+    [...sortSelect.options].some(
+      (option) => option.value === savedSettings.sortMode,
+    )
+  ) {
+    sortSelect.value = savedSettings.sortMode
+  }
+
+  // デフォルトは実装順の降順(新しい生徒が先頭に来る)。
+  let sortDirection: SortDirection = savedSettings.sortDirection ?? 'desc'
+
+  // 方向ボタンはゲームと同じ「3本線+矢印」アイコン。向きは data 属性で切り替え、
+  // 文言はスクリーンリーダー向けに aria-label / title で持つ。
+  const updateSortDirectionButton = () => {
+    if (!sortDirectionButton) return
+    const label = SORT_DIRECTION_LABEL[sortDirection]
+    sortDirectionButton.dataset.direction = sortDirection
+    sortDirectionButton.setAttribute('aria-label', label)
+    sortDirectionButton.title = label
+  }
+  updateSortDirectionButton()
+
+  const persistSettings = () => {
+    saveCardListSettings({
+      showNormal: Boolean(normalFilter?.checked),
+      showCostume: Boolean(costumeFilter?.checked),
+      showCollaboration: Boolean(collaborationFilter?.checked),
+      sortMode: sortSelect?.value ?? 'default-order',
+      sortDirection,
+    })
+  }
+
+  const sortCards = (sortMode: string, direction: SortDirection) => {
     const cards = [...grid.querySelectorAll<HTMLElement>('.grid-item')]
     const key = sortMode === 'name-order' ? 'nameSortOrder' : 'defaultOrder'
     cards.sort((a, b) => {
       const aValue = Number(a.dataset[key] ?? 0)
       const bValue = Number(b.dataset[key] ?? 0)
-      return direction === 'asc' ? aValue - bValue : bValue - aValue
+      // 整数部(生徒の順位)だけ方向を反転し、小数部(同名グループ内のフォーム順)は
+      // 降順でも代表フォームが先頭に来るよう常に昇順を保つ。
+      const aBase = Math.floor(aValue)
+      const bBase = Math.floor(bValue)
+      if (aBase !== bBase) {
+        return direction === 'asc' ? aBase - bBase : bBase - aBase
+      }
+      return aValue - bValue
     })
     cards.forEach((card) => grid.appendChild(card))
   }
@@ -170,15 +262,45 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     filterCards(inputValue)
   }
 
-  sortSelect?.addEventListener('change', () =>
-    sortCards(sortSelect.value, sortDirection),
-  )
+  // 並び替え候補が 2 つ以下の間は押すたびに切り替わるトグルボタンにする。
+  // 3 つ以上に増えたらこのブロックは何もせず、セレクトでの選択に自動で戻る。
+  const sortModeToggle = (() => {
+    if (!sortSelect || sortSelect.options.length > 2) return null
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.id = 'student-sort-mode-toggle'
+    button.className = 'sort-mode-toggle'
+    sortSelect.insertAdjacentElement('beforebegin', button)
+    sortSelect.hidden = true
+    return button
+  })()
+
+  const updateSortModeToggleLabel = () => {
+    if (!sortModeToggle || !sortSelect) return
+    sortModeToggle.textContent = sortSelect.selectedOptions[0]?.label ?? ''
+  }
+  updateSortModeToggleLabel()
+
+  sortModeToggle?.addEventListener('click', () => {
+    if (!sortSelect) return
+    sortSelect.selectedIndex =
+      (sortSelect.selectedIndex + 1) % sortSelect.options.length
+    updateSortModeToggleLabel()
+    sortCards(sortSelect.value, sortDirection)
+    persistSettings()
+  })
+
+  sortSelect?.addEventListener('change', () => {
+    sortCards(sortSelect.value, sortDirection)
+    persistSettings()
+  })
   sortDirectionButton?.addEventListener('click', () => {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-    sortDirectionButton.textContent = SORT_DIRECTION_LABEL[sortDirection]
+    updateSortDirectionButton()
     if (sortSelect) {
       sortCards(sortSelect.value, sortDirection)
     }
+    persistSettings()
   })
   filterInput?.addEventListener('compositionupdate', () => {
     applyStudentFilterInput(filterInput?.value ?? '')
@@ -190,10 +312,17 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     applyStudentFilterInput(filterInput?.value ?? '')
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
-    checkbox?.addEventListener('change', () =>
-      filterCards(lastAppliedStudentFilter),
-    )
+    checkbox?.addEventListener('change', () => {
+      filterCards(lastAppliedStudentFilter)
+      persistSettings()
+    })
   })
+
+  // 復元した設定を初期表示に反映する。
+  if (sortSelect) {
+    sortCards(sortSelect.value, sortDirection)
+  }
+  filterCards(lastAppliedStudentFilter)
 
   let fittyInstances: FittyInstance[] = setupFitty()
   let devicePixelRatio = window.devicePixelRatio
@@ -233,6 +362,18 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     badge.hidden = text.length === 0
   }
 
+  const updateVoiceActor = (
+    card: HTMLElement,
+    clip: TitleCallClip | undefined,
+  ) => {
+    const voiceActor = card.querySelector<HTMLElement>('.voice-actor')
+    if (!voiceActor) return
+    voiceActor.textContent = formatVoiceActorText(
+      resolveVoiceActorName(card, clip),
+    )
+  }
+
+  /** タップは常に「選択中のバージョン」を再生する。順送りはしない。 */
   const playCard = (card: HTMLElement) => {
     const clips = clipsByCard.get(card)
     if (!clips || clips.length === 0) return
@@ -245,8 +386,6 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
       resetAudio()
     }
     playingCard = card
-    card.dataset.clipIndex = String((index + 1) % clips.length)
-    updateBadge(card, clips, index)
 
     sharedAudioPlayer.src = resolveAssetUrl(clip.file)
     sharedAudioPlayer.currentTime = 0
@@ -259,8 +398,22 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     }
   }
 
+  /** バッジの切替ボタンで能動的にバージョンを選ぶ。再生はしない。 */
+  const switchCardClip = (card: HTMLElement) => {
+    const clips = clipsByCard.get(card)
+    if (!clips || clips.length < 2) return
+    const nextIndex = (Number(card.dataset.clipIndex ?? 0) + 1) % clips.length
+    card.dataset.clipIndex = String(nextIndex)
+    if (playingCard === card) {
+      resetAudio()
+    }
+    updateBadge(card, clips, nextIndex)
+    updateVoiceActor(card, clips[nextIndex])
+  }
+
   const handleCardActivation = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return
+    if (target.closest('.clip-switch')) return
     const card = target.closest<HTMLElement>('.grid-item')
     if (card) {
       playCard(card)
@@ -268,11 +421,23 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   }
 
   grid.addEventListener('click', (event) => {
+    const target = event.target
+    if (target instanceof HTMLElement) {
+      const switchButton = target.closest('.clip-switch')
+      if (switchButton) {
+        const card = switchButton.closest<HTMLElement>('.grid-item')
+        if (card) {
+          switchCardClip(card)
+        }
+        return
+      }
+    }
     handleCardActivation(event.target)
   })
 
   grid.addEventListener('keydown', (event) => {
     if ((event as KeyboardEvent).key !== 'Enter') return
+    // 切替ボタン上の Enter はボタン自身の click に任せる(再生と二重発火させない)。
     handleCardActivation(event.target)
   })
 

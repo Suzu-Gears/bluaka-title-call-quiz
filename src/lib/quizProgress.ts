@@ -106,10 +106,13 @@ export function calculateAccuracy(entry?: ProficiencyEntry): number {
 }
 
 export function normalizeQuizAnswer(value: string): string {
-  return String(value ?? '')
-    .normalize('NFKC')
-    .replace(/\s+/g, '')
-    .toLowerCase()
+  // ひらがな入力でも正解にする(サジェスト検索がかな無視のため、判定も揃える)。
+  return normalizeKanaForSearch(
+    String(value ?? '')
+      .normalize('NFKC')
+      .replace(/\s+/g, '')
+      .toLowerCase(),
+  )
 }
 
 export function normalizeKanaForSearch(value: string): string {

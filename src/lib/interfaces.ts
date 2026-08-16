@@ -47,7 +47,16 @@ export interface TitleCallClip {
   source: TitleCallSource
   /** 任意の表示名。例: '旧声優版' */
   label?: string
+  /**
+   * このクリップの声優名。未設定なら現行声優(entry.CharacterVoice)。
+   * 旧声優版クリップで CV 表示を差し替えるために使う。
+   */
+  voiceActor?: string
 }
+
+/** meta/audio-labels.json の値。文字列はラベルのみの省略記法。 */
+export type AudioClipMeta = { label?: string; voiceActor?: string }
+export type AudioClipMetaMap = Record<string, string | AudioClipMeta>
 
 /** 出題・カード表示の単位。表示名が同じ生徒レコードは 1 エントリに統合される。 */
 export interface QuizEntry {

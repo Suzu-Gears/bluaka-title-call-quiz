@@ -166,7 +166,7 @@ console.log(`新規世代: ${added.length} 件`)
 if (added.length > 0) {
   added.forEach((key) => console.log(`  ${key}`))
   console.log(
-    '表示名を付ける場合は src/data/audioLabels.ts に追記してください。',
+    '表示名を付ける場合は R2 の meta/audio-labels.json に追記してください。',
   )
 }
 if (recorded.length > 0) {

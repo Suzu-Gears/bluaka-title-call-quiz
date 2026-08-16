@@ -15,11 +15,8 @@ import {
   summarizeQuizResults,
 } from '@/lib/quizProgress'
 import { readStorageJson, removeStorage, writeStorage } from '@/lib/safeStorage'
-import {
-  hasMultipleGenerations,
-  pickRandomClip,
-  selectPlayableClips,
-} from '@/lib/titleCallClips'
+import { pickRandomClip, selectPlayableClips } from '@/lib/titleCallClips'
+import { loadQuizSetupSettings, saveQuizSetupSettings } from '@/lib/uiSettings'
 import { setHidden } from '@/lib/uiState'
 import {
   formatAnswerClipLabel,
@@ -115,12 +112,6 @@ export const setupQuiz = (
   ) as HTMLInputElement | null
   const collaborationFilter = document.getElementById(
     'quiz-filter-collaboration',
-  ) as HTMLInputElement | null
-  const oldGenerationWrapper = document.getElementById(
-    'quiz-old-generation-wrapper',
-  )
-  const oldGenerationCheckbox = document.getElementById(
-    'quiz-include-old-generations',
   ) as HTMLInputElement | null
   const questionCountInput = document.getElementById(
     'quiz-question-count-input',
@@ -228,6 +219,51 @@ export const setupQuiz = (
     return
   }
 
+  // 前回のクイズ設定(出題方式・出題対象・問題数)を復元する。
+  // ここで DOM に反映しておけば、以降の初期化はそのまま復元後の値を読む。
+  const savedSetup = loadQuizSetupSettings()
+  if (savedSetup.mode !== undefined) {
+    const validModes: string[] = [
+      QUIZ_MODE_MULTIPLE_CHOICE,
+      QUIZ_MODE_NAME_INPUT,
+      QUIZ_MODE_NAME_INPUT_LUNATIC,
+    ]
+    if (validModes.includes(savedSetup.mode)) {
+      const radio = quizModeGroup.querySelector<HTMLInputElement>(
+        `input[name="quiz-mode"][value="${savedSetup.mode}"]`,
+      )
+      if (radio) {
+        radio.checked = true
+      }
+    }
+  }
+  if (savedSetup.includeNormal !== undefined) {
+    normalFilter.checked = savedSetup.includeNormal
+  }
+  if (savedSetup.includeCostume !== undefined) {
+    costumeFilter.checked = savedSetup.includeCostume
+  }
+  if (savedSetup.includeCollaboration !== undefined) {
+    collaborationFilter.checked = savedSetup.includeCollaboration
+  }
+  if (savedSetup.questionCount !== undefined) {
+    questionCountInput.value = String(savedSetup.questionCount)
+  }
+
+  const persistQuizSetup = () => {
+    const parsedCount = Number(questionCountInput.value)
+    saveQuizSetupSettings({
+      mode: getQuizModeValue(),
+      includeNormal: normalFilter.checked,
+      includeCostume: costumeFilter.checked,
+      includeCollaboration: collaborationFilter.checked,
+      questionCount:
+        Number.isFinite(parsedCount) && parsedCount >= 1
+          ? Math.floor(parsedCount)
+          : DEFAULT_QUESTION_COUNT,
+    })
+  }
+
   const getCandidateNames = () => {
     const selected = new Set<string>()
     if (normalFilter.checked) {
@@ -260,6 +296,8 @@ export const setupQuiz = (
   let playAudioDelayTimer: number | null = null
   let kokonaAudioTimer: number | null = null
   let storageWarningShown = false
+  /** 回答直後の連打で選択肢の音声再生が誤発火しないようにするための時刻。 */
+  let lastAnswerAt = 0
   const kokonaAudio: HTMLAudioElement = new Audio(
     resolveAssetUrl('kokona-hanamaru.mp3'),
   )
@@ -268,13 +306,9 @@ export const setupQuiz = (
     a.localeCompare(b, 'ja'),
   )
 
-  const includeOldGenerations = () => Boolean(oldGenerationCheckbox?.checked)
-
+  // クイズは常に最新世代のみを出題する(旧声優版などはカード一覧でのみ聴ける)。
   const clipsForName = (name: string): TitleCallClip[] =>
-    selectPlayableClips(
-      entryByName.get(name)?.TitleCalls ?? [],
-      includeOldGenerations(),
-    )
+    selectPlayableClips(entryByName.get(name)?.TitleCalls ?? [])
 
   const imageUrlForName = (name: string): string => {
     const entry = entryByName.get(name)
@@ -291,14 +325,6 @@ export const setupQuiz = (
     clip
       ? resolveAssetUrl(formatImageKey(clip.ownerId))
       : imageUrlForName(fallbackName)
-
-  // 旧世代の音声が 1 本も無いうちは、設定項目自体を出さない。
-  if (oldGenerationWrapper) {
-    const hasAnyOldGeneration = playableEntries.some((entry) =>
-      hasMultipleGenerations(entry.TitleCalls),
-    )
-    setHidden(oldGenerationWrapper, !hasAnyOldGeneration)
-  }
 
   const setMenuOpen = (isOpen: boolean) => {
     if (!menuPanel || !menuButton) {
@@ -408,7 +434,9 @@ export const setupQuiz = (
     getQuestionCountMax,
     onChange: () => {
       refreshFilterState()
-      statusText.textContent = QUIZ_UI_TEXT.questionCountChanged
+      // 表示中の検証エラーがあれば、設定を変えた時点で消す。
+      statusText.textContent = ''
+      persistQuizSetup()
     },
   })
 
@@ -495,15 +523,24 @@ export const setupQuiz = (
       const button = document.createElement('button')
       button.type = 'button'
       button.className = 'quiz-name-answer-suggestion'
-      const image = document.createElement('img')
-      image.src = imageUrlForName(name)
-      image.alt = name
-      image.onerror = () => {
-        image.src = DEFAULT_IMAGE
-      }
+      // 同名で複数フォームを持つ生徒(シュン（水着）等)は全フォームの画像を並べる。
+      const imageIds = entryByName.get(name)?.ImageIds ?? []
+      const imageUrls =
+        imageIds.length > 0
+          ? imageIds.map((id) => resolveAssetUrl(formatImageKey(id)))
+          : [imageUrlForName(name)]
+      imageUrls.forEach((url) => {
+        const image = document.createElement('img')
+        image.src = url
+        image.alt = name
+        image.onerror = () => {
+          image.src = DEFAULT_IMAGE
+        }
+        button.appendChild(image)
+      })
       const label = document.createElement('span')
       label.textContent = name
-      button.append(image, label)
+      button.appendChild(label)
       button.addEventListener('click', () => {
         nameAnswerInput.value = name
         hideNameSuggestions()
@@ -561,6 +598,15 @@ export const setupQuiz = (
     kokonaAudio.pause()
     kokonaAudio.currentTime = 0
     kokonaAudio.play().catch(() => {})
+  }
+
+  const stopKokonaAudio = () => {
+    if (kokonaAudioTimer !== null) {
+      window.clearTimeout(kokonaAudioTimer)
+      kokonaAudioTimer = null
+    }
+    kokonaAudio.pause()
+    kokonaAudio.currentTime = 0
   }
 
   const updateAnswerFeedback = (name: string) => {
@@ -691,10 +737,7 @@ export const setupQuiz = (
 
   const resetToStartScreen = () => {
     stopAudio()
-    if (kokonaAudioTimer !== null) {
-      window.clearTimeout(kokonaAudioTimer)
-      kokonaAudioTimer = null
-    }
+    stopKokonaAudio()
     usedChoiceNames = new Set()
     currentAnswer = ''
     currentQuestionClip = null
@@ -744,9 +787,14 @@ export const setupQuiz = (
     })
     shouldShowCurrentAnswerStats = true
     hasAnsweredCurrentQuestion = true
+    lastAnswerAt = Date.now()
     recordAnswer(currentAnswer, isCorrect)
     statusText.textContent = formatAnswerResultStatus(isCorrect, currentAnswer)
-    updateAnswerFeedback(currentAnswer)
+    // 4択は選択肢に正解の画像が既にあり緑色で示されるので、
+    // フィードバック画像は名前入力系モードのときだけ出す。
+    if (currentMode !== QUIZ_MODE_MULTIPLE_CHOICE) {
+      updateAnswerFeedback(currentAnswer)
+    }
     const hasRemainingQuestion = questionNumber < totalQuestions
     awaitingResult = !hasRemainingQuestion
     nextButton.textContent = awaitingResult
@@ -828,6 +876,10 @@ export const setupQuiz = (
         button.append(image, label)
         button.addEventListener('click', () => {
           if (hasAnsweredCurrentQuestion) {
+            // 回答確定直後のダブルタップを聴き直し操作として扱わない。
+            if (Date.now() - lastAnswerAt < 350) {
+              return
+            }
             playAnyClipForName(name)
             return
           }
@@ -923,8 +975,14 @@ export const setupQuiz = (
 
   setPageSwitchGuard((targetId) => {
     const isNavigatingToCardList = targetId === 'card-list'
+    if (!isNavigatingToCardList) {
+      return true
+    }
     const isShowingResult = Boolean(resultSection && !resultSection.hidden)
-    if (!isNavigatingToCardList || !isQuizRunning || isShowingResult) {
+    if (!isQuizRunning || isShowingResult) {
+      // リザルトの聴き直しなど、クイズ側の音声を鳴らしたまま移動させない。
+      stopAudio()
+      stopKokonaAudio()
       return true
     }
     const shouldMove = window.confirm(QUIZ_UI_TEXT.pageLeaveConfirm)
@@ -977,16 +1035,15 @@ export const setupQuiz = (
   quizModeGroup.addEventListener('change', () => {
     updateModeUI()
     refreshFilterState()
-    statusText.textContent = QUIZ_UI_TEXT.modeChanged
+    statusText.textContent = ''
+    persistQuizSetup()
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {
       refreshFilterState()
-      statusText.textContent = QUIZ_UI_TEXT.candidateFilterChanged
+      statusText.textContent = ''
+      persistQuizSetup()
     })
-  })
-  oldGenerationCheckbox?.addEventListener('change', () => {
-    statusText.textContent = QUIZ_UI_TEXT.audioVersionChanged
   })
 
   nameAnswerForm?.addEventListener('submit', (event) => {
