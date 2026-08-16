@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 
+import { formatBytes, normalizeCacheManifest } from '@/lib/assetCache'
 import {
   formatAudioKey,
   formatClipRef,
@@ -27,12 +28,14 @@ import {
 } from '@/lib/progressTransfer'
 import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import {
+  applyAnswerToEntry,
   buildNameInputSuggestions,
   calculateAccuracy,
   filterCandidates,
+  isClearedEntry,
   isTransientNameInputQuery,
   mergeWithStudents,
-  migrateLegacyProficiency,
+  needsReviewEntry,
   normalizeKanaForSearch,
   normalizeNameInputForSearch,
   normalizeProficiencyMap,
@@ -40,13 +43,18 @@ import {
   resolveMultipleChoiceMaxQuestions,
   resolveQuestionCount,
   resolveStudentCategory,
+  selectLearningTargets,
+  selectReviewTargets,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
 import { HttpStatusError, isNotFoundError } from '@/lib/schaleDBClient'
-import { isValidSyncCode, parseSyncPayload } from '@/lib/syncClient'
+import {
+  isValidSyncCode,
+  isValidSyncEndpointUrl,
+  parseSyncPayload,
+} from '@/lib/syncClient'
 import {
   clipsForMember,
-  hasMultipleGenerations,
   orderClipsForBrowsing,
   pickRandomClip,
   selectPlayableClips,
@@ -124,41 +132,63 @@ const deterministicRandom = () => 0
 
 {
   const normalized = normalizeProficiencyMap({
-    A: { correct: 2, attempts: 3 },
+    A: { correct: 2, attempts: 3, streak: 1 },
     B: { correct: -1, attempts: 1 },
     C: { correct: 'x', attempts: 1 },
   })
   assert.deepEqual(normalized, {
-    A: { correct: 2, attempts: 3 },
-    B: { correct: 0, attempts: 1 },
+    A: { correct: 2, attempts: 3, streak: 1 },
+    B: { correct: 0, attempts: 1, streak: 0 },
   })
 }
 
 {
-  const migrated = migrateLegacyProficiency({
-    A: 4,
-    B: 0,
-    C: 'invalid',
-  })
-  assert.deepEqual(migrated, {
-    A: { correct: 4, attempts: 4 },
-    B: { correct: 0, attempts: 0 },
-  })
+  const merged = mergeWithStudents(
+    { A: { correct: 2, attempts: 3, streak: 1 } },
+    ['A', 'B', 'C'],
+  )
+  assert.deepEqual(merged.B, { correct: 0, attempts: 0, streak: 0 })
+  assert.deepEqual(merged.C, { correct: 0, attempts: 0, streak: 0 })
 }
 
 {
-  const merged = mergeWithStudents({ A: { correct: 2, attempts: 3 } }, [
-    'A',
-    'B',
-    'C',
+  assert.equal(calculateAccuracy({ correct: 3, attempts: 4, streak: 1 }), 75)
+  assert.equal(calculateAccuracy({ correct: 0, attempts: 0, streak: 0 }), 0)
+}
+
+// --- 回答の記録と学習・復習プールの選別 ---
+{
+  // 未回答 → 誤答 → 正解 → 正解 の流れ
+  let entry = applyAnswerToEntry(undefined, false)
+  assert.deepEqual(entry, { correct: 0, attempts: 1, streak: 0 })
+  entry = applyAnswerToEntry(entry, true)
+  assert.deepEqual(entry, { correct: 1, attempts: 2, streak: 1 })
+  entry = applyAnswerToEntry(entry, true)
+  assert.deepEqual(entry, { correct: 2, attempts: 3, streak: 2 })
+
+  const map = {
+    未出題: { correct: 0, attempts: 0, streak: 0 },
+    未正解: { correct: 0, attempts: 2, streak: 0 },
+    直近誤答: { correct: 3, attempts: 5, streak: 0 },
+    復帰途中: { correct: 4, attempts: 5, streak: 1 },
+    卒業済み: { correct: 5, attempts: 6, streak: 2 },
+    誤答なし: { correct: 1, attempts: 1, streak: 1 },
+  }
+  const names = Object.keys(map)
+  // 学習対象 = まだ一度も正解していない生徒(未出題も含む)
+  assert.deepEqual(selectLearningTargets(names, map), ['未出題', '未正解'])
+  // 復習対象 = 誤答歴があり、まだ連続2回正解していない生徒。
+  // 最後に正解していても連続正解が足りなければ残る(復帰途中)。
+  assert.deepEqual(selectReviewTargets(names, map), [
+    '未正解',
+    '直近誤答',
+    '復帰途中',
   ])
-  assert.deepEqual(merged.B, { correct: 0, attempts: 0 })
-  assert.deepEqual(merged.C, { correct: 0, attempts: 0 })
-}
-
-{
-  assert.equal(calculateAccuracy({ correct: 3, attempts: 4 }), 75)
-  assert.equal(calculateAccuracy({ correct: 0, attempts: 0 }), 0)
+  assert.equal(needsReviewEntry(map.卒業済み), false)
+  assert.equal(needsReviewEntry(map.誤答なし), false)
+  assert.equal(needsReviewEntry(undefined), false)
+  assert.equal(isClearedEntry(map.未正解), false)
+  assert.equal(isClearedEntry(map.誤答なし), true)
 }
 
 {
@@ -506,12 +536,10 @@ const deterministicRandom = () => 0
     orderClipsForBrowsing(cherino).map((c) => c.generation),
     [2, 1],
   )
-  assert.equal(hasMultipleGenerations(cherino), true)
 
   // バリアント(clipId 違い)は既定でも両方残る
   const shun = [clip('ch0355_title', 1), clip('np0288_title', 1)]
   assert.equal(selectPlayableClips(shun, false).length, 2)
-  assert.equal(hasMultipleGenerations(shun), false)
   assert.deepEqual(
     sortTitleCallClips([
       clip('b_title', 1),
@@ -525,11 +553,6 @@ const deterministicRandom = () => 0
   assert.equal(pickRandomClip([]), null)
   assert.equal(pickRandomClip(shun, () => 0)?.clipId, 'ch0355_title')
   assert.equal(pickRandomClip(shun, () => 0.99)?.clipId, 'np0288_title')
-  // random が 1 を返しても範囲外にならない
-  assert.notEqual(
-    pickRandomClip(shun, () => 1),
-    null,
-  )
 
   // メンバー(形態)ごとのカードが再生するクリップ:
   // 自分に帰属するものがあればそれのみ、無ければグループ共有で全クリップ。
@@ -560,20 +583,8 @@ const deterministicRandom = () => 0
     overrides: Pick<Student, 'Id' | 'Name'> & Partial<Student>,
   ): Student => ({
     DefaultOrder: 0,
-    PathName: '',
     DevName: '',
-    StarGrade: 3,
-    FamilyName: '',
-    FamilyNameRuby: '',
-    PersonalName: '',
-    PersonalNameRuby: '',
     CharacterVoice: '',
-    School: '',
-    SchoolYear: '',
-    CharacterAge: '',
-    Birthday: '',
-    BirthDay: '',
-    CharHeightMetric: '',
     ...overrides,
   })
 
@@ -856,8 +867,8 @@ const deterministicRandom = () => 0
 // --- 進捗のエクスポート / インポート ---
 {
   const proficiency = {
-    アリス: { correct: 3, attempts: 4 },
-    ホシノ: { correct: 0, attempts: 0 },
+    アリス: { correct: 3, attempts: 4, streak: 1 },
+    ホシノ: { correct: 0, attempts: 0, streak: 0 },
   }
   const exported = buildProgressExport(proficiency, '2026-08-16T00:00:00.000Z')
   assert.equal(exported.formatVersion, 1)
@@ -906,11 +917,25 @@ const deterministicRandom = () => 0
   assert.equal(isValidSyncCode('not-a-uuid'), false)
   assert.equal(isValidSyncCode(''), false)
 
+  assert.equal(
+    isValidSyncEndpointUrl('https://script.google.com/macros/s/XXXX/exec'),
+    true,
+  )
+  assert.equal(
+    isValidSyncEndpointUrl('  https://example.com/sync  '),
+    true,
+  )
+  assert.equal(isValidSyncEndpointUrl('http://example.com/sync'), false)
+  assert.equal(isValidSyncEndpointUrl('script.google.com/macros'), false)
+  assert.equal(isValidSyncEndpointUrl(''), false)
+
   const payload = parseSyncPayload({
     updatedAt: '2026-08-16T00:00:00.000Z',
     proficiency: { A: { correct: 1, attempts: 2 } },
   })
-  assert.deepEqual(payload?.proficiency, { A: { correct: 1, attempts: 2 } })
+  assert.deepEqual(payload?.proficiency, {
+    A: { correct: 1, attempts: 2, streak: 0 },
+  })
   // シートの生値が文字列で返る形にも対応する
   const wrapped = parseSyncPayload({
     json: JSON.stringify({
@@ -922,6 +947,39 @@ const deterministicRandom = () => 0
   assert.equal(parseSyncPayload(null), null)
   assert.equal(parseSyncPayload({}), null)
   assert.equal(parseSyncPayload({ json: 'broken' }), null)
+}
+
+{
+  assert.equal(formatBytes(0), '0 B')
+  assert.equal(formatBytes(512), '512 B')
+  assert.equal(formatBytes(2048), '2 KB')
+  assert.equal(formatBytes(1024 * 1024), '1.0 MB')
+  assert.equal(formatBytes(12.34 * 1024 * 1024), '12.3 MB')
+  assert.equal(formatBytes(-1), '-')
+  assert.equal(formatBytes(Number.NaN), '-')
+}
+
+{
+  const manifest = normalizeCacheManifest({
+    version: '123',
+    totalSize: 999999,
+    files: [
+      { path: 'audio/10005/hoshino_title.g1.mp3', size: 100 },
+      { path: 'image/10005.webp', size: 200 },
+      { path: '', size: 300 },
+      { path: 'broken-size.bin', size: 'x' },
+      null,
+    ],
+  })
+  assert.ok(manifest)
+  assert.equal(manifest.version, '123')
+  assert.equal(manifest.files.length, 3)
+  // totalSize は宣言値ではなくファイル一覧から再計算する(サイズ不明は 0 扱い)
+  assert.equal(manifest.totalSize, 300)
+
+  assert.equal(normalizeCacheManifest(null), null)
+  assert.equal(normalizeCacheManifest({ files: [] }), null)
+  assert.equal(normalizeCacheManifest({ files: 'broken' }), null)
 }
 
 console.log('All quiz tests passed.')

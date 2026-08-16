@@ -21,20 +21,8 @@ const STUDENT_FIELDS = [
   'DefaultOrder',
   'Id',
   'Name',
-  'PathName',
   'DevName',
-  'StarGrade',
-  'FamilyName',
-  'FamilyNameRuby',
-  'PersonalName',
-  'PersonalNameRuby',
   'CharacterVoice',
-  'School',
-  'SchoolYear',
-  'CharacterAge',
-  'Birthday',
-  'BirthDay',
-  'CharHeightMetric',
 ] as const
 
 const COSTUME_PATTERN = /（[^）]+）/

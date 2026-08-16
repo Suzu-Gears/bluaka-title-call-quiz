@@ -1,4 +1,3 @@
-import appRoot from 'app-root-path'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -59,7 +58,7 @@ import {
   resolveVoiceAssetUrl,
 } from '@/lib/voiceData'
 
-const projectRoot = appRoot.path
+const projectRoot = process.cwd()
 
 export const PUBLIC_DIR = path.join(projectRoot, 'public')
 export const TMP_DIR = path.join(projectRoot, 'tmp')

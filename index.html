@@ -392,7 +392,7 @@
               <div class="quiz-setup-grid">
                 <div class="quiz-setup-main">
                   <div class="quiz-mode-wrapper">
-                    <div class="quiz-banner">出題方式</div>
+                    <div class="quiz-banner">回答方式</div>
                     <div
                       id="quiz-mode-group"
                       class="radio-group quiz-mode-component-wrapper"
@@ -426,6 +426,54 @@
                         <span class="radio-label">名前入力 ( Lunatic )</span>
                       </label>
                     </div>
+                    <p
+                      id="quiz-mode-description"
+                      class="quiz-setup-description"
+                    ></p>
+                  </div>
+                  <div class="quiz-mode-wrapper">
+                    <div class="quiz-banner">出題モード</div>
+                    <div
+                      id="quiz-draw-mode-group"
+                      class="radio-group quiz-mode-component-wrapper"
+                    >
+                      <label class="para" ontouchstart="">
+                        <input
+                          type="radio"
+                          name="quiz-draw-mode"
+                          value="random"
+                          class="radio-input"
+                          checked
+                        />
+                        <span class="radio-label">ランダム</span>
+                      </label>
+                      <label class="para" ontouchstart="">
+                        <input
+                          type="radio"
+                          name="quiz-draw-mode"
+                          value="learning"
+                          class="radio-input"
+                        />
+                        <span class="radio-label">学習</span>
+                      </label>
+                      <label class="para" ontouchstart="">
+                        <input
+                          type="radio"
+                          name="quiz-draw-mode"
+                          value="review"
+                          class="radio-input"
+                        />
+                        <span class="radio-label">復習</span>
+                      </label>
+                    </div>
+                    <p
+                      id="quiz-draw-mode-description"
+                      class="quiz-setup-description"
+                    ></p>
+                    <p
+                      id="quiz-draw-mode-stats"
+                      class="quiz-setup-description quiz-setup-stats"
+                    ></p>
                   </div>
                   <fieldset class="quiz-filter-fieldset pill-filter-fieldset">
                     <legend class="visually-hidden">出題対象</legend>
@@ -624,7 +672,7 @@
         </small>
       </footer>
     </div>
-    <dialog id="filter-dialog" class="app-dialog filter-dialog">
+    <dialog id="filter-dialog" class="app-dialog filter-dialog" tabindex="-1">
       <div class="filter-dialog-head">
         <h3 class="filter-dialog-title">フィルター</h3>
         <button
@@ -683,6 +731,7 @@
     <dialog
       id="settings-dialog"
       class="app-dialog filter-dialog settings-dialog"
+      tabindex="-1"
     >
       <div class="filter-dialog-head">
         <h3 class="filter-dialog-title">設定</h3>
@@ -695,11 +744,43 @@
           ×
         </button>
       </div>
+      <div class="filter-section-label">ステータス</div>
+      <dl class="settings-status-grid">
+        <dt>ネットワーク</dt>
+        <dd id="settings-network-state">-</dd>
+        <dt>現在のバージョン</dt>
+        <dd id="settings-current-version">-</dd>
+        <dt>最新バージョン</dt>
+        <dd id="settings-latest-version">未確認</dd>
+      </dl>
       <div class="filter-section-label">アップデート</div>
-      <p id="settings-version-line" class="settings-note"></p>
+      <p id="settings-update-note" class="settings-note" hidden></p>
       <div class="app-dialog-actions">
-        <button id="settings-check-update" type="button">
-          更新を確認して適用
+        <button id="settings-check-update" type="button">更新を確認</button>
+        <button id="settings-apply-update" type="button" hidden>
+          更新を適用
+        </button>
+      </div>
+      <div class="filter-section-label">データのダウンロード</div>
+      <p id="settings-cache-size-line" class="settings-note">
+        保存状況を確認しています...
+      </p>
+      <p class="settings-note">
+        音声・画像などの全データをまとめて端末に保存します。モバイル回線では通信量にご注意ください（Wi-Fi
+        推奨）。
+      </p>
+      <div
+        id="settings-download-progress"
+        class="settings-download-progress"
+        hidden
+      >
+        <progress id="settings-download-progress-bar" value="0" max="1">
+        </progress>
+        <span id="settings-download-progress-text"></span>
+      </div>
+      <div class="app-dialog-actions">
+        <button id="settings-download-all" type="button">
+          すべてダウンロード
         </button>
       </div>
       <div class="filter-section-label">キャッシュ</div>
@@ -709,9 +790,6 @@
       <div class="app-dialog-actions">
         <button id="settings-clear-cache" type="button">
           キャッシュをクリア
-        </button>
-        <button id="settings-redownload" type="button">
-          すべて再ダウンロード
         </button>
       </div>
       <div class="filter-section-label">リセット</div>
@@ -738,7 +816,7 @@
       </p>
       <p id="settings-status" class="app-dialog-status" role="status"></p>
     </dialog>
-    <dialog id="progress-dialog" class="app-dialog">
+    <dialog id="progress-dialog" class="app-dialog" tabindex="-1">
       <h3 id="progress-dialog-title">進捗データ</h3>
       <p id="progress-dialog-description" class="app-dialog-description"></p>
       <textarea
@@ -773,7 +851,7 @@
         <button id="progress-dialog-close-button" type="button">閉じる</button>
       </div>
     </dialog>
-    <dialog id="sync-dialog" class="app-dialog">
+    <dialog id="sync-dialog" class="app-dialog" tabindex="-1">
       <h3>クラウド同期</h3>
       <p class="app-dialog-description">
         同期コードはパスワードと同じ扱いです。他人に教えないでください。<br />
@@ -787,6 +865,16 @@
           autocomplete="off"
           spellcheck="false"
           placeholder="未設定"
+        />
+      </label>
+      <label class="app-dialog-field" for="sync-endpoint-input">
+        保存先URL（空欄なら作者のシートに保存）
+        <input
+          id="sync-endpoint-input"
+          type="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="自分のスプレッドシートに保存する場合のみ入力"
         />
       </label>
       <p id="sync-dialog-status" class="app-dialog-status" role="status"></p>

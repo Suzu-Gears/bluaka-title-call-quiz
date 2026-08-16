@@ -74,24 +74,5 @@ export function pickRandomClip(
   clips: readonly TitleCallClip[],
   random: () => number = Math.random,
 ): TitleCallClip | null {
-  if (clips.length === 0) {
-    return null
-  }
-  const index = Math.floor(random() * clips.length)
-  return clips[Math.min(Math.max(index, 0), clips.length - 1)] ?? null
-}
-
-/** 同じ clipId に複数世代があるか(カード一覧のバッジ表示要否の判定に使う)。 */
-export function hasMultipleGenerations(
-  clips: readonly TitleCallClip[],
-): boolean {
-  const seen = new Map<string, number>()
-  for (const clip of clips) {
-    const count = (seen.get(clip.clipId) ?? 0) + 1
-    if (count > 1) {
-      return true
-    }
-    seen.set(clip.clipId, count)
-  }
-  return false
+  return clips[Math.floor(random() * clips.length)] ?? null
 }

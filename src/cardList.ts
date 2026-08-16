@@ -349,6 +349,8 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
       Boolean(checkbox?.checked),
     )
     filterDialog.showModal()
+    // ×ボタンへの自動フォーカスで iOS にリングが出ないよう、ダイアログ自体へ移す
+    filterDialog.focus({ preventScroll: true })
   })
   document
     .getElementById('filter-cancel-button')

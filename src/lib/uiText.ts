@@ -11,7 +11,6 @@ export const APP_ERROR_TEXT = {
 export const QUIZ_UI_TEXT = {
   // 設定画面の状態表示はエラー系メッセージ専用。案内文は出さない(見れば分かるため)。
   initialStatus: '',
-  migratedLegacySave: '旧セーブデータを移行しました。',
   audioPlaybackFailed: '音声を再生できませんでした。もう一度お試しください。',
   next: '次へ',
   start: '開始',
@@ -63,9 +62,51 @@ export const SYNC_UI_TEXT = {
   downloadEmpty: 'このコードで保存されたデータは見つかりませんでした。',
   failed: '通信に失敗しました。時間をおいて試してください。',
   invalidCode: '同期コードの形式が正しくありません。',
+  invalidEndpoint:
+    '保存先URLの形式が正しくありません。https:// で始まるURLを入力してください。',
+  endpointSaved: '保存先を自分のスプレッドシートに変更しました。',
+  endpointCleared: '保存先を既定（作者のシート）に戻しました。',
+  noEndpoint:
+    '保存先が設定されていません。保存先URLを入力してください。',
   downloadConfirm:
     'クラウドのデータで現在の進捗を置き換えます。よろしいですか？',
 } as const
+
+/** 回答方式(4択・名前入力)の説明。選択中の値に応じて設定画面に出す。 */
+export const QUIZ_MODE_DESCRIPTION: Record<string, string> = {
+  'multiple-choice': '流れた音声の生徒を、4人の選択肢から選んで回答します。',
+  'name-input': '生徒の名前を入力して回答します。入力中は候補が表示されます。',
+  'name-input-lunatic': '候補の表示なしで名前を入力する、上級者向けの回答方式です。',
+}
+
+/** 出題モード(ランダム・学習・復習)の説明。 */
+export const QUIZ_DRAW_MODE_DESCRIPTION: Record<string, string> = {
+  random: '出題対象の中から、設定した問題数だけランダムに出題します。',
+  learning:
+    'まだ正解したことのない生徒の中から出題します。全員に正解すると学習は完了です。',
+  review:
+    '間違えたことのある生徒の中から出題します。連続2回正解すると復習対象から外れます。',
+}
+
+const formatCountWithRate = (
+  label: string,
+  count: number,
+  totalCount: number,
+): string => {
+  const rate =
+    totalCount > 0 ? Math.round((count / totalCount) * 1000) / 10 : 0
+  return `${label}: ${count} / ${totalCount} 人（${rate}%）`
+}
+
+export const formatClearRate = (
+  clearedCount: number,
+  totalCount: number,
+): string => formatCountWithRate('攻略率', clearedCount, totalCount)
+
+export const formatReviewTargetCount = (
+  count: number,
+  totalCount: number,
+): string => formatCountWithRate('復習対象', count, totalCount)
 
 export const formatQuizQuestionStatus = (questionNumber: number): string =>
   `第${questionNumber}問: このタイトルコールは誰？`

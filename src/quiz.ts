@@ -1,33 +1,39 @@
 import { formatImageKey } from '@/lib/assetKeys'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import type { QuizEntry, TitleCallClip } from '@/lib/interfaces'
-import { buildChoices } from '@/lib/quizEngine'
+import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import type { ProficiencyMap } from '@/lib/quizProgress'
 import {
+  applyAnswerToEntry,
   buildNameInputSuggestions,
   calculateAccuracy,
   filterCandidates,
   mergeWithStudents,
-  migrateLegacyProficiency,
   normalizeProficiencyMap,
   normalizeQuizAnswer,
   resolveMultipleChoiceMaxQuestions,
+  selectLearningTargets,
+  selectReviewTargets,
   summarizeQuizResults,
 } from '@/lib/quizProgress'
-import { readStorageJson, removeStorage, writeStorage } from '@/lib/safeStorage'
+import { readStorageJson, writeStorage } from '@/lib/safeStorage'
 import { pickRandomClip, selectPlayableClips } from '@/lib/titleCallClips'
 import { loadQuizSetupSettings, saveQuizSetupSettings } from '@/lib/uiSettings'
 import { setHidden } from '@/lib/uiState'
 import {
   formatAnswerClipLabel,
   formatAnswerResultStatus,
+  formatClearRate,
   formatQuizFinishedStatus,
   formatQuizQuestionStatus,
   formatResultEntryCorrectAnswer,
   formatResultEntryStatus,
   formatResultEntryUserAnswer,
   formatResultSummary,
+  formatReviewTargetCount,
   PROGRESS_UI_TEXT,
+  QUIZ_DRAW_MODE_DESCRIPTION,
+  QUIZ_MODE_DESCRIPTION,
   QUIZ_UI_TEXT,
 } from '@/lib/uiText'
 import { setupProgressPanel } from '@/progressPanel'
@@ -37,15 +43,13 @@ const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
 const QUIZ_MODE_NAME_INPUT = 'name-input'
 const QUIZ_MODE_NAME_INPUT_LUNATIC = 'name-input-lunatic'
+const QUIZ_DRAW_MODE_RANDOM = 'random'
+const QUIZ_DRAW_MODE_LEARNING = 'learning'
+const QUIZ_DRAW_MODE_REVIEW = 'review'
 const MIN_NAME_SUGGESTION_OVERLAY_WIDTH = 220
 const DEFAULT_QUESTION_COUNT = 10
 const INITIAL_STATUS_TEXT = QUIZ_UI_TEXT.initialStatus
 const STORAGE_KEY = 'bluaka-title-call-quiz2.proficiency.v1'
-const LEGACY_STORAGE_KEYS = [
-  'bluaka-title-call-quiz.proficiency.v1',
-  'bluaka-title-call-quiz.proficiency',
-  'quizProficiency',
-]
 
 type CandidateGroups = {
   normal: string[]
@@ -61,8 +65,6 @@ type QuizResultEntry = {
   /** 出題に使ったクリップ。リザルトから同じ音声を再生するために保持する。 */
   clip: TitleCallClip | null
 }
-
-let nameSuggestionOverlayListenersAttached = false
 
 export const setupQuiz = (
   entries: readonly QuizEntry[],
@@ -104,6 +106,20 @@ export const setupQuiz = (
         'input[name="quiz-mode"]:checked',
       ) as HTMLInputElement | null
     )?.value ?? QUIZ_MODE_MULTIPLE_CHOICE
+  const drawModeGroup = document.getElementById(
+    'quiz-draw-mode-group',
+  ) as HTMLElement | null
+  const getDrawModeValue = () =>
+    (
+      drawModeGroup?.querySelector(
+        'input[name="quiz-draw-mode"]:checked',
+      ) as HTMLInputElement | null
+    )?.value ?? QUIZ_DRAW_MODE_RANDOM
+  const quizModeDescription = document.getElementById('quiz-mode-description')
+  const drawModeDescription = document.getElementById(
+    'quiz-draw-mode-description',
+  )
+  const drawModeStats = document.getElementById('quiz-draw-mode-stats')
   const normalFilter = document.getElementById(
     'quiz-filter-normal',
   ) as HTMLInputElement | null
@@ -237,6 +253,18 @@ export const setupQuiz = (
       }
     }
   }
+  if (
+    savedSetup.drawMode === QUIZ_DRAW_MODE_RANDOM ||
+    savedSetup.drawMode === QUIZ_DRAW_MODE_LEARNING ||
+    savedSetup.drawMode === QUIZ_DRAW_MODE_REVIEW
+  ) {
+    const radio = drawModeGroup?.querySelector<HTMLInputElement>(
+      `input[name="quiz-draw-mode"][value="${savedSetup.drawMode}"]`,
+    )
+    if (radio) {
+      radio.checked = true
+    }
+  }
   if (savedSetup.includeNormal !== undefined) {
     normalFilter.checked = savedSetup.includeNormal
   }
@@ -254,6 +282,7 @@ export const setupQuiz = (
     const parsedCount = Number(questionCountInput.value)
     saveQuizSetupSettings({
       mode: getQuizModeValue(),
+      drawMode: getDrawModeValue(),
       includeNormal: normalFilter.checked,
       includeCostume: costumeFilter.checked,
       includeCollaboration: collaborationFilter.checked,
@@ -282,8 +311,12 @@ export const setupQuiz = (
   let currentAnswer = ''
   let currentQuestionClip: TitleCallClip | null = null
   let currentMode = getQuizModeValue()
+  let currentDrawMode = getDrawModeValue()
+  /** 学習・復習モードで今回のラウンドに出題する生徒(先頭から順に出す)。 */
+  let roundQueue: string[] = []
+  let learningPoolNames: string[] = []
+  let reviewPoolNames: string[] = []
   let shouldShowCurrentAnswerStats = false
-  let score = 0
   let questionNumber = 0
   let currentAudio: HTMLAudioElement | null = null
   let proficiencyMap: ProficiencyMap = {}
@@ -360,33 +393,19 @@ export const setupQuiz = (
 
   const loadProficiency = () => {
     const currentRaw = readStorageJson(STORAGE_KEY)
-    if (currentRaw !== null) {
-      proficiencyMap = mergeWithStudents(
-        normalizeProficiencyMap(currentRaw),
-        allStudentNames,
-      )
-      saveProficiency()
-      return
-    }
-
-    for (const legacyKey of LEGACY_STORAGE_KEYS) {
-      const legacyRaw = readStorageJson(legacyKey)
-      if (legacyRaw === null) continue
-      proficiencyMap = mergeWithStudents(
-        migrateLegacyProficiency(legacyRaw),
-        allStudentNames,
-      )
-      saveProficiency()
-      removeStorage(legacyKey)
-      statusText.textContent = QUIZ_UI_TEXT.migratedLegacySave
-      return
-    }
-    proficiencyMap = mergeWithStudents({}, allStudentNames)
+    proficiencyMap = mergeWithStudents(
+      currentRaw !== null ? normalizeProficiencyMap(currentRaw) : {},
+      allStudentNames,
+    )
     saveProficiency()
   }
 
   const updateProficiencyText = () => {
-    const entry = proficiencyMap[currentAnswer] ?? { correct: 0, attempts: 0 }
+    const entry = proficiencyMap[currentAnswer] ?? {
+      correct: 0,
+      attempts: 0,
+      streak: 0,
+    }
     const accuracy = calculateAccuracy(entry)
     proficiencyText.textContent =
       currentAnswer && shouldShowCurrentAnswerStats
@@ -395,12 +414,10 @@ export const setupQuiz = (
   }
 
   const recordAnswer = (studentName: string, isCorrect: boolean) => {
-    const entry = proficiencyMap[studentName] ?? { correct: 0, attempts: 0 }
-    entry.attempts += 1
-    if (isCorrect) {
-      entry.correct += 1
-    }
-    proficiencyMap[studentName] = entry
+    proficiencyMap[studentName] = applyAnswerToEntry(
+      proficiencyMap[studentName],
+      isCorrect,
+    )
     saveProficiency()
     updateProficiencyText()
   }
@@ -414,14 +431,24 @@ export const setupQuiz = (
       )
       saveProficiency()
       updateProficiencyText()
+      if (!isQuizRunning) {
+        refreshFilterState()
+      }
     },
     onOpen: () => setMenuOpen(false),
   })
 
-  const getQuestionCountMax = () =>
-    currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+  const getQuestionCountMax = () => {
+    if (currentDrawMode === QUIZ_DRAW_MODE_LEARNING) {
+      return learningPoolNames.length
+    }
+    if (currentDrawMode === QUIZ_DRAW_MODE_REVIEW) {
+      return reviewPoolNames.length
+    }
+    return currentMode === QUIZ_MODE_MULTIPLE_CHOICE
       ? resolveMultipleChoiceMaxQuestions(activeNames.length)
       : activeNames.length
+  }
 
   const questionCountControl = setupQuizQuestionCountControl({
     elements: {
@@ -442,11 +469,72 @@ export const setupQuiz = (
 
   const updateModeUI = () => {
     currentMode = getQuizModeValue()
+    currentDrawMode = getDrawModeValue()
     const isNameInputMode =
       currentMode === QUIZ_MODE_NAME_INPUT ||
       currentMode === QUIZ_MODE_NAME_INPUT_LUNATIC
     setHidden(choicesRoot, isNameInputMode)
     setHidden(nameAnswerForm, !isNameInputMode || !isQuizRunning)
+    if (quizModeDescription) {
+      quizModeDescription.textContent =
+        QUIZ_MODE_DESCRIPTION[currentMode] ?? ''
+    }
+  }
+
+  const drawModeRadio = (value: string) =>
+    drawModeGroup?.querySelector<HTMLInputElement>(
+      `input[name="quiz-draw-mode"][value="${value}"]`,
+    )
+
+  /**
+   * 出題モードの選択肢・説明・攻略率を現在の出題対象と進捗から更新する。
+   * 学習(未クリア)・復習(要復習)の対象がいないモードは選択肢ごと隠し、
+   * 選択中のモードが消えた場合はランダムへ戻す。
+   */
+  const updateDrawModeInfo = () => {
+    learningPoolNames = selectLearningTargets(activeNames, proficiencyMap)
+    reviewPoolNames = selectReviewTargets(activeNames, proficiencyMap)
+
+    const setOptionVisible = (value: string, visible: boolean) => {
+      const label = drawModeRadio(value)?.closest('label')
+      if (label instanceof HTMLElement) {
+        setHidden(label, !visible)
+      }
+    }
+    setOptionVisible(QUIZ_DRAW_MODE_LEARNING, learningPoolNames.length > 0)
+    setOptionVisible(QUIZ_DRAW_MODE_REVIEW, reviewPoolNames.length > 0)
+
+    const selected = getDrawModeValue()
+    const isSelectable =
+      selected === QUIZ_DRAW_MODE_LEARNING
+        ? learningPoolNames.length > 0
+        : selected === QUIZ_DRAW_MODE_REVIEW
+          ? reviewPoolNames.length > 0
+          : true
+    if (!isSelectable) {
+      const randomRadio = drawModeRadio(QUIZ_DRAW_MODE_RANDOM)
+      if (randomRadio) {
+        randomRadio.checked = true
+      }
+    }
+    currentDrawMode = getDrawModeValue()
+
+    if (drawModeDescription) {
+      drawModeDescription.textContent =
+        QUIZ_DRAW_MODE_DESCRIPTION[currentDrawMode] ?? ''
+    }
+    if (drawModeStats) {
+      const clearedCount = activeNames.length - learningPoolNames.length
+      drawModeStats.textContent =
+        currentDrawMode === QUIZ_DRAW_MODE_LEARNING
+          ? formatClearRate(clearedCount, activeNames.length)
+          : currentDrawMode === QUIZ_DRAW_MODE_REVIEW
+            ? formatReviewTargetCount(
+                reviewPoolNames.length,
+                activeNames.length,
+              )
+            : ''
+    }
   }
 
   const updateCostumeHintText = () => {
@@ -455,12 +543,53 @@ export const setupQuiz = (
 
   const refreshFilterState = () => {
     activeNames = getCandidateNames()
+    updateDrawModeInfo()
     const maxQuestions = getQuestionCountMax()
     questionCountControl.updateRange(maxQuestions)
     totalQuestions = questionCountControl.getSelectedQuestionCount(maxQuestions)
+    // 出題対象が空のときは開始できない(押しても始まらないボタンを出さない)
+    startButton.disabled = activeNames.length === 0
+  }
+
+  /** 矢印キーで選択中の候補。-1 は未選択(Enter は通常送信になる)。 */
+  let highlightedSuggestionIndex = -1
+
+  const getSuggestionButtons = (): HTMLButtonElement[] =>
+    nameAnswerSuggestions
+      ? [
+          ...nameAnswerSuggestions.querySelectorAll<HTMLButtonElement>(
+            '.quiz-name-answer-suggestion',
+          ),
+        ]
+      : []
+
+  const applySuggestionHighlight = () => {
+    const buttons = getSuggestionButtons()
+    buttons.forEach((button, index) => {
+      button.classList.toggle(
+        'is-highlighted',
+        index === highlightedSuggestionIndex,
+      )
+    })
+    buttons[highlightedSuggestionIndex]?.scrollIntoView({ block: 'nearest' })
+  }
+
+  const moveSuggestionHighlight = (delta: number) => {
+    const count = getSuggestionButtons().length
+    if (count === 0) {
+      return
+    }
+    highlightedSuggestionIndex =
+      highlightedSuggestionIndex === -1
+        ? delta > 0
+          ? 0
+          : count - 1
+        : (highlightedSuggestionIndex + delta + count) % count
+    applySuggestionHighlight()
   }
 
   const hideNameSuggestions = () => {
+    highlightedSuggestionIndex = -1
     setHidden(nameAnswerSuggestionsOverlay, true)
     if (!nameAnswerSuggestions) {
       return
@@ -519,10 +648,12 @@ export const setupQuiz = (
       return
     }
     nameAnswerSuggestions.innerHTML = ''
+    highlightedSuggestionIndex = -1
     matches.forEach((name) => {
       const button = document.createElement('button')
       button.type = 'button'
       button.className = 'quiz-name-answer-suggestion'
+      button.dataset.suggestionName = name
       // 同名で複数フォームを持つ生徒(シュン（水着）等)は全フォームの画像を並べる。
       const imageIds = entryByName.get(name)?.ImageIds ?? []
       const imageUrls =
@@ -741,8 +872,8 @@ export const setupQuiz = (
     usedChoiceNames = new Set()
     currentAnswer = ''
     currentQuestionClip = null
-    score = 0
     questionNumber = 0
+    roundQueue = []
     shouldShowCurrentAnswerStats = false
     hasAnsweredCurrentQuestion = false
     awaitingResult = false
@@ -762,6 +893,8 @@ export const setupQuiz = (
     hideResult()
     updateCostumeHintText()
     updateProficiencyText()
+    // 直前のラウンドの成績で攻略率・学習/復習の選択肢を更新する
+    refreshFilterState()
     statusText.textContent = INITIAL_STATUS_TEXT
     setHidden(nextButton, true)
     setHidden(replayButton, true)
@@ -775,9 +908,6 @@ export const setupQuiz = (
   }
 
   const finalizeAnswer = (userAnswer: string, isCorrect: boolean) => {
-    if (isCorrect) {
-      score += 1
-    }
     resultEntries.push({
       questionNumber,
       correctAnswer: currentAnswer,
@@ -795,7 +925,9 @@ export const setupQuiz = (
     if (currentMode !== QUIZ_MODE_MULTIPLE_CHOICE) {
       updateAnswerFeedback(currentAnswer)
     }
-    const hasRemainingQuestion = questionNumber < totalQuestions
+    const hasRemainingQuestion = isPoolDrawMode()
+      ? roundQueue.length > 0
+      : questionNumber < totalQuestions
     awaitingResult = !hasRemainingQuestion
     nextButton.textContent = awaitingResult
       ? QUIZ_UI_TEXT.result
@@ -817,7 +949,10 @@ export const setupQuiz = (
     setHidden(choicesRoot, true)
     setHidden(nameAnswerForm, true)
     hideNameSuggestions()
-    statusText.textContent = formatQuizFinishedStatus(score, questionNumber)
+    statusText.textContent = formatQuizFinishedStatus(
+      summarizeQuizResults(resultEntries).correctCount,
+      questionNumber,
+    )
     startButton.textContent = QUIZ_UI_TEXT.playAgain
     hideAnswerFeedback()
     renderResult()
@@ -828,16 +963,32 @@ export const setupQuiz = (
     progressPanel.pushInBackground()
   }
 
+  const isPoolDrawMode = () =>
+    currentDrawMode === QUIZ_DRAW_MODE_LEARNING ||
+    currentDrawMode === QUIZ_DRAW_MODE_REVIEW
+
   const renderQuestion = () => {
     choicesRoot.innerHTML = ''
-    const available = activeNames.filter((name) => !usedChoiceNames.has(name))
-    const minAvailable = currentMode === QUIZ_MODE_MULTIPLE_CHOICE ? 4 : 1
-    if (available.length < minAvailable || questionNumber >= totalQuestions) {
-      showResultScreen()
-      return
+    // 4択の選択肢に使う候補。ランダムモードでは使用済みを除いた available、
+    // 学習・復習モードでは全候補(選択肢としての再登場を許す)。
+    let choicePool: readonly string[] = activeNames
+    if (isPoolDrawMode()) {
+      const nextAnswer = roundQueue.shift()
+      if (nextAnswer === undefined) {
+        showResultScreen()
+        return
+      }
+      currentAnswer = nextAnswer
+    } else {
+      const available = activeNames.filter((name) => !usedChoiceNames.has(name))
+      const minAvailable = currentMode === QUIZ_MODE_MULTIPLE_CHOICE ? 4 : 1
+      if (available.length < minAvailable || questionNumber >= totalQuestions) {
+        showResultScreen()
+        return
+      }
+      currentAnswer = available[Math.floor(Math.random() * available.length)]
+      choicePool = available
     }
-
-    currentAnswer = available[Math.floor(Math.random() * available.length)]
     currentQuestionClip = pickRandomClip(clipsForName(currentAnswer))
     questionNumber += 1
     statusText.textContent = formatQuizQuestionStatus(questionNumber)
@@ -858,8 +1009,10 @@ export const setupQuiz = (
       setHidden(choicesRoot, false)
       setHidden(nameAnswerForm, true)
       hideNameSuggestions()
-      const choices = buildChoices(currentAnswer, available)
-      choices.forEach((name) => usedChoiceNames.add(name))
+      const choices = buildChoices(currentAnswer, choicePool)
+      if (!isPoolDrawMode()) {
+        choices.forEach((name) => usedChoiceNames.add(name))
+      }
       choices.forEach((name) => {
         const button = document.createElement('button')
         button.type = 'button'
@@ -902,7 +1055,9 @@ export const setupQuiz = (
       return
     }
 
-    usedChoiceNames.add(currentAnswer)
+    if (!isPoolDrawMode()) {
+      usedChoiceNames.add(currentAnswer)
+    }
     setHidden(choicesRoot, true)
     setHidden(nameAnswerForm, false)
     if (nameAnswerInput) {
@@ -929,9 +1084,16 @@ export const setupQuiz = (
     usedChoiceNames = new Set()
     currentAnswer = ''
     currentQuestionClip = null
-    score = 0
     questionNumber = 0
     resultEntries = []
+    roundQueue = []
+    if (isPoolDrawMode()) {
+      const pool =
+        currentDrawMode === QUIZ_DRAW_MODE_LEARNING
+          ? learningPoolNames
+          : reviewPoolNames
+      roundQueue = shuffleArray(pool).slice(0, totalQuestions)
+    }
     shouldShowCurrentAnswerStats = false
     awaitingResult = false
     hideAnswerFeedback()
@@ -1019,7 +1181,7 @@ export const setupQuiz = (
     }
     setMenuOpen(false)
   })
-  quizModeGroup.addEventListener('click', (event) => {
+  const blurRadioOnPointerClick = (event: MouseEvent) => {
     if (event.detail === 0) {
       return
     }
@@ -1031,12 +1193,16 @@ export const setupQuiz = (
       .closest('label.para')
       ?.querySelector<HTMLInputElement>('.radio-input')
       ?.blur()
-  })
-  quizModeGroup.addEventListener('change', () => {
+  }
+  const handleModeGroupChange = () => {
     updateModeUI()
     refreshFilterState()
     statusText.textContent = ''
     persistQuizSetup()
+  }
+  ;[quizModeGroup, drawModeGroup].forEach((group) => {
+    group?.addEventListener('click', blurRadioOnPointerClick)
+    group?.addEventListener('change', handleModeGroupChange)
   })
   ;[normalFilter, costumeFilter, collaborationFilter].forEach((checkbox) => {
     checkbox.addEventListener('change', () => {
@@ -1058,6 +1224,46 @@ export const setupQuiz = (
     hideNameSuggestions()
   })
 
+  // 候補のキーボード操作: ↑↓で選択、Enterで入力欄へ反映(もう一度Enterで送信)。
+  nameAnswerInput?.addEventListener('keydown', (event) => {
+    if (currentMode !== QUIZ_MODE_NAME_INPUT) {
+      return
+    }
+    // IME 変換中の Enter/矢印は変換操作なので触らない
+    if (event.isComposing || event.keyCode === 229) {
+      return
+    }
+    const suggestionsVisible = Boolean(
+      nameAnswerSuggestionsOverlay && !nameAnswerSuggestionsOverlay.hidden,
+    )
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!suggestionsVisible) {
+        showNameSuggestions()
+      }
+      event.preventDefault()
+      moveSuggestionHighlight(event.key === 'ArrowDown' ? 1 : -1)
+      return
+    }
+    if (event.key === 'Enter') {
+      if (!suggestionsVisible || highlightedSuggestionIndex === -1) {
+        return
+      }
+      const selected = getSuggestionButtons()[highlightedSuggestionIndex]
+      if (!selected) {
+        return
+      }
+      // 1回目の Enter は候補の確定のみ。送信(form submit)はさせない。
+      event.preventDefault()
+      nameAnswerInput.value = selected.dataset.suggestionName ?? ''
+      hideNameSuggestions()
+      return
+    }
+    if (event.key === 'Escape' && suggestionsVisible) {
+      event.preventDefault()
+      hideNameSuggestions()
+    }
+  })
+
   nameAnswerInput?.addEventListener('focus', showNameSuggestions)
   nameAnswerInput?.addEventListener('compositionupdate', () => {
     showNameSuggestions()
@@ -1073,10 +1279,7 @@ export const setupQuiz = (
       hideNameSuggestions()
     }, 120)
   })
-  if (!nameSuggestionOverlayListenersAttached) {
-    window.addEventListener('resize', positionNameSuggestionsOverlay)
-    nameSuggestionOverlayListenersAttached = true
-  }
+  window.addEventListener('resize', positionNameSuggestionsOverlay)
 
   loadProficiency()
   updateModeUI()

@@ -5,20 +5,6 @@ export function ensureDirectory(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true })
 }
 
-export function doesFileExist(localPath: string, fileName: string): boolean {
-  return fs.existsSync(path.join(localPath, fileName))
-}
-
-export function readLocalJSON(filePath: string): unknown {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-  } catch (err) {
-    throw new Error(
-      `Failed to read or parse JSON file at ${filePath}: ${(err as Error).message}`,
-    )
-  }
-}
-
 /** 存在しない・壊れている場合は例外にせず null を返す(キャッシュ読み出し用)。 */
 export function readLocalJSONIfValid(filePath: string): unknown | null {
   if (!fs.existsSync(filePath)) {

@@ -221,6 +221,51 @@ h1 {
   color: #2e6ac7;
 }
 
+/* 設定ダイアログのステータス欄(ネットワーク・バージョン) */
+.settings-status-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.9rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.settings-status-grid dt {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.settings-status-grid dd {
+  margin: 0;
+  color: var(--color-navy);
+  overflow-wrap: anywhere;
+}
+
+/* 全データダウンロードの進捗表示 */
+.settings-download-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 0 0.6rem;
+}
+
+.settings-download-progress[hidden] {
+  display: none;
+}
+
+.settings-download-progress progress {
+  width: 100%;
+  height: 0.7rem;
+  accent-color: #2e6ac7;
+}
+
+.settings-download-progress span {
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
 .settings-danger-button {
   color: #b3261e !important;
   border-color: #e5b9b6 !important;
@@ -1366,6 +1411,7 @@ h1,
   font-size: 0.95rem;
   font-weight: 700;
   font-family: 'Kosugi Maru', sans-serif;
+  text-align: center;
 }
 
 .quiz-banner::before {
@@ -1420,6 +1466,30 @@ h1,
   display: grid;
   gap: 0.9rem;
   align-content: space-between;
+}
+
+/* 回答方式・出題モードの選択に応じて出す説明文 */
+.quiz-setup-description {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/* 攻略率・復習対象数の行は少し強調する */
+.quiz-setup-stats {
+  margin-top: 0.2rem;
+  color: var(--color-navy);
+  font-weight: bold;
+}
+
+.quiz-setup-stats:empty {
+  display: none;
+}
+
+/* 対象がいない出題モード(学習・復習)は選択肢ごと隠す */
+.quiz-mode-component-wrapper label[hidden] {
+  display: none;
 }
 
 .quiz-count-panel {
@@ -1553,7 +1623,8 @@ h1,
   text-align: left;
 }
 
-.quiz-name-answer-suggestion:not(:disabled):hover {
+.quiz-name-answer-suggestion:not(:disabled):hover,
+.quiz-name-answer-suggestion.is-highlighted {
   border-color: #9fc7ff;
   background: #edf5ff;
 }
@@ -1856,6 +1927,11 @@ button.clip-switch:focus-visible {
   font-size: 0.9em;
 }
 
+/* ダイアログ表示中は背面(生徒リスト等)をスクロールさせない */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
 .app-dialog {
   width: min(560px, calc(100vw - 2rem));
   box-sizing: border-box;
@@ -1865,6 +1941,13 @@ button.clip-switch:focus-visible {
   background: var(--color-bg-surface);
   color: #2f3a46;
   font-family: sans-serif;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app-dialog:focus {
+  outline: none;
 }
 
 .app-dialog::backdrop {

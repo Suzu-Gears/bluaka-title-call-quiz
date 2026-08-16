@@ -17,7 +17,12 @@ export interface QuizCandidate {
 export interface ProficiencyEntry {
   correct: number
   attempts: number
+  /** 現在の連続正解数。誤答で 0 に戻る。復習対象からの卒業判定に使う。 */
+  streak: number
 }
+
+/** この回数連続で正解したら復習対象から外れる。 */
+export const REVIEW_CLEAR_STREAK = 2
 
 export interface QuizResultSummaryEntry {
   isCorrect: boolean
@@ -59,27 +64,13 @@ export function normalizeProficiencyMap(raw: unknown): ProficiencyMap {
     if (!Number.isFinite(maybeCorrect) || !Number.isFinite(maybeAttempts)) {
       continue
     }
+    const maybeStreak = Number((value as { streak?: unknown }).streak)
     result[name] = {
       correct: Math.max(0, Math.floor(maybeCorrect)),
       attempts: Math.max(0, Math.floor(maybeAttempts)),
-    }
-  }
-  return result
-}
-
-export function migrateLegacyProficiency(raw: unknown): ProficiencyMap {
-  const normalized = normalizeProficiencyMap(raw)
-  if (Object.keys(normalized).length > 0) {
-    return normalized
-  }
-  if (!raw || typeof raw !== 'object') {
-    return {}
-  }
-  const result: ProficiencyMap = {}
-  for (const [name, value] of Object.entries(raw)) {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      const correct = Math.max(0, Math.floor(value))
-      result[name] = { correct, attempts: correct }
+      streak: Number.isFinite(maybeStreak)
+        ? Math.max(0, Math.floor(maybeStreak))
+        : 0,
     }
   }
   return result
@@ -92,10 +83,55 @@ export function mergeWithStudents(
   const next: ProficiencyMap = { ...proficiency }
   for (const name of studentNames) {
     if (!next[name]) {
-      next[name] = { correct: 0, attempts: 0 }
+      next[name] = { correct: 0, attempts: 0, streak: 0 }
     }
   }
   return next
+}
+
+/** 1 回の回答を記録した新しいエントリを返す。誤答は連続正解数をリセットする。 */
+export function applyAnswerToEntry(
+  entry: ProficiencyEntry | undefined,
+  isCorrect: boolean,
+): ProficiencyEntry {
+  const base = entry ?? { correct: 0, attempts: 0, streak: 0 }
+  return {
+    correct: base.correct + (isCorrect ? 1 : 0),
+    attempts: base.attempts + 1,
+    streak: isCorrect ? base.streak + 1 : 0,
+  }
+}
+
+/** 一度でも正解したことがあるか(攻略済みか)。 */
+export function isClearedEntry(entry?: ProficiencyEntry): boolean {
+  return (entry?.correct ?? 0) > 0
+}
+
+/**
+ * 復習が必要か。誤答したことがあり、その後まだ連続 REVIEW_CLEAR_STREAK 回
+ * 正解していない生徒が対象。最後に正解していても直近の連続正解が足りなければ残る。
+ */
+export function needsReviewEntry(entry?: ProficiencyEntry): boolean {
+  if (!entry) {
+    return false
+  }
+  return entry.attempts > entry.correct && entry.streak < REVIEW_CLEAR_STREAK
+}
+
+/** 学習モードの出題対象(まだ一度も正解していない生徒)。 */
+export function selectLearningTargets(
+  names: readonly string[],
+  proficiency: ProficiencyMap,
+): string[] {
+  return names.filter((name) => !isClearedEntry(proficiency[name]))
+}
+
+/** 復習モードの出題対象。 */
+export function selectReviewTargets(
+  names: readonly string[],
+  proficiency: ProficiencyMap,
+): string[] {
+  return names.filter((name) => needsReviewEntry(proficiency[name]))
 }
 
 export function calculateAccuracy(entry?: ProficiencyEntry): number {

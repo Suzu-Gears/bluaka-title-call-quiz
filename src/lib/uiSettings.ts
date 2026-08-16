@@ -20,6 +20,7 @@ export type CardListSettings = {
 
 export type QuizSetupSettings = {
   mode: string
+  drawMode: string
   includeNormal: boolean
   includeCostume: boolean
   includeCollaboration: boolean
@@ -77,6 +78,7 @@ export const loadQuizSetupSettings = (): Partial<QuizSetupSettings> => {
   const questionCount = saved.questionCount
   return {
     mode: pickString(saved.mode),
+    drawMode: pickString(saved.drawMode),
     includeNormal: pickBoolean(saved.includeNormal),
     includeCostume: pickBoolean(saved.includeCostume),
     includeCollaboration: pickBoolean(saved.includeCollaboration),

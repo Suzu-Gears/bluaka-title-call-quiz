@@ -10,9 +10,12 @@ import { readStorage, writeStorage } from '@/lib/safeStorage'
 import {
   fetchRemoteProgress,
   generateSyncCode,
+  getCustomSyncEndpoint,
   isSyncEnabled,
   isValidSyncCode,
+  isValidSyncEndpointUrl,
   pushRemoteProgress,
+  setCustomSyncEndpoint,
 } from '@/lib/syncClient'
 import {
   formatImportSucceeded,
@@ -37,13 +40,11 @@ export interface ProgressPanel {
   pullOnStartup: () => Promise<void>
   /** クイズ終了時などにクラウドへ保存する(失敗しても黙って続行)。 */
   pushInBackground: () => void
-  markUpdated: () => void
 }
 
 const noopPanel: ProgressPanel = {
   pullOnStartup: async () => {},
   pushInBackground: () => {},
-  markUpdated: () => {},
 }
 
 export const setupProgressPanel = (
@@ -132,6 +133,8 @@ export const setupProgressPanel = (
     if (applyButton) applyButton.hidden = isExport
     if (fileButton) fileButton.hidden = isExport
     dialog.showModal()
+    // ボタンへの自動フォーカスで iOS にリングが出ないよう、ダイアログ自体へ移す
+    dialog.focus({ preventScroll: true })
     if (!isExport) {
       textarea.focus()
     }
@@ -198,13 +201,10 @@ export const setupProgressPanel = (
     setStatus(dialogStatus, formatImportSucceeded(count))
   })
 
-  // --- ここから下はクラウド同期。エンドポイント未設定なら UI ごと出さない ---
-  if (!isSyncEnabled() || !syncButton) {
-    return {
-      pullOnStartup: async () => {},
-      pushInBackground: () => {},
-      markUpdated,
-    }
+  // --- ここから下はクラウド同期。既定エンドポイントが無くても、
+  //     利用者が自分の保存先URLを設定できるように UI は常に出す ---
+  if (!syncButton) {
+    return noopPanel
   }
 
   const syncDialog = document.getElementById(
@@ -212,6 +212,9 @@ export const setupProgressPanel = (
   ) as HTMLDialogElement | null
   const syncCodeInput = document.getElementById(
     'sync-code-input',
+  ) as HTMLInputElement | null
+  const syncEndpointInput = document.getElementById(
+    'sync-endpoint-input',
   ) as HTMLInputElement | null
   const syncStatus = document.getElementById('sync-dialog-status')
   const generateButton = document.getElementById(
@@ -228,11 +231,7 @@ export const setupProgressPanel = (
   ) as HTMLButtonElement | null
 
   if (!syncDialog || !syncCodeInput) {
-    return {
-      pullOnStartup: async () => {},
-      pushInBackground: () => {},
-      markUpdated,
-    }
+    return noopPanel
   }
 
   syncButton.hidden = false
@@ -246,10 +245,29 @@ export const setupProgressPanel = (
     params.onOpen?.()
     const code = getSyncCode()
     syncCodeInput.value = code
+    if (syncEndpointInput) {
+      syncEndpointInput.value = getCustomSyncEndpoint()
+    }
     setStatus(syncStatus, code ? '' : SYNC_UI_TEXT.noCode)
     syncDialog.showModal()
+    syncDialog.focus({ preventScroll: true })
   })
   syncCloseButton?.addEventListener('click', () => syncDialog.close())
+
+  syncEndpointInput?.addEventListener('change', () => {
+    const url = syncEndpointInput.value.trim()
+    if (!url) {
+      setCustomSyncEndpoint('')
+      setStatus(syncStatus, SYNC_UI_TEXT.endpointCleared)
+      return
+    }
+    if (!isValidSyncEndpointUrl(url)) {
+      setStatus(syncStatus, SYNC_UI_TEXT.invalidEndpoint)
+      return
+    }
+    setCustomSyncEndpoint(url)
+    setStatus(syncStatus, SYNC_UI_TEXT.endpointSaved)
+  })
 
   generateButton?.addEventListener('click', () => {
     const code = generateSyncCode()
@@ -269,6 +287,10 @@ export const setupProgressPanel = (
   })
 
   const upload = async (silent: boolean) => {
+    if (!isSyncEnabled()) {
+      if (!silent) setStatus(syncStatus, SYNC_UI_TEXT.noEndpoint)
+      return
+    }
     const code = getSyncCode()
     if (!isValidSyncCode(code)) {
       if (!silent) setStatus(syncStatus, SYNC_UI_TEXT.noCode)
@@ -289,6 +311,10 @@ export const setupProgressPanel = (
   }
 
   const download = async (interactive: boolean) => {
+    if (!isSyncEnabled()) {
+      if (interactive) setStatus(syncStatus, SYNC_UI_TEXT.noEndpoint)
+      return
+    }
     const code = getSyncCode()
     if (!isValidSyncCode(code)) {
       if (interactive) setStatus(syncStatus, SYNC_UI_TEXT.noCode)
@@ -332,6 +358,5 @@ export const setupProgressPanel = (
     pushInBackground: () => {
       void upload(true)
     },
-    markUpdated,
   }
 }

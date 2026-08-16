@@ -21,7 +21,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
     "@fontsource/kosugi-maru": "^5.2.5",
-    "app-root-path": "^3.1.0",
     "fitty": "^2.4.2"
   },
   "devDependencies": {

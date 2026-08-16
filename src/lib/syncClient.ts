@@ -2,6 +2,7 @@ import {
   normalizeProficiencyMap,
   type ProficiencyMap,
 } from '@/lib/quizProgress'
+import { readStorage, removeStorage, writeStorage } from '@/lib/safeStorage'
 
 /**
  * 認証を使わない「同期コード」方式のクラウド保存。
@@ -10,20 +11,53 @@ import {
  * だけ振る舞う。コードは UUID v4 で、実質パスワードとして扱う。
  * 保存内容はクイズの成績のみで、失われても localStorage とエクスポートが残る
  * ベストエフォートの機能と位置づける。
+ *
+ * 保存先は 2 段構え:
+ *   1. 利用者が設定した自分のエンドポイント(localStorage、自分のシートに保存したい人向け)
+ *   2. ビルド時の既定エンドポイント VITE_SYNC_ENDPOINT(作者のシート)
  */
 
 const SYNC_CODE_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const CUSTOM_ENDPOINT_STORAGE_KEY = 'bluaka-title-call-quiz2.syncEndpoint.v1'
 
 export interface SyncPayload {
   updatedAt: string
   proficiency: ProficiencyMap
 }
 
-export function getSyncEndpoint(): string {
+export function getDefaultSyncEndpoint(): string {
   // Vite 以外(テストランナーなど)では import.meta.env が存在しない。
   const endpoint = import.meta.env?.VITE_SYNC_ENDPOINT
   return typeof endpoint === 'string' ? endpoint.trim() : ''
+}
+
+export function getCustomSyncEndpoint(): string {
+  return readStorage(CUSTOM_ENDPOINT_STORAGE_KEY)?.trim() ?? ''
+}
+
+/** 空文字で保存すると既定(作者のシート)に戻る。 */
+export function setCustomSyncEndpoint(url: string): void {
+  const trimmed = url.trim()
+  if (trimmed) {
+    writeStorage(CUSTOM_ENDPOINT_STORAGE_KEY, trimmed)
+  } else {
+    removeStorage(CUSTOM_ENDPOINT_STORAGE_KEY)
+  }
+}
+
+/** GAS の /exec URL を想定するが、https であれば他のバックエンドも許容する。 */
+export function isValidSyncEndpointUrl(url: string): boolean {
+  try {
+    return new URL(url.trim()).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+export function getSyncEndpoint(): string {
+  return getCustomSyncEndpoint() || getDefaultSyncEndpoint()
 }
 
 export function isSyncEnabled(): boolean {
@@ -35,22 +69,7 @@ export function isValidSyncCode(code: string): boolean {
 }
 
 export function generateSyncCode(): string {
-  if (typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  // randomUUID が無い環境向けのフォールバック。
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  bytes[6] = (bytes[6] & 0x0f) | 0x40
-  bytes[8] = (bytes[8] & 0x3f) | 0x80
-  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0'))
-  return [
-    hex.slice(0, 4).join(''),
-    hex.slice(4, 6).join(''),
-    hex.slice(6, 8).join(''),
-    hex.slice(8, 10).join(''),
-    hex.slice(10, 16).join(''),
-  ].join('-')
+  return crypto.randomUUID()
 }
 
 export function parseSyncPayload(raw: unknown): SyncPayload | null {
