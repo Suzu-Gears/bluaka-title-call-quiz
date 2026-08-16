@@ -756,7 +756,18 @@
       <div class="filter-section-label">アップデート</div>
       <p id="settings-update-note" class="settings-note" hidden></p>
       <div class="app-dialog-actions">
-        <button id="settings-check-update" type="button">更新を確認</button>
+        <button
+          id="settings-check-update"
+          class="settings-badge-host"
+          type="button"
+        >
+          更新を確認
+          <span
+            id="settings-update-button-badge"
+            class="settings-badge"
+            hidden
+          ></span>
+        </button>
         <button id="settings-apply-update" type="button" hidden>
           更新を適用
         </button>

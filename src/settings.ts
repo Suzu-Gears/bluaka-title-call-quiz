@@ -3,6 +3,7 @@ import {
   checkForUpdate,
   clearServiceWorkersAndCaches,
   getRunningBuildStamp,
+  registerAppServiceWorker,
   type ServerVersionInfo,
 } from '@/lib/appUpdate'
 import {
@@ -88,6 +89,9 @@ export const setupSettings = (): void => {
   const checkUpdateButton = document.getElementById(
     'settings-check-update',
   ) as HTMLButtonElement | null
+  const updateButtonBadge = document.getElementById(
+    'settings-update-button-badge',
+  )
   const applyUpdateButton = document.getElementById(
     'settings-apply-update',
   ) as HTMLButtonElement | null
@@ -167,6 +171,9 @@ export const setupSettings = (): void => {
     }
     if (badge) {
       badge.hidden = !updateAvailable
+    }
+    if (updateButtonBadge) {
+      updateButtonBadge.hidden = !updateAvailable
     }
     if (applyUpdateButton) {
       applyUpdateButton.hidden = !updateAvailable
@@ -272,16 +279,17 @@ export const setupSettings = (): void => {
       isDownloading = true
       downloadAllButton.disabled = true
       downloadAbortController = new AbortController()
-      if (cancelDownloadButton) {
-        cancelDownloadButton.hidden = false
-        cancelDownloadButton.disabled = false
-      }
-      setStatus('ダウンロードしています...')
-      setDownloadProgress(0, manifest.totalSize, true)
+      setStatus('保存状況を確認しています...')
       try {
         const result = await downloadAllAssets(
           manifest,
           (progress) => {
+            // 不足分がある場合にだけ呼ばれる。ここで初めてバーとキャンセルを出す
+            if (cancelDownloadButton?.hidden) {
+              cancelDownloadButton.hidden = false
+              cancelDownloadButton.disabled = false
+              setStatus('ダウンロードしています...')
+            }
             setDownloadProgress(progress.doneBytes, progress.totalBytes, true)
           },
           downloadAbortController.signal,
@@ -290,6 +298,8 @@ export const setupSettings = (): void => {
           setStatus(
             'ダウンロードをキャンセルしました。保存済みの分は残っており、次回は続きから再開します。',
           )
+        } else if (result.plannedCount === 0) {
+          setStatus('すべて保存済みです。')
         } else {
           setStatus(
             result.ok
@@ -323,6 +333,8 @@ export const setupSettings = (): void => {
       clearCacheButton.disabled = true
       setStatus('キャッシュを削除しています...')
       await clearServiceWorkersAndCaches()
+      // 解除したままだとオフライン起動できなくなるため、その場で登録し直す
+      registerAppServiceWorker()
       setStatus('キャッシュをクリアしました。')
       clearCacheButton.disabled = false
       void renderCacheSizeLine()

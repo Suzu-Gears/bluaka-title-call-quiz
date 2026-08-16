@@ -3,7 +3,10 @@ import '@fontsource/kosugi-maru'
 import fitty from 'fitty'
 
 import { setupStudentGrid } from '@/cardList'
-import { applyPendingAppUpdate } from '@/lib/appUpdate'
+import {
+  applyPendingAppUpdate,
+  registerAppServiceWorker,
+} from '@/lib/appUpdate'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import {
   FINAL_DATA_SCHEMA_VERSION,
@@ -113,30 +116,17 @@ const loadEntries = async (): Promise<QuizEntry[]> => {
 // iOS Safari では空の touchstart リスナーが存在しないと :active 疑似クラスが発火しない
 document.addEventListener('touchstart', () => {}, { passive: true })
 
-/**
- * PWA(スタンドアロン)の本番ビルドでだけ Service Worker を登録する。
- * 音声・画像のキャッシュ配信とオフライン再生、設定画面の「すべてダウンロード」の
- * 受け皿になる。通常のブラウザタブは従来どおり SW なしで動かす。
- */
-const registerServiceWorker = (): void => {
-  if (!import.meta.env.PROD || !isPwaMode()) {
-    return
-  }
-  if (!('serviceWorker' in navigator)) {
-    return
-  }
-  navigator.serviceWorker.register(resolveAssetUrl('sw.js')).catch(() => {
-    // 登録に失敗してもアプリ本体は普通に動く
-  })
-}
 
 const bootstrap = async () => {
   // 通常のブラウザタブでは黙って自動更新する。
   // PWA(スタンドアロン)では設定画面からの手動更新+バッジ表示に切り替える。
   if (!isPwaMode()) {
     void applyPendingAppUpdate()
+  } else {
+    // PWA では SW が音声・画像のキャッシュ配信とオフライン起動を担う。
+    // 通常のブラウザタブは従来どおり SW なしで動かす。
+    registerAppServiceWorker()
   }
-  registerServiceWorker()
   setupSettings()
   setupTitleFit()
   setupPageSwitch()

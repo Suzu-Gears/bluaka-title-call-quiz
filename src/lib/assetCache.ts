@@ -97,6 +97,15 @@ export interface LocalCacheStatus {
 
 const isCacheStorageSupported = (): boolean => 'caches' in window
 
+/** キャッシュ済みリクエストのパス名一覧。保存状況の判定に使う。 */
+const listCachedPathnames = async (cache: Cache): Promise<Set<string>> => {
+  const keys = await cache.keys()
+  return new Set(keys.map((request) => new URL(request.url).pathname))
+}
+
+const resolveAssetPathname = (path: string): string =>
+  new URL(resolveAssetUrl(path), window.location.href).pathname
+
 /** マニフェストの各ファイルが Cache Storage に入っているかを数える。 */
 export const readLocalCacheStatus = async (
   manifest: CacheManifest,
@@ -106,16 +115,11 @@ export const readLocalCacheStatus = async (
   }
   try {
     const cache = await caches.open(ASSET_CACHE_NAME)
-    const keys = await cache.keys()
-    const cachedPaths = new Set(
-      keys.map((request) => new URL(request.url).pathname),
-    )
+    const cachedPaths = await listCachedPathnames(cache)
     let cachedFileCount = 0
     let cachedBytes = 0
     for (const file of manifest.files) {
-      const pathname = new URL(resolveAssetUrl(file.path), window.location.href)
-        .pathname
-      if (cachedPaths.has(pathname)) {
+      if (cachedPaths.has(resolveAssetPathname(file.path))) {
         cachedFileCount += 1
         cachedBytes += file.size
       }
@@ -138,6 +142,8 @@ export interface DownloadAllResult {
   failedCount: number
   /** キャンセルで中断された場合 true。保存済みの分は残る。 */
   aborted: boolean
+  /** 実際にダウンロード対象になったファイル数。0 なら全部保存済みだった。 */
+  plannedCount: number
 }
 
 /**
@@ -147,9 +153,10 @@ export interface DownloadAllResult {
 const DOWNLOAD_CONCURRENCY = 10
 
 /**
- * マニフェストの全ファイルを Cache Storage へ保存する。
- * 保存済みのファイルは取得せず、進捗にだけ加算する(差分ダウンロード)。
- * 個別の失敗では止めず、最後に失敗数を返す。signal で即時キャンセルできる。
+ * マニフェストのうち未保存のファイルだけを Cache Storage へダウンロードする。
+ * 保存状況の走査は進捗に含めず、onProgress は不足分がある場合にのみ、
+ * 不足分を母数として呼ばれる。個別の失敗では止めず、最後に失敗数を返す。
+ * signal で即時キャンセルできる。
  */
 export const downloadAllAssets = async (
   manifest: CacheManifest,
@@ -157,16 +164,29 @@ export const downloadAllAssets = async (
   signal?: AbortSignal,
 ): Promise<DownloadAllResult> => {
   if (!isCacheStorageSupported()) {
-    return { ok: false, failedCount: manifest.files.length, aborted: false }
+    return {
+      ok: false,
+      failedCount: manifest.files.length,
+      aborted: false,
+      plannedCount: manifest.files.length,
+    }
   }
   const cache = await caches.open(ASSET_CACHE_NAME)
+  const cachedPaths = await listCachedPathnames(cache)
+  const targets = manifest.files.filter(
+    (file) => !cachedPaths.has(resolveAssetPathname(file.path)),
+  )
+  if (targets.length === 0) {
+    return { ok: true, failedCount: 0, aborted: false, plannedCount: 0 }
+  }
+
   // Service Worker がページを制御している間は、fetch を横取りした SW 側が
   // 同じキャッシュへ保存する。ページ側でも put すると全ファイルが
   // 二重書き込みになり倍近く遅くなるため省く。
   const isCachedByServiceWorker =
     'serviceWorker' in navigator && navigator.serviceWorker.controller !== null
-  const totalFiles = manifest.files.length
-  const totalBytes = manifest.totalSize
+  const totalFiles = targets.length
+  const totalBytes = targets.reduce((sum, file) => sum + file.size, 0)
   let doneFiles = 0
   let doneBytes = 0
   let failedCount = 0
@@ -176,7 +196,7 @@ export const downloadAllAssets = async (
   }
   reportProgress()
 
-  const queue = [...manifest.files]
+  const queue = [...targets]
   const worker = async () => {
     for (;;) {
       if (signal?.aborted) {
@@ -188,15 +208,12 @@ export const downloadAllAssets = async (
       }
       const url = resolveAssetUrl(file.path)
       try {
-        const cached = await cache.match(url)
-        if (!cached) {
-          const response = await fetch(url, { signal })
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`)
-          }
-          if (!isCachedByServiceWorker) {
-            await cache.put(url, response)
-          }
+        const response = await fetch(url, { signal })
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+        if (!isCachedByServiceWorker) {
+          await cache.put(url, response)
         }
       } catch {
         if (signal?.aborted) {
@@ -217,5 +234,10 @@ export const downloadAllAssets = async (
     ),
   )
   const aborted = signal?.aborted ?? false
-  return { ok: failedCount === 0 && !aborted, failedCount, aborted }
+  return {
+    ok: failedCount === 0 && !aborted,
+    failedCount,
+    aborted,
+    plannedCount: targets.length,
+  }
 }

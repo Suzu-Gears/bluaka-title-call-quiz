@@ -61,6 +61,25 @@ const fetchServerVersionInfo = async (): Promise<ServerVersionInfo | null> => {
   }
 }
 
+/**
+ * Service Worker を登録する(本番ビルドのみ)。PWA モードかどうかの判定は
+ * 呼び出し側の責任。登録済みなら何もしないのと同じで、何度呼んでも安全。
+ * キャッシュクリアで SW を解除した後の登録し直しにも使う。
+ */
+export const registerAppServiceWorker = (): void => {
+  if (!import.meta.env.PROD) {
+    return
+  }
+  if (!('serviceWorker' in navigator)) {
+    return
+  }
+  navigator.serviceWorker
+    .register(resolveAssetUrl('sw.js'), { updateViaCache: 'none' })
+    .catch(() => {
+      // 登録に失敗してもアプリ本体は普通に動く
+    })
+}
+
 export const clearServiceWorkersAndCaches = async (): Promise<void> => {
   if ('serviceWorker' in navigator) {
     try {

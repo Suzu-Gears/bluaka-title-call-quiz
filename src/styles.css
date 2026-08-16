@@ -201,6 +201,17 @@ h1 {
   display: none;
 }
 
+/* ダイアログ内のボタンにバッジを重ねるための基準 */
+.settings-badge-host {
+  position: relative;
+}
+
+.settings-badge-host .settings-badge {
+  top: -4px;
+  right: -4px;
+  border-color: var(--color-bg-surface);
+}
+
 /* 設定ダイアログのセクション間隔と注記 */
 .settings-dialog .filter-section-label {
   margin-top: 1.1rem;
