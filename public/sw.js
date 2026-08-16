@@ -30,6 +30,31 @@ self.addEventListener('activate', (event) => {
 const isCacheFirstPath = (pathname) =>
   pathname.includes('/audio/') || pathname.includes('/image/')
 
+/**
+ * リダイレクトを経由したレスポンスはナビゲーションへそのまま返せない
+ * (iOS Safari は "Response served by service worker has redirections" で
+ * 起動を拒否する)。ボディを包み直してリダイレクト情報を落とす。
+ */
+const stripRedirect = async (response) => {
+  if (!response.redirected) {
+    return response
+  }
+  const body = await response.blob()
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  })
+}
+
+const putInCache = async (cache, request, response) => {
+  try {
+    await cache.put(request, await stripRedirect(response))
+  } catch {
+    // 保存に失敗しても配信は続ける
+  }
+}
+
 const cacheFirst = async (request) => {
   const cache = await caches.open(CACHE_NAME)
   const cached = await cache.match(request)
@@ -38,7 +63,7 @@ const cacheFirst = async (request) => {
   }
   const response = await fetch(request)
   if (response.ok) {
-    cache.put(request, response.clone()).catch(() => {})
+    void putInCache(cache, request, response.clone())
   }
   return response
 }
@@ -48,13 +73,14 @@ const networkFirst = async (request) => {
   try {
     const response = await fetch(request)
     if (response.ok) {
-      cache.put(request, response.clone()).catch(() => {})
+      void putInCache(cache, request, response.clone())
     }
     return response
   } catch (error) {
+    // 過去に保存したリダイレクト済みレスポンスにも備え、配信時にも包み直す
     const cached = await cache.match(request)
     if (cached) {
-      return cached
+      return stripRedirect(cached)
     }
     // オフラインでの画面遷移(リロード)はトップページのキャッシュで受ける
     if (request.mode === 'navigate') {
@@ -62,7 +88,7 @@ const networkFirst = async (request) => {
         new URL('index.html', self.registration.scope).toString(),
       )
       if (fallback) {
-        return fallback
+        return stripRedirect(fallback)
       }
     }
     throw error

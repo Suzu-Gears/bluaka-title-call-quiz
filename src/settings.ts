@@ -104,6 +104,9 @@ export const setupSettings = (): void => {
   const downloadAllButton = document.getElementById(
     'settings-download-all',
   ) as HTMLButtonElement | null
+  const cancelDownloadButton = document.getElementById(
+    'settings-cancel-download',
+  ) as HTMLButtonElement | null
   const clearCacheButton = document.getElementById(
     'settings-clear-cache',
   ) as HTMLButtonElement | null
@@ -218,6 +221,7 @@ export const setupSettings = (): void => {
 
   let manifest: CacheManifest | null = null
   let isDownloading = false
+  let downloadAbortController: AbortController | null = null
 
   const renderCacheSizeLine = async () => {
     if (!cacheSizeLine) {
@@ -267,24 +271,49 @@ export const setupSettings = (): void => {
       }
       isDownloading = true
       downloadAllButton.disabled = true
+      downloadAbortController = new AbortController()
+      if (cancelDownloadButton) {
+        cancelDownloadButton.hidden = false
+        cancelDownloadButton.disabled = false
+      }
       setStatus('ダウンロードしています...')
       setDownloadProgress(0, manifest.totalSize, true)
       try {
-        const result = await downloadAllAssets(manifest, (progress) => {
-          setDownloadProgress(progress.doneBytes, progress.totalBytes, true)
-        })
-        setStatus(
-          result.ok
-            ? 'すべてのデータを保存しました。'
-            : `${result.failedCount} 件のファイルを取得できませんでした。あとでもう一度お試しください。`,
+        const result = await downloadAllAssets(
+          manifest,
+          (progress) => {
+            setDownloadProgress(progress.doneBytes, progress.totalBytes, true)
+          },
+          downloadAbortController.signal,
         )
+        if (result.aborted) {
+          setStatus(
+            'ダウンロードをキャンセルしました。保存済みの分は残っており、次回は続きから再開します。',
+          )
+        } else {
+          setStatus(
+            result.ok
+              ? 'すべてのデータを保存しました。'
+              : `${result.failedCount} 件のファイルを取得できませんでした。あとでもう一度お試しください。`,
+          )
+        }
       } finally {
         isDownloading = false
+        downloadAbortController = null
         downloadAllButton.disabled = false
+        if (cancelDownloadButton) {
+          cancelDownloadButton.hidden = true
+        }
         setDownloadProgress(0, 0, false)
         void renderCacheSizeLine()
       }
     })()
+  })
+
+  cancelDownloadButton?.addEventListener('click', () => {
+    // 二度押し防止。ボタン自体はダウンロード終了処理(finally)で隠す
+    cancelDownloadButton.disabled = true
+    downloadAbortController?.abort()
   })
 
   // --- キャッシュ・初期化 ---------------------------------------------------

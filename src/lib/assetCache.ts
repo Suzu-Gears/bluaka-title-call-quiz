@@ -136,23 +136,35 @@ export interface DownloadProgress {
 export interface DownloadAllResult {
   ok: boolean
   failedCount: number
+  /** キャンセルで中断された場合 true。保存済みの分は残る。 */
+  aborted: boolean
 }
 
-const DOWNLOAD_CONCURRENCY = 4
+/**
+ * 音声は 1 本 15-35KB 程度の小ファイルが数百個あり、所要時間は帯域ではなく
+ * リクエストの往復回数で決まる。並列数を上げるほど RTT を重ねられる。
+ */
+const DOWNLOAD_CONCURRENCY = 10
 
 /**
  * マニフェストの全ファイルを Cache Storage へ保存する。
  * 保存済みのファイルは取得せず、進捗にだけ加算する(差分ダウンロード)。
- * 個別の失敗では止めず、最後に失敗数を返す。
+ * 個別の失敗では止めず、最後に失敗数を返す。signal で即時キャンセルできる。
  */
 export const downloadAllAssets = async (
   manifest: CacheManifest,
   onProgress: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
 ): Promise<DownloadAllResult> => {
   if (!isCacheStorageSupported()) {
-    return { ok: false, failedCount: manifest.files.length }
+    return { ok: false, failedCount: manifest.files.length, aborted: false }
   }
   const cache = await caches.open(ASSET_CACHE_NAME)
+  // Service Worker がページを制御している間は、fetch を横取りした SW 側が
+  // 同じキャッシュへ保存する。ページ側でも put すると全ファイルが
+  // 二重書き込みになり倍近く遅くなるため省く。
+  const isCachedByServiceWorker =
+    'serviceWorker' in navigator && navigator.serviceWorker.controller !== null
   const totalFiles = manifest.files.length
   const totalBytes = manifest.totalSize
   let doneFiles = 0
@@ -167,6 +179,9 @@ export const downloadAllAssets = async (
   const queue = [...manifest.files]
   const worker = async () => {
     for (;;) {
+      if (signal?.aborted) {
+        return
+      }
       const file = queue.shift()
       if (!file) {
         return
@@ -175,13 +190,18 @@ export const downloadAllAssets = async (
       try {
         const cached = await cache.match(url)
         if (!cached) {
-          const response = await fetch(url)
+          const response = await fetch(url, { signal })
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`)
           }
-          await cache.put(url, response)
+          if (!isCachedByServiceWorker) {
+            await cache.put(url, response)
+          }
         }
       } catch {
+        if (signal?.aborted) {
+          return
+        }
         failedCount += 1
       }
       doneFiles += 1
@@ -196,5 +216,6 @@ export const downloadAllAssets = async (
       worker,
     ),
   )
-  return { ok: failedCount === 0, failedCount }
+  const aborted = signal?.aborted ?? false
+  return { ok: failedCount === 0 && !aborted, failedCount, aborted }
 }
