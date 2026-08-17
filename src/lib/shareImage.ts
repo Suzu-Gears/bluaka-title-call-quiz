@@ -1,4 +1,5 @@
-import { QUIZ_SHARE_UI_TEXT } from '@/lib/uiText'
+import { resolveAssetUrl } from '@/lib/assetPath'
+import { QUIZ_SHARE_UI_TEXT, QUIZ_UI_TEXT } from '@/lib/uiText'
 
 /**
  * SNS シェア用の画像(1200x630 のカード)を canvas で生成して渡す。
@@ -129,31 +130,113 @@ export const drawChallengeCard = (
   return canvas
 }
 
+const loadImage = (src: string): Promise<HTMLImageElement | null> =>
+  new Promise((resolve) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => resolve(null)
+    image.src = src
+  })
+
+export interface ResultCardEntry {
+  questionNumber: number
+  /** 正答(生徒名。マッチングは連結名)。 */
+  correctLabel: string
+  /** 回答表示(「回答: …」整形済み)。 */
+  answerLabel: string
+  isCorrect: boolean
+  imageUrl: string | null
+}
+
 export interface ResultCardContent {
   title: string | null
   correctCount: number
   totalCount: number
+  entries: ResultCardEntry[]
 }
 
-/** リザルトのスコアカード画像。 */
-export const drawResultCard = (
+// リザルト画像(縦長)のレイアウト定数
+const RESULT_WIDTH = 900
+const RESULT_PADDING = 30
+const RESULT_HEADER_HEIGHT = 330
+const RESULT_ROW_HEIGHT = 128
+const RESULT_ROW_GAP = 14
+const RESULT_FOOTER_HEIGHT = 80
+/** 1枚に載せる問題数の上限。超過分は「…ほかN問」と書く。 */
+const RESULT_MAX_ROWS = 20
+
+/**
+ * リザルト画像。リザルト画面と同じ「生徒画像+正誤の一覧」を縦長で再現し、
+ * 最上部にスコアを載せる。全問正解ならココナのはなまるスタンプを押す。
+ */
+export const drawResultCard = async (
   content: ResultCardContent,
-): HTMLCanvasElement | null => {
-  const prepared = createCardCanvas()
-  if (!prepared) {
+): Promise<HTMLCanvasElement | null> => {
+  const rows = content.entries.slice(0, RESULT_MAX_ROWS)
+  const overflowCount = content.entries.length - rows.length
+  const listHeight =
+    rows.length * (RESULT_ROW_HEIGHT + RESULT_ROW_GAP) +
+    (overflowCount > 0 ? 56 : 0)
+  const height =
+    RESULT_PADDING * 2 +
+    RESULT_HEADER_HEIGHT +
+    listHeight +
+    RESULT_FOOTER_HEIGHT
+
+  const canvas = document.createElement('canvas')
+  canvas.width = RESULT_WIDTH
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
     return null
   }
-  const { canvas, ctx } = prepared
-  const innerWidth = CARD_WIDTH - CARD_MARGIN * 2 - 80
-  drawAppName(ctx)
+
+  // 先に全画像を読み込む(失敗した分はプレースホルダー)
+  const [stamp, fallbackImage, ...rowImages] = await Promise.all([
+    loadImage(resolveAssetUrl('kokona-stamp.png')),
+    loadImage(resolveAssetUrl('default-student-image.webp')),
+    ...rows.map((row) =>
+      row.imageUrl ? loadImage(row.imageUrl) : Promise.resolve(null),
+    ),
+  ])
+
+  const background = ctx.createLinearGradient(0, 0, RESULT_WIDTH, height)
+  background.addColorStop(0, '#2f86d6')
+  background.addColorStop(1, '#164a80')
+  ctx.fillStyle = background
+  ctx.fillRect(0, 0, RESULT_WIDTH, height)
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
+  ctx.beginPath()
+  ctx.roundRect(
+    RESULT_PADDING,
+    RESULT_PADDING,
+    RESULT_WIDTH - RESULT_PADDING * 2,
+    height - RESULT_PADDING * 2,
+    24,
+  )
+  ctx.fill()
+
+  const innerX = RESULT_PADDING + 28
+  const innerWidth = RESULT_WIDTH - (RESULT_PADDING + 28) * 2
+
+  // --- ヘッダー(スコア) ---
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#2f86d6'
+  ctx.font = `bold 34px ${FONT_FAMILY}`
+  ctx.fillText(
+    QUIZ_SHARE_UI_TEXT.cardAppName,
+    RESULT_WIDTH / 2,
+    RESULT_PADDING + 62,
+  )
 
   if (content.title) {
     ctx.fillStyle = '#333333'
-    ctx.font = `bold 44px ${FONT_FAMILY}`
+    ctx.font = `bold 34px ${FONT_FAMILY}`
     ctx.fillText(
       fitText(ctx, `「${content.title}」`, innerWidth),
-      CARD_WIDTH / 2,
-      CARD_MARGIN + 160,
+      RESULT_WIDTH / 2,
+      RESULT_PADDING + 116,
     )
   }
 
@@ -165,24 +248,105 @@ export const drawResultCard = (
     content.totalCount > 0 && content.correctCount === content.totalCount
 
   ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
-  ctx.font = `bold 128px ${FONT_FAMILY}`
+  ctx.font = `bold 96px ${FONT_FAMILY}`
   ctx.fillText(
     `${content.correctCount} / ${content.totalCount}`,
-    CARD_WIDTH / 2,
-    CARD_MARGIN + 330,
+    RESULT_WIDTH / 2,
+    RESULT_PADDING + 226,
   )
 
   ctx.fillStyle = '#555555'
-  ctx.font = `bold 44px ${FONT_FAMILY}`
+  ctx.font = `bold 34px ${FONT_FAMILY}`
   ctx.fillText(
     isPerfect
       ? QUIZ_SHARE_UI_TEXT.cardPerfect
       : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
-    CARD_WIDTH / 2,
-    CARD_MARGIN + 410,
+    RESULT_WIDTH / 2,
+    RESULT_PADDING + 288,
   )
 
-  drawHost(ctx)
+  if (isPerfect && stamp) {
+    // つぶれないよう大きめに、少し傾けてスタンプらしく押す。
+    const size = 230
+    ctx.save()
+    ctx.translate(RESULT_WIDTH - RESULT_PADDING - 150, RESULT_PADDING + 180)
+    ctx.rotate(-0.18)
+    ctx.drawImage(stamp, -size / 2, -size / 2, size, size)
+    ctx.restore()
+  }
+
+  // --- 正誤の一覧(リザルト画面の再現) ---
+  ctx.textAlign = 'left'
+  let y = RESULT_PADDING + RESULT_HEADER_HEIGHT
+  rows.forEach((row, index) => {
+    ctx.fillStyle = row.isCorrect ? '#eef7f0' : '#fdf1f0'
+    ctx.beginPath()
+    ctx.roundRect(innerX, y, innerWidth, RESULT_ROW_HEIGHT, 16)
+    ctx.fill()
+    ctx.fillStyle = row.isCorrect ? '#2e8b57' : '#d03c3c'
+    ctx.beginPath()
+    ctx.roundRect(innerX, y, 10, RESULT_ROW_HEIGHT, 5)
+    ctx.fill()
+
+    const image = rowImages[index] ?? fallbackImage
+    const imageX = innerX + 26
+    const imageY = y + 12
+    const imageW = 94
+    const imageH = RESULT_ROW_HEIGHT - 24
+    if (image) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.roundRect(imageX, imageY, imageW, imageH, 10)
+      ctx.clip()
+      // object-fit: cover 相当(中央を切り出す)
+      const scale = Math.max(imageW / image.width, imageH / image.height)
+      const drawW = image.width * scale
+      const drawH = image.height * scale
+      ctx.drawImage(
+        image,
+        imageX + (imageW - drawW) / 2,
+        imageY + (imageH - drawH) / 2,
+        drawW,
+        drawH,
+      )
+      ctx.restore()
+    }
+
+    const textX = imageX + imageW + 22
+    const textWidth = innerX + innerWidth - textX - 20
+    ctx.fillStyle = row.isCorrect ? '#1f6f3f' : '#b3261e'
+    ctx.font = `bold 27px ${FONT_FAMILY}`
+    ctx.fillText(
+      `第${row.questionNumber}問 ${row.isCorrect ? QUIZ_UI_TEXT.correctLabel : QUIZ_UI_TEXT.incorrectLabel}`,
+      textX,
+      y + 40,
+    )
+    ctx.fillStyle = '#333333'
+    ctx.font = `bold 28px ${FONT_FAMILY}`
+    ctx.fillText(fitText(ctx, row.correctLabel, textWidth), textX, y + 78)
+    ctx.fillStyle = '#666666'
+    ctx.font = `25px ${FONT_FAMILY}`
+    ctx.fillText(fitText(ctx, row.answerLabel, textWidth), textX, y + 112)
+
+    y += RESULT_ROW_HEIGHT + RESULT_ROW_GAP
+  })
+
+  if (overflowCount > 0) {
+    ctx.fillStyle = '#666666'
+    ctx.font = `26px ${FONT_FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.fillText(`…ほか${overflowCount}問`, RESULT_WIDTH / 2, y + 34)
+    ctx.textAlign = 'left'
+  }
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#888888'
+  ctx.font = `24px ${FONT_FAMILY}`
+  ctx.fillText(
+    window.location.host,
+    RESULT_WIDTH / 2,
+    height - RESULT_PADDING - 30,
+  )
   return canvas
 }
 

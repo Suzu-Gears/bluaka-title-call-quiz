@@ -1003,6 +1003,13 @@ export const setupQuiz = (
       correctCount,
       totalCount,
       challenge: activeChallenge,
+      entries: resultEntries.map((entry) => ({
+        questionNumber: entry.questionNumber,
+        correctLabel: formatResultEntryCorrectAnswer(entry.correctAnswer),
+        answerLabel: formatResultEntryUserAnswer(entry.userAnswer),
+        isCorrect: entry.isCorrect,
+        imageUrl: imageUrlForClip(entry.clip, entry.correctAnswer),
+      })),
     })
     showResultActions()
     updateCostumeHintText()

@@ -106,7 +106,7 @@ export const QUIZ_SHARE_UI_TEXT = {
   imageDownloaded: '画像を保存しました。Xの投稿に添付してください。',
   imageCopied: '画像をコピーしました。Xの投稿画面に貼り付けてください。',
   cardAppName: 'ブルアカ タイトルコールクイズ',
-  cardPerfect: '💮100点満点、花丸です！',
+  cardPerfect: '100点満点、花丸です！',
   cardAccuracyPrefix: '正答率 ',
 } as const
 

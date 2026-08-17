@@ -18,6 +18,7 @@ import {
   drawChallengeCard,
   drawResultCard,
   imageDeliveryMessage,
+  type ResultCardEntry,
 } from '@/lib/shareImage'
 import { setHidden } from '@/lib/uiState'
 import { QUIZ_SHARE_UI_TEXT } from '@/lib/uiText'
@@ -42,6 +43,8 @@ export interface QuizResultShareContext {
   correctCount: number
   totalCount: number
   challenge: ChallengeDefinition | null
+  /** リザルト画像に描く正誤一覧(出題順)。 */
+  entries: ResultCardEntry[]
 }
 
 interface QuizShareOptions {
@@ -572,23 +575,27 @@ export const setupQuizShare = (
   })
 
   resultImageButton?.addEventListener('click', () => {
-    if (!currentResult) {
-      return
-    }
-    const canvas = drawResultCard({
-      title: currentResult.challenge?.title || null,
-      correctCount: currentResult.correctCount,
-      totalCount: currentResult.totalCount,
-    })
-    if (!canvas) {
-      setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
-      return
-    }
-    void deliverCardImage(
-      canvas,
-      'quiz-result.png',
-      buildCurrentShareText() ?? undefined,
-    ).then((method) => setResultShareStatus(imageDeliveryMessage(method)))
+    void (async () => {
+      if (!currentResult) {
+        return
+      }
+      const canvas = await drawResultCard({
+        title: currentResult.challenge?.title || null,
+        correctCount: currentResult.correctCount,
+        totalCount: currentResult.totalCount,
+        entries: currentResult.entries,
+      })
+      if (!canvas) {
+        setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
+        return
+      }
+      const method = await deliverCardImage(
+        canvas,
+        'quiz-result.png',
+        buildCurrentShareText() ?? undefined,
+      )
+      setResultShareStatus(imageDeliveryMessage(method))
+    })()
   })
 
   return {
