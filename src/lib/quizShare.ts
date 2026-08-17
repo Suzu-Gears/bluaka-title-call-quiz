@@ -12,10 +12,19 @@ import { normalizeQuizAnswer } from '@/lib/quizProgress'
  */
 
 export const SHARED_QUIZ_VERSION = 1
+export const SHARED_QUIZ_VERSION_V2 = 2
 export const SHARED_QUIZ_HASH_KEY = 'c'
 export const SHARED_QUIZ_TITLE_MAX_LENGTH = 40
+export const SHARED_QUIZ_AUTHOR_MAX_LENGTH = 20
+export const SHARED_QUIZ_DESC_MAX_LENGTH = 100
 /** URL が非常識な長さにならないよう、1つの共有クイズに入れられる生徒数の上限。 */
 export const SHARED_QUIZ_MAX_ENTRIES = 300
+/** v2(手作り問題)の問題数上限。URL 長の実測に基づく(設計書 §2-2)。 */
+export const SHARED_QUIZ_MAX_QUESTIONS = 100
+/** 択一の誤答数の上限(正解と合わせて 2〜8 択)。 */
+export const SHARED_QUIZ_CHOICE_MAX_WRONG = 7
+export const SHARED_QUIZ_MATCH_MIN_ENTRIES = 2
+export const SHARED_QUIZ_MATCH_MAX_ENTRIES = 6
 
 export const SHARED_QUIZ_MODES = [
   'multiple-choice',
@@ -25,14 +34,55 @@ export const SHARED_QUIZ_MODES = [
 
 export type SharedQuizMode = (typeof SHARED_QUIZ_MODES)[number]
 
-export interface SharedQuizPayload {
-  v: number
+/** v1: 生徒セット共有(全問同形式・選択肢自動)。 */
+export interface SharedQuizPayloadV1 {
+  v: 1
   /** クイズのタイトル。空文字も許容する(表示側で既定名を補う)。 */
   title: string
   mode: SharedQuizMode
   /** 出題する生徒の PrimaryId のリスト。 */
   ids: number[]
 }
+
+/** 択一(可変択数)。a=正解、o=誤答(1〜7個)。clip でクリップ固定(既定はランダム)。 */
+export interface SharedQuizChoiceQuestion {
+  t: 'c'
+  a: number
+  o: number[]
+  clip?: string
+}
+
+/** マッチング。e の全エントリの声を正しいカードへ割り当てる。 */
+export interface SharedQuizMatchQuestion {
+  t: 'm'
+  e: number[]
+}
+
+/** 名前入力。lu=true でサジェスト無し(Lunatic)。 */
+export interface SharedQuizInputQuestion {
+  t: 'i'
+  a: number
+  lu?: boolean
+  clip?: string
+}
+
+export type SharedQuizQuestion =
+  | SharedQuizChoiceQuestion
+  | SharedQuizMatchQuestion
+  | SharedQuizInputQuestion
+
+/** v2: 問題を1問ずつ手作りして公開する形式(設計書 §3-2)。 */
+export interface SharedQuizPayloadV2 {
+  v: 2
+  title: string
+  author?: string
+  desc?: string
+  /** true なら挑むたびに出題順をシャッフルする。既定は作成順。 */
+  shuffle?: boolean
+  q: SharedQuizQuestion[]
+}
+
+export type SharedQuizPayload = SharedQuizPayloadV1 | SharedQuizPayloadV2
 
 const ENCODING_DEFLATE_PREFIX = '1.'
 const ENCODING_PLAIN_PREFIX = '0.'
@@ -44,17 +94,82 @@ export const isSharedQuizMode = (value: unknown): value is SharedQuizMode =>
   typeof value === 'string' &&
   (SHARED_QUIZ_MODES as readonly string[]).includes(value)
 
-/**
- * 外部由来の値を検証して共有クイズ定義に整える。壊れていれば null。
- * ids は正の整数のみ残し、重複を除いて上限件数で打ち切る。
- */
-export function normalizeSharedQuizPayload(
+const normalizeStudentId = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : null
+
+const normalizeText = (value: unknown, maxLength: number): string =>
+  typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
+
+/** クリップ固定の参照形式(`{clipId}.g{世代}`、assetKeys の formatClipRef と同じ)。 */
+const CLIP_REF_PATTERN = /^[A-Za-z0-9_-]+\.g[1-9]\d*$/
+
+const normalizeClipRef = (value: unknown): string | undefined =>
+  typeof value === 'string' && CLIP_REF_PATTERN.test(value) ? value : undefined
+
+/** 1問ぶんの定義を検証する。壊れていれば null(その問題だけ捨てる)。 */
+export function normalizeSharedQuizQuestion(
   raw: unknown,
-): SharedQuizPayload | null {
+): SharedQuizQuestion | null {
   if (!isRecord(raw)) {
     return null
   }
-  if (raw.v !== SHARED_QUIZ_VERSION) {
+  if (raw.t === 'c') {
+    const a = normalizeStudentId(raw.a)
+    if (a === null || !Array.isArray(raw.o)) {
+      return null
+    }
+    const o = [
+      ...new Set(
+        raw.o
+          .map(normalizeStudentId)
+          .filter((id): id is number => id !== null && id !== a),
+      ),
+    ].slice(0, SHARED_QUIZ_CHOICE_MAX_WRONG)
+    if (o.length === 0) {
+      return null
+    }
+    const clip = normalizeClipRef(raw.clip)
+    return { t: 'c', a, o, ...(clip ? { clip } : {}) }
+  }
+  if (raw.t === 'm') {
+    if (!Array.isArray(raw.e)) {
+      return null
+    }
+    const e = [
+      ...new Set(
+        raw.e.map(normalizeStudentId).filter((id): id is number => id !== null),
+      ),
+    ]
+    if (
+      e.length < SHARED_QUIZ_MATCH_MIN_ENTRIES ||
+      e.length > SHARED_QUIZ_MATCH_MAX_ENTRIES
+    ) {
+      return null
+    }
+    return { t: 'm', e }
+  }
+  if (raw.t === 'i') {
+    const a = normalizeStudentId(raw.a)
+    if (a === null) {
+      return null
+    }
+    const clip = normalizeClipRef(raw.clip)
+    return {
+      t: 'i',
+      a,
+      ...(raw.lu === true ? { lu: true } : {}),
+      ...(clip ? { clip } : {}),
+    }
+  }
+  return null
+}
+
+function normalizeSharedQuizPayloadV1(
+  raw: unknown,
+): SharedQuizPayloadV1 | null {
+  if (!isRecord(raw)) {
     return null
   }
   if (!isSharedQuizMode(raw.mode)) {
@@ -74,11 +189,73 @@ export function normalizeSharedQuizPayload(
   if (ids.length === 0) {
     return null
   }
-  const title =
-    typeof raw.title === 'string'
-      ? raw.title.trim().slice(0, SHARED_QUIZ_TITLE_MAX_LENGTH)
-      : ''
-  return { v: SHARED_QUIZ_VERSION, title, mode: raw.mode, ids }
+  return {
+    v: SHARED_QUIZ_VERSION,
+    title: normalizeText(raw.title, SHARED_QUIZ_TITLE_MAX_LENGTH),
+    mode: raw.mode,
+    ids,
+  }
+}
+
+export function normalizeSharedQuizPayloadV2(
+  raw: unknown,
+): SharedQuizPayloadV2 | null {
+  if (!isRecord(raw) || !Array.isArray(raw.q)) {
+    return null
+  }
+  const q = raw.q
+    .map(normalizeSharedQuizQuestion)
+    .filter((question): question is SharedQuizQuestion => question !== null)
+    .slice(0, SHARED_QUIZ_MAX_QUESTIONS)
+  if (q.length === 0) {
+    return null
+  }
+  const author = normalizeText(raw.author, SHARED_QUIZ_AUTHOR_MAX_LENGTH)
+  const desc = normalizeText(raw.desc, SHARED_QUIZ_DESC_MAX_LENGTH)
+  return {
+    v: SHARED_QUIZ_VERSION_V2,
+    title: normalizeText(raw.title, SHARED_QUIZ_TITLE_MAX_LENGTH),
+    ...(author ? { author } : {}),
+    ...(desc ? { desc } : {}),
+    ...(raw.shuffle === true ? { shuffle: true } : {}),
+    q,
+  }
+}
+
+/**
+ * 外部由来の値を検証して共有クイズ定義に整える。壊れていれば null。
+ * バージョン(v)で v1(生徒セット)と v2(手作り問題)に分岐する。
+ */
+export function normalizeSharedQuizPayload(
+  raw: unknown,
+): SharedQuizPayload | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+  if (raw.v === SHARED_QUIZ_VERSION) {
+    return normalizeSharedQuizPayloadV1(raw)
+  }
+  if (raw.v === SHARED_QUIZ_VERSION_V2) {
+    return normalizeSharedQuizPayloadV2(raw)
+  }
+  return null
+}
+
+/** 挑戦状バナー等に出す形式の内訳(例: 択一6・マッチ3・入力1)。 */
+export function summarizeQuestionTypes(
+  questions: readonly { t: SharedQuizQuestion['t'] }[],
+): string {
+  const counts = { c: 0, m: 0, i: 0 }
+  for (const question of questions) {
+    counts[question.t] += 1
+  }
+  return [
+    counts.c > 0 ? `択一${counts.c}` : null,
+    counts.m > 0 ? `マッチ${counts.m}` : null,
+    counts.i > 0 ? `入力${counts.i}` : null,
+  ]
+    .filter(Boolean)
+    .join('・')
 }
 
 const bytesToBase64Url = (bytes: Uint8Array): string => {
@@ -135,10 +312,20 @@ export async function encodeSharedQuizPayload(
   return `${ENCODING_DEFLATE_PREFIX}${bytesToBase64Url(compressed)}`
 }
 
+/**
+ * デコードを受け付けるエンコード文字列長の上限。
+ * 正規の URL は 100 問でも 1,300 文字程度(設計書 §2-2)。これを大きく超える
+ * 入力は、展開すると巨大になる圧縮データ(メモリ攻撃)の可能性があるため拒否する。
+ */
+export const SHARED_QUIZ_ENCODED_MAX_LENGTH = 20000
+
 /** エンコード済み文字列を復元する。壊れていれば null(例外は投げない)。 */
 export async function decodeSharedQuizPayload(
   encoded: string,
 ): Promise<SharedQuizPayload | null> {
+  if (encoded.length > SHARED_QUIZ_ENCODED_MAX_LENGTH) {
+    return null
+  }
   try {
     let jsonBytes: Uint8Array
     if (encoded.startsWith(ENCODING_DEFLATE_PREFIX)) {
@@ -213,6 +400,138 @@ export function matchPastedStudentNames(
     }
   }
   return { matched, unmatched }
+}
+
+export interface SheetQuizEntryRef {
+  Name: string
+  PrimaryId: number
+}
+
+export interface SheetParseResult {
+  questions: SharedQuizQuestion[]
+  /** 解釈できなかった行の説明(行番号つき)。 */
+  errors: string[]
+}
+
+const SHEET_TYPE_CHOICE = '択一'
+const SHEET_TYPE_MATCH = 'マッチ'
+const SHEET_TYPE_INPUT = '入力'
+const SHEET_TYPE_INPUT_LUNATIC = '入力L'
+
+/**
+ * 1行=1問のテキスト(スプレッドシート由来)を問題リストへ変換する。
+ *
+ *   択一, シロコ, シロコ＊テラー, 空崎ヒナ   ← 先頭が正解、以降が誤答
+ *   マッチ, シロコ, シロコ（水着）
+ *   入力, 天童アリス                          ← 「入力L」で Lunatic
+ *
+ * 区切りはタブ・カンマ両対応。名前は表記ゆれ(全半角・かな)を吸収して照合する。
+ */
+export function parseQuestionSheetText(
+  text: string,
+  entries: readonly SheetQuizEntryRef[],
+): SheetParseResult {
+  const idByNameKey = new Map(
+    entries.map((entry) => [normalizeQuizAnswer(entry.Name), entry.PrimaryId]),
+  )
+  const questions: SharedQuizQuestion[] = []
+  const errors: string[] = []
+
+  text.split(/\r?\n/).forEach((line, index) => {
+    const cells = line
+      .split(/[\t,、]/)
+      .map((cell) => cell.trim())
+      .filter((cell) => cell.length > 0)
+    if (cells.length === 0) {
+      return
+    }
+    const lineNo = index + 1
+    const [type, ...names] = cells
+    const ids: number[] = []
+    const unknown: string[] = []
+    for (const name of names) {
+      const id = idByNameKey.get(normalizeQuizAnswer(name))
+      if (id === undefined) {
+        unknown.push(name)
+      } else {
+        ids.push(id)
+      }
+    }
+    if (unknown.length > 0) {
+      errors.push(`${lineNo}行目: 見つからない名前 ${unknown.join('、')}`)
+      return
+    }
+
+    let question: SharedQuizQuestion | null = null
+    if (type === SHEET_TYPE_CHOICE) {
+      question =
+        ids.length >= 2
+          ? normalizeSharedQuizQuestion({ t: 'c', a: ids[0], o: ids.slice(1) })
+          : null
+      if (!question) {
+        errors.push(`${lineNo}行目: 択一は「正解, 誤答...」の2名以上が必要です`)
+        return
+      }
+    } else if (type === SHEET_TYPE_MATCH) {
+      question = normalizeSharedQuizQuestion({ t: 'm', e: ids })
+      if (!question) {
+        errors.push(
+          `${lineNo}行目: マッチは${SHARED_QUIZ_MATCH_MIN_ENTRIES}〜${SHARED_QUIZ_MATCH_MAX_ENTRIES}名(重複なし)が必要です`,
+        )
+        return
+      }
+    } else if (type === SHEET_TYPE_INPUT || type === SHEET_TYPE_INPUT_LUNATIC) {
+      question =
+        ids.length === 1
+          ? normalizeSharedQuizQuestion({
+              t: 'i',
+              a: ids[0],
+              lu: type === SHEET_TYPE_INPUT_LUNATIC,
+            })
+          : null
+      if (!question) {
+        errors.push(`${lineNo}行目: 入力は正解1名だけを書いてください`)
+        return
+      }
+    } else {
+      errors.push(
+        `${lineNo}行目: 形式は ${SHEET_TYPE_CHOICE}/${SHEET_TYPE_MATCH}/${SHEET_TYPE_INPUT}/${SHEET_TYPE_INPUT_LUNATIC} のいずれかにしてください`,
+      )
+      return
+    }
+    questions.push(question)
+  })
+
+  return {
+    questions: questions.slice(0, SHARED_QUIZ_MAX_QUESTIONS),
+    errors,
+  }
+}
+
+/** エディタの問題リストをシート形式のテキストへ書き出す(parse と往復可能)。 */
+export function buildQuestionSheetText(
+  questions: readonly SharedQuizQuestion[],
+  entries: readonly SheetQuizEntryRef[],
+): string {
+  const nameById = new Map(
+    entries.map((entry) => [entry.PrimaryId, entry.Name]),
+  )
+  const name = (id: number) => nameById.get(id) ?? `?${id}`
+  return questions
+    .map((question) => {
+      if (question.t === 'c') {
+        return [SHEET_TYPE_CHOICE, name(question.a), ...question.o.map(name)]
+      }
+      if (question.t === 'm') {
+        return [SHEET_TYPE_MATCH, ...question.e.map(name)]
+      }
+      return [
+        question.lu ? SHEET_TYPE_INPUT_LUNATIC : SHEET_TYPE_INPUT,
+        name(question.a),
+      ]
+    })
+    .map((cells) => cells.join('\t'))
+    .join('\n')
 }
 
 export interface ResultShareTextOptions {

@@ -10,7 +10,8 @@ import {
   parseImageKey,
 } from '@/lib/assetKeys'
 import { hasSourceChanged, normalizeAudioManifest } from '@/lib/audioManifest'
-import type { Student, TitleCallClip } from '@/lib/interfaces'
+import { buildChallengePlans } from '@/lib/challengePlan'
+import type { QuizEntry, Student, TitleCallClip } from '@/lib/interfaces'
 import {
   buildQuizEntries,
   extractCostume,
@@ -48,6 +49,7 @@ import {
   summarizeQuizResults,
 } from '@/lib/quizProgress'
 import {
+  buildQuestionSheetText,
   buildResultShareText,
   buildSharedQuizUrl,
   buildTweetIntentUrl,
@@ -56,8 +58,12 @@ import {
   extractSharedQuizParam,
   matchPastedStudentNames,
   normalizeSharedQuizPayload,
+  parseQuestionSheetText,
   SHARED_QUIZ_MAX_ENTRIES,
   SHARED_QUIZ_VERSION,
+  summarizeQuestionTypes,
+  type SharedQuizPayloadV1,
+  type SharedQuizPayloadV2,
 } from '@/lib/quizShare'
 import { HttpStatusError, isNotFoundError } from '@/lib/schaleDBClient'
 import {
@@ -993,10 +999,10 @@ const deterministicRandom = () => 0
 
 {
   // 共有クイズ定義: エンコード→デコードの往復で元の内容へ戻る
-  const payload = {
+  const payload: SharedQuizPayloadV1 = {
     v: SHARED_QUIZ_VERSION,
     title: 'アビドス縛りクイズ',
-    mode: 'multiple-choice' as const,
+    mode: 'multiple-choice',
     ids: [10000, 10005, 10008, 10015],
   }
   const encoded = await encodeSharedQuizPayload(payload)
@@ -1021,7 +1027,9 @@ const deterministicRandom = () => 0
     mode: 'name-input',
     ids: [3, 3, -1, 0, 1.5, 'x', 7],
   })
-  assert.ok(normalized)
+  if (normalized?.v !== 1) {
+    throw new Error('v1 として解釈されるべき')
+  }
   assert.deepEqual(normalized.ids, [3, 7])
   assert.equal(normalized.title.length, 40)
   assert.equal(normalized.mode, 'name-input')
@@ -1032,7 +1040,9 @@ const deterministicRandom = () => 0
     mode: 'multiple-choice',
     ids: Array.from({ length: SHARED_QUIZ_MAX_ENTRIES + 100 }, (_, i) => i + 1),
   })
-  assert.ok(oversized)
+  if (oversized?.v !== 1) {
+    throw new Error('v1 として解釈されるべき')
+  }
   assert.equal(oversized.ids.length, SHARED_QUIZ_MAX_ENTRIES)
 
   // バージョン違い・モード不正・空の ids は不正扱い
@@ -1108,6 +1118,171 @@ const deterministicRandom = () => 0
   const intentUrl = buildTweetIntentUrl('テスト #タグ')
   assert.ok(intentUrl.startsWith('https://twitter.com/intent/tweet?text='))
   assert.ok(intentUrl.includes(encodeURIComponent('#タグ')))
+}
+
+// --- v2(手作り問題)の検証・往復 ---
+{
+  const raw = {
+    v: 2,
+    title: `  ${'あ'.repeat(50)}`,
+    author: 'A'.repeat(30),
+    desc: '説明',
+    shuffle: true,
+    q: [
+      { t: 'c', a: 10005, o: [10008, 10008, 10005, -1, 10012] }, // 重複・正解・不正IDは除去
+      { t: 'c', a: 10005, o: [] }, // 誤答ゼロは捨てる
+      { t: 'm', e: [10005, 20005, 30005] },
+      { t: 'm', e: [10005] }, // 対象不足は捨てる
+      { t: 'i', a: 10014, lu: true, clip: 'aru_title.g2' },
+      { t: 'i', a: 10014, clip: '../etc/passwd' }, // 不正なクリップ参照は落とす
+      { t: 'x', a: 1 }, // 未知の形式は捨てる
+    ],
+  }
+  const normalized = normalizeSharedQuizPayload(raw)
+  if (normalized?.v !== 2) {
+    throw new Error('v2 として解釈されるべき')
+  }
+  assert.equal(normalized.title.length, 40)
+  assert.equal(normalized.author?.length, 20)
+  assert.equal(normalized.shuffle, true)
+  assert.deepEqual(normalized.q, [
+    { t: 'c', a: 10005, o: [10008, 10012] },
+    { t: 'm', e: [10005, 20005, 30005] },
+    { t: 'i', a: 10014, lu: true, clip: 'aru_title.g2' },
+    { t: 'i', a: 10014 },
+  ])
+  assert.equal(summarizeQuestionTypes(normalized.q), '択一1・マッチ1・入力2')
+
+  // 往復
+  const encoded = await encodeSharedQuizPayload(normalized)
+  assert.match(encoded, /^[0-9A-Za-z._-]+$/)
+  assert.deepEqual(await decodeSharedQuizPayload(encoded), normalized)
+
+  // 全問不正なら null
+  assert.equal(normalizeSharedQuizPayload({ v: 2, q: [{ t: 'c' }] }), null)
+}
+
+// --- 出題プランの解決(ID照合・スキップ・クリップ固定) ---
+{
+  const planClip = (
+    ownerId: number,
+    clipId: string,
+    generation = 1,
+  ): TitleCallClip => ({
+    clipId,
+    generation,
+    file: `audio/${ownerId}/${clipId}.g${generation}.mp3`,
+    ownerId,
+    source: 'schaledb',
+  })
+  const planEntry = (
+    id: number,
+    name: string,
+    clips: TitleCallClip[],
+  ): QuizEntry => ({
+    Name: name,
+    MemberIds: [id],
+    PrimaryId: id,
+    TitleCalls: clips,
+    ImageIds: [id],
+    DefaultOrder: id,
+    NameSortOrder: id,
+    CharacterVoice: '',
+    Costume: '',
+    IsCollaboration: false,
+  })
+  const entryById = new Map<number, QuizEntry>([
+    [1, planEntry(1, 'シロコ', [planClip(1, 'shiroko_title')])],
+    [
+      2,
+      planEntry(2, 'アル', [
+        planClip(2, 'aru_title', 1),
+        planClip(2, 'aru_title', 2),
+      ]),
+    ],
+    [3, planEntry(3, 'ホシノ', [planClip(3, 'hoshino_title')])],
+  ])
+
+  const v2: SharedQuizPayloadV2 = {
+    v: 2,
+    title: 'テスト',
+    q: [
+      { t: 'c', a: 1, o: [2, 999] }, // 999 は誤答から除外(問題は生きる)
+      { t: 'c', a: 999, o: [1] }, // 正解が消えた問題はスキップ
+      { t: 'm', e: [1, 2] },
+      { t: 'm', e: [1, 999] }, // 対象が欠けたマッチはスキップ
+      { t: 'i', a: 2, lu: true, clip: 'aru_title.g1' },
+      { t: 'i', a: 2, clip: 'unknown.g9' }, // 見つからないクリップはランダム扱い
+    ],
+  }
+  const result = buildChallengePlans(v2, entryById)
+  assert.equal(result.skippedCount, 2)
+  assert.equal(result.questionSummary, '択一1・マッチ1・入力2')
+  assert.deepEqual(result.plans[0], {
+    kind: 'choice',
+    answerName: 'シロコ',
+    wrongNames: ['アル'],
+    fixedClip: null,
+  })
+  assert.deepEqual(result.plans[1], {
+    kind: 'match',
+    entryNames: ['シロコ', 'アル'],
+  })
+  assert.equal(
+    result.plans[2].kind === 'input' && result.plans[2].fixedClip?.generation,
+    1,
+  )
+  assert.equal(
+    result.plans[3].kind === 'input' && result.plans[3].fixedClip,
+    null,
+  )
+
+  // v1 は「全問同形式・選択肢自動」のプランに変換される
+  const v1Result = buildChallengePlans(
+    { v: 1, title: '', mode: 'multiple-choice', ids: [1, 999, 3] },
+    entryById,
+  )
+  assert.equal(v1Result.skippedCount, 1)
+  assert.equal(v1Result.questionSummary, '択一2')
+  assert.deepEqual(v1Result.plans[0], {
+    kind: 'choice',
+    answerName: 'シロコ',
+    wrongNames: null,
+    fixedClip: null,
+  })
+}
+
+// --- シート形式(1行1問)の取り込みと書き出し ---
+{
+  const refs = [
+    { Name: 'シロコ', PrimaryId: 1 },
+    { Name: 'シロコ（水着）', PrimaryId: 2 },
+    { Name: 'アル', PrimaryId: 3 },
+    { Name: '天童アリス', PrimaryId: 4 },
+  ]
+  const { questions, errors } = parseQuestionSheetText(
+    [
+      '択一\tシロコ\tアル', // タブ区切り
+      'マッチ, しろこ, シロコ（水着）', // カンマ+かなゆれ
+      '入力L, 天童アリス',
+      '入力, 知らない生徒', // 行ごとエラー
+      '謎形式, シロコ',
+      '', // 空行は無視
+    ].join('\n'),
+    refs,
+  )
+  assert.deepEqual(questions, [
+    { t: 'c', a: 1, o: [3] },
+    { t: 'm', e: [1, 2] },
+    { t: 'i', a: 4, lu: true },
+  ])
+  assert.equal(errors.length, 2)
+  assert.match(errors[0], /4行目/)
+  assert.match(errors[1], /5行目/)
+
+  // 書き出し→取り込みで往復できる
+  const text = buildQuestionSheetText(questions, refs)
+  assert.deepEqual(parseQuestionSheetText(text, refs).questions, questions)
 }
 
 console.log('All quiz tests passed.')

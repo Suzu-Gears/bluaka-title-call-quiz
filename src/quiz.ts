@@ -1,5 +1,6 @@
 import { formatImageKey } from '@/lib/assetKeys'
 import { resolveAssetUrl } from '@/lib/assetPath'
+import type { QuestionPlan } from '@/lib/challengePlan'
 import type { QuizEntry, TitleCallClip } from '@/lib/interfaces'
 import { buildChoices, shuffleArray } from '@/lib/quizEngine'
 import type { ProficiencyMap } from '@/lib/quizProgress'
@@ -24,6 +25,7 @@ import {
   formatAnswerClipLabel,
   formatAnswerResultStatus,
   formatClearRate,
+  formatMatchInstruction,
   formatQuizFinishedStatus,
   formatQuizQuestionStatus,
   formatResultEntryCorrectAnswer,
@@ -37,6 +39,7 @@ import {
   QUIZ_UI_TEXT,
 } from '@/lib/uiText'
 import { setupProgressPanel } from '@/progressPanel'
+import { setupQuizEditor } from '@/quizEditorUi'
 import { setupQuizQuestionCountControl } from '@/quizQuestionCountControl'
 import {
   setupQuizShare,
@@ -181,6 +184,9 @@ export const setupQuiz = (
   const proficiencyText = document.getElementById('quiz-proficiency-text')
   const costumeHintText = document.getElementById('quiz-costume-hint-text')
   const choicesRoot = document.getElementById('quiz-choices')
+  const matchRoot = document.getElementById('quiz-match')
+  const matchInstruction = document.getElementById('quiz-match-instruction')
+  const matchCards = document.getElementById('quiz-match-cards')
   const nameAnswerForm = document.getElementById(
     'quiz-name-answer-form',
   ) as HTMLFormElement | null
@@ -338,9 +344,17 @@ export const setupQuiz = (
   let lastAnswerAt = 0
   /** 共有URLから読み込んだ挑戦状。挑戦中のみ設定される。 */
   let activeChallenge: ChallengeDefinition | null = null
-  /** 挑戦状で回答方式を切り替える前のユーザー選択。終了時に戻す。 */
-  let modeBeforeChallenge: string | null = null
+  /** 挑戦状の残り出題プラン(先頭から順に消化する)。 */
+  let challengeQueue: QuestionPlan[] = []
   let shareController: QuizShareController | null = null
+  // --- マッチング問題の状態 ---
+  /** 表示するカードの生徒名(作成順)。 */
+  let matchEntryNames: string[] = []
+  /** 再生する音声(シャッフル済み)と、その正解カード。 */
+  let matchClips: { ownerName: string; clip: TitleCallClip | null }[] = []
+  /** 音声ごとの割り当て先カード名。null は未割り当て。 */
+  let matchAssignments: (string | null)[] = []
+  let matchGraded = false
   const kokonaAudio: HTMLAudioElement = new Audio(
     resolveAssetUrl('kokona-hanamaru.mp3'),
   )
@@ -881,18 +895,11 @@ export const setupQuiz = (
     stopKokonaAudio()
     if (activeChallenge) {
       activeChallenge = null
-      // 挑戦状で切り替えた回答方式をユーザーの元の選択へ戻す。
-      if (modeBeforeChallenge !== null) {
-        const radio = quizModeGroup.querySelector<HTMLInputElement>(
-          `input[name="quiz-mode"][value="${modeBeforeChallenge}"]`,
-        )
-        if (radio) {
-          radio.checked = true
-        }
-        modeBeforeChallenge = null
-      }
+      challengeQueue = []
+      // 問題ごとに切り替えていた回答方式をユーザーのラジオ選択へ戻す。
       updateModeUI()
     }
+    setHidden(matchRoot, true)
     shareController?.hideResultShare()
     usedChoiceNames = new Set()
     currentAnswer = ''
@@ -932,6 +939,27 @@ export const setupQuiz = (
     setMenuOpen(false)
   }
 
+  const hasRemainingQuestions = () =>
+    activeChallenge
+      ? challengeQueue.length > 0
+      : isPoolDrawMode()
+        ? roundQueue.length > 0
+        : questionNumber < totalQuestions
+
+  /** 回答確定後のボタン状態(次へ/リザルト・聴き直し)を整える。全形式で共通。 */
+  const finishCurrentQuestion = () => {
+    hasAnsweredCurrentQuestion = true
+    lastAnswerAt = Date.now()
+    awaitingResult = !hasRemainingQuestions()
+    nextButton.textContent = awaitingResult
+      ? QUIZ_UI_TEXT.result
+      : QUIZ_UI_TEXT.next
+    replayButton.disabled = awaitingResult
+    setHidden(replayButton, awaitingResult)
+    setHidden(nextButton, false)
+    nextButton.disabled = false
+  }
+
   const finalizeAnswer = (userAnswer: string, isCorrect: boolean) => {
     resultEntries.push({
       questionNumber,
@@ -941,8 +969,6 @@ export const setupQuiz = (
       clip: currentQuestionClip,
     })
     shouldShowCurrentAnswerStats = true
-    hasAnsweredCurrentQuestion = true
-    lastAnswerAt = Date.now()
     recordAnswer(currentAnswer, isCorrect)
     statusText.textContent = formatAnswerResultStatus(isCorrect, currentAnswer)
     // 4択は選択肢に正解の画像が既にあり緑色で示されるので、
@@ -950,17 +976,7 @@ export const setupQuiz = (
     if (currentMode !== QUIZ_MODE_MULTIPLE_CHOICE) {
       updateAnswerFeedback(currentAnswer)
     }
-    const hasRemainingQuestion = isPoolDrawMode()
-      ? roundQueue.length > 0
-      : questionNumber < totalQuestions
-    awaitingResult = !hasRemainingQuestion
-    nextButton.textContent = awaitingResult
-      ? QUIZ_UI_TEXT.result
-      : QUIZ_UI_TEXT.next
-    replayButton.disabled = awaitingResult
-    setHidden(replayButton, awaitingResult)
-    setHidden(nextButton, false)
-    nextButton.disabled = false
+    finishCurrentQuestion()
   }
 
   const showResultScreen = () => {
@@ -973,6 +989,7 @@ export const setupQuiz = (
     choicesRoot.innerHTML = ''
     setHidden(choicesRoot, true)
     setHidden(nameAnswerForm, true)
+    setHidden(matchRoot, true)
     hideNameSuggestions()
     statusText.textContent = formatQuizFinishedStatus(
       summarizeQuizResults(resultEntries).correctCount,
@@ -994,22 +1011,286 @@ export const setupQuiz = (
     progressPanel.pushInBackground()
   }
 
-  // 挑戦状(共有クイズ)も「決まった生徒のキューを順に出す」点で学習・復習と同じ扱い。
   const isPoolDrawMode = () =>
-    activeChallenge !== null ||
     currentDrawMode === QUIZ_DRAW_MODE_LEARNING ||
     currentDrawMode === QUIZ_DRAW_MODE_REVIEW
 
+  /** 問題の種類によらない出題時の共通処理(問番号・ボタン状態・表示リセット)。 */
+  const prepareQuestionView = () => {
+    questionNumber += 1
+    statusText.textContent = formatQuizQuestionStatus(questionNumber)
+    shouldShowCurrentAnswerStats = false
+    hasAnsweredCurrentQuestion = false
+    awaitingResult = false
+    nextButton.textContent = QUIZ_UI_TEXT.next
+    showQuizProgressActions()
+    replayButton.disabled = false
+    nextButton.disabled = true
+    hideAnswerFeedback()
+    hideResult()
+    updateCostumeHintText()
+    updateProficiencyText()
+  }
+
+  const renderChoiceButtons = (choices: readonly string[]) => {
+    setHidden(choicesRoot, false)
+    setHidden(nameAnswerForm, true)
+    hideNameSuggestions()
+    choices.forEach((name) => {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'quiz-choice-button'
+      button.dataset.choiceName = name
+      const image = document.createElement('img')
+      image.src = imageUrlForName(name)
+      image.alt = ''
+      image.onerror = () => {
+        image.src = DEFAULT_IMAGE
+      }
+      const label = document.createElement('span')
+      label.textContent = name
+      button.append(image, label)
+      button.addEventListener('click', () => {
+        if (hasAnsweredCurrentQuestion) {
+          // 回答確定直後のダブルタップを聴き直し操作として扱わない。
+          if (Date.now() - lastAnswerAt < 350) {
+            return
+          }
+          playAnyClipForName(name)
+          return
+        }
+        const isCorrect = name === currentAnswer
+        finalizeAnswer(name, isCorrect)
+        choicesRoot
+          .querySelectorAll<HTMLButtonElement>('button')
+          .forEach((choiceButton) => {
+            const choiceName = choiceButton.dataset.choiceName
+            if (choiceName === currentAnswer) {
+              choiceButton.classList.add('correct')
+            }
+            if (!isCorrect && choiceName === name) {
+              choiceButton.classList.add('wrong-selected')
+            }
+          })
+      })
+      choicesRoot.appendChild(button)
+    })
+  }
+
+  const showNameInputForm = () => {
+    setHidden(choicesRoot, true)
+    setHidden(nameAnswerForm, false)
+    if (nameAnswerInput) {
+      nameAnswerInput.value = ''
+      nameAnswerInput.disabled = false
+    }
+    hideNameSuggestions()
+    if (nameAnswerSubmit) {
+      nameAnswerSubmit.disabled = false
+    }
+  }
+
+  // --- マッチング問題 -------------------------------------------------------
+
+  /** いま再生すべき音声のスロット(最初の未割り当て)。全部割り当て済みなら -1。 */
+  const currentMatchSlot = () =>
+    matchAssignments.findIndex((assigned) => assigned === null)
+
+  const updateMatchCards = () => {
+    matchCards
+      ?.querySelectorAll<HTMLButtonElement>('button')
+      .forEach((button) => {
+        const name = button.dataset.matchName ?? ''
+        const assignedIndex = matchAssignments.indexOf(name)
+        const badge = button.querySelector('.quiz-match-badge')
+        if (badge) {
+          badge.textContent = assignedIndex >= 0 ? `♪${assignedIndex + 1}` : ''
+        }
+        button.classList.toggle('is-assigned', assignedIndex >= 0)
+      })
+  }
+
+  const playCurrentMatchClip = () => {
+    const slot = currentMatchSlot()
+    if (slot < 0) {
+      return
+    }
+    currentQuestionClip = matchClips[slot].clip
+    if (matchInstruction) {
+      matchInstruction.textContent = formatMatchInstruction(
+        slot + 1,
+        matchClips.length,
+      )
+    }
+    updateMatchCards()
+    playCurrentAudio()
+  }
+
+  const gradeMatchQuestion = () => {
+    matchGraded = true
+    stopAudio()
+    let allCorrect = true
+    const wrongPairs: string[] = []
+    matchClips.forEach((item, index) => {
+      const assigned = matchAssignments[index]
+      const isPairCorrect = assigned === item.ownerName
+      if (!isPairCorrect) {
+        allCorrect = false
+        wrongPairs.push(
+          `♪${index + 1} ${item.ownerName}（回答: ${assigned ?? QUIZ_UI_TEXT.unanswered}）`,
+        )
+      }
+      // 習熟度はペアごとの正誤で記録する(設計書 §4-4)。
+      recordAnswer(item.ownerName, isPairCorrect)
+    })
+    matchCards
+      ?.querySelectorAll<HTMLButtonElement>('button')
+      .forEach((button) => {
+        const name = button.dataset.matchName ?? ''
+        const correctIndex = matchClips.findIndex(
+          (item) => item.ownerName === name,
+        )
+        const badge = button.querySelector('.quiz-match-badge')
+        if (badge) {
+          badge.textContent = `♪${correctIndex + 1}`
+        }
+        button.classList.remove('is-assigned')
+        button.classList.add(
+          matchAssignments.indexOf(name) === correctIndex
+            ? 'correct'
+            : 'wrong-selected',
+        )
+      })
+    if (matchInstruction) {
+      matchInstruction.textContent = QUIZ_UI_TEXT.matchGradedInstruction
+    }
+    const answerLabel = matchEntryNames.join(' / ')
+    resultEntries.push({
+      questionNumber,
+      correctAnswer: answerLabel,
+      userAnswer: allCorrect
+        ? QUIZ_UI_TEXT.matchAllPairsCorrect
+        : wrongPairs.join('、'),
+      isCorrect: allCorrect,
+      clip: null,
+    })
+    statusText.textContent = formatAnswerResultStatus(allCorrect, answerLabel)
+    finishCurrentQuestion()
+  }
+
+  const onMatchCardTap = (name: string) => {
+    if (matchGraded) {
+      // 答え合わせ後はカードの正解音声を聴き直せる。
+      const pair = matchClips.find((item) => item.ownerName === name)
+      if (pair?.clip) {
+        playClip(pair.clip)
+      }
+      return
+    }
+    const assignedIndex = matchAssignments.indexOf(name)
+    if (assignedIndex >= 0) {
+      // 割り当て済みカードをタップで解除し、その音声からやり直す。
+      matchAssignments[assignedIndex] = null
+      playCurrentMatchClip()
+      return
+    }
+    const slot = currentMatchSlot()
+    if (slot < 0) {
+      return
+    }
+    matchAssignments[slot] = name
+    if (currentMatchSlot() < 0) {
+      gradeMatchQuestion()
+    } else {
+      playCurrentMatchClip()
+    }
+  }
+
+  const renderMatchQuestion = (
+    plan: Extract<QuestionPlan, { kind: 'match' }>,
+  ) => {
+    matchEntryNames = plan.entryNames
+    matchClips = shuffleArray(plan.entryNames).map((name) => ({
+      ownerName: name,
+      clip: pickRandomClip(clipsForName(name)),
+    }))
+    matchAssignments = matchClips.map(() => null)
+    matchGraded = false
+    currentAnswer = ''
+    prepareQuestionView()
+    setHidden(choicesRoot, true)
+    setHidden(nameAnswerForm, true)
+    hideNameSuggestions()
+    setHidden(matchRoot, false)
+    if (matchCards) {
+      matchCards.innerHTML = ''
+      matchEntryNames.forEach((name) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'quiz-choice-button quiz-match-card'
+        button.dataset.matchName = name
+        const image = document.createElement('img')
+        image.src = imageUrlForName(name)
+        image.alt = ''
+        image.onerror = () => {
+          image.src = DEFAULT_IMAGE
+        }
+        const label = document.createElement('span')
+        label.textContent = name
+        const badge = document.createElement('span')
+        badge.className = 'quiz-match-badge'
+        button.append(image, label, badge)
+        button.addEventListener('click', () => onMatchCardTap(name))
+        matchCards.appendChild(button)
+      })
+    }
+    playCurrentMatchClip()
+  }
+
+  /** 挑戦状の1問を、プランの形式(択一・入力・マッチ)に応じて出題する。 */
+  const renderPlannedQuestion = (plan: QuestionPlan) => {
+    if (plan.kind === 'match') {
+      renderMatchQuestion(plan)
+      return
+    }
+    // 回答方式は問題単位で切り替える(ラジオの選択は変更しない)。
+    currentMode =
+      plan.kind === 'choice'
+        ? QUIZ_MODE_MULTIPLE_CHOICE
+        : plan.lunatic
+          ? QUIZ_MODE_NAME_INPUT_LUNATIC
+          : QUIZ_MODE_NAME_INPUT
+    currentAnswer = plan.answerName
+    currentQuestionClip =
+      plan.fixedClip ?? pickRandomClip(clipsForName(currentAnswer))
+    prepareQuestionView()
+    playCurrentAudio()
+    if (plan.kind === 'choice') {
+      renderChoiceButtons(
+        plan.wrongNames
+          ? shuffleArray([plan.answerName, ...plan.wrongNames])
+          : buildChoices(currentAnswer, sortedCandidateNames),
+      )
+      return
+    }
+    showNameInputForm()
+  }
+
   const renderQuestion = () => {
     choicesRoot.innerHTML = ''
+    setHidden(matchRoot, true)
+    if (activeChallenge) {
+      const plan = challengeQueue.shift()
+      if (plan === undefined) {
+        showResultScreen()
+        return
+      }
+      renderPlannedQuestion(plan)
+      return
+    }
     // 4択の選択肢に使う候補。ランダムモードでは使用済みを除いた available、
     // 学習・復習モードでは全候補(選択肢としての再登場を許す)。
     let choicePool: readonly string[] = activeNames
-    if (activeChallenge) {
-      // 挑戦状は出題対象フィルタと無関係に始まるため、
-      // 4択の誤答候補は全生徒から選んで常に4択を成立させる。
-      choicePool = sortedCandidateNames
-    }
     if (isPoolDrawMode()) {
       const nextAnswer = roundQueue.shift()
       if (nextAnswer === undefined) {
@@ -1028,84 +1309,22 @@ export const setupQuiz = (
       choicePool = available
     }
     currentQuestionClip = pickRandomClip(clipsForName(currentAnswer))
-    questionNumber += 1
-    statusText.textContent = formatQuizQuestionStatus(questionNumber)
-    shouldShowCurrentAnswerStats = false
-    hasAnsweredCurrentQuestion = false
-    awaitingResult = false
-    nextButton.textContent = QUIZ_UI_TEXT.next
-    showQuizProgressActions()
-    replayButton.disabled = false
-    nextButton.disabled = true
-    hideAnswerFeedback()
-    hideResult()
+    prepareQuestionView()
     playCurrentAudio()
-    updateCostumeHintText()
-    updateProficiencyText()
 
     if (currentMode === QUIZ_MODE_MULTIPLE_CHOICE) {
-      setHidden(choicesRoot, false)
-      setHidden(nameAnswerForm, true)
-      hideNameSuggestions()
       const choices = buildChoices(currentAnswer, choicePool)
       if (!isPoolDrawMode()) {
         choices.forEach((name) => usedChoiceNames.add(name))
       }
-      choices.forEach((name) => {
-        const button = document.createElement('button')
-        button.type = 'button'
-        button.className = 'quiz-choice-button'
-        button.dataset.choiceName = name
-        const image = document.createElement('img')
-        image.src = imageUrlForName(name)
-        image.alt = ''
-        image.onerror = () => {
-          image.src = DEFAULT_IMAGE
-        }
-        const label = document.createElement('span')
-        label.textContent = name
-        button.append(image, label)
-        button.addEventListener('click', () => {
-          if (hasAnsweredCurrentQuestion) {
-            // 回答確定直後のダブルタップを聴き直し操作として扱わない。
-            if (Date.now() - lastAnswerAt < 350) {
-              return
-            }
-            playAnyClipForName(name)
-            return
-          }
-          const isCorrect = name === currentAnswer
-          finalizeAnswer(name, isCorrect)
-          choicesRoot
-            .querySelectorAll<HTMLButtonElement>('button')
-            .forEach((choiceButton) => {
-              const choiceName = choiceButton.dataset.choiceName
-              if (choiceName === currentAnswer) {
-                choiceButton.classList.add('correct')
-              }
-              if (!isCorrect && choiceName === name) {
-                choiceButton.classList.add('wrong-selected')
-              }
-            })
-        })
-        choicesRoot.appendChild(button)
-      })
+      renderChoiceButtons(choices)
       return
     }
 
     if (!isPoolDrawMode()) {
       usedChoiceNames.add(currentAnswer)
     }
-    setHidden(choicesRoot, true)
-    setHidden(nameAnswerForm, false)
-    if (nameAnswerInput) {
-      nameAnswerInput.value = ''
-      nameAnswerInput.disabled = false
-    }
-    hideNameSuggestions()
-    if (nameAnswerSubmit) {
-      nameAnswerSubmit.disabled = false
-    }
+    showNameInputForm()
   }
 
   const startQuiz = () => {
@@ -1150,28 +1369,21 @@ export const setupQuiz = (
     return true
   }
 
-  /** 共有URLから読み込んだ挑戦状を、定義どおりの回答方式・出題リストで開始する。 */
+  /** 共有URLから読み込んだ挑戦状を、定義どおりの出題プランで開始する。 */
   const startChallengeQuiz = (challenge: ChallengeDefinition) => {
     stopAudio()
     stopKokonaAudio()
-    if (activeChallenge === null) {
-      modeBeforeChallenge = getQuizModeValue()
-    }
     activeChallenge = challenge
-    const modeRadio = quizModeGroup.querySelector<HTMLInputElement>(
-      `input[name="quiz-mode"][value="${challenge.mode}"]`,
-    )
-    if (modeRadio) {
-      modeRadio.checked = true
-    }
-    updateModeUI()
     usedChoiceNames = new Set()
     currentAnswer = ''
     currentQuestionClip = null
     questionNumber = 0
     resultEntries = []
-    roundQueue = shuffleArray(challenge.names)
-    totalQuestions = roundQueue.length
+    roundQueue = []
+    challengeQueue = challenge.shuffle
+      ? shuffleArray(challenge.plans)
+      : [...challenge.plans]
+    totalQuestions = challengeQueue.length
     shouldShowCurrentAnswerStats = false
     awaitingResult = false
     hideAnswerFeedback()
@@ -1359,6 +1571,10 @@ export const setupQuiz = (
   window.addEventListener('resize', positionNameSuggestionsOverlay)
 
   shareController = setupQuizShare({
+    entries: playableEntries,
+    onStartChallenge: startChallengeQuiz,
+  })
+  setupQuizEditor({
     entries: playableEntries,
     onStartChallenge: startChallengeQuiz,
   })

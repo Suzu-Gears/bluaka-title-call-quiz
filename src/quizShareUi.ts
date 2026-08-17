@@ -1,3 +1,4 @@
+import { buildChallengePlans, type QuestionPlan } from '@/lib/challengePlan'
 import type { QuizEntry } from '@/lib/interfaces'
 import { normalizeQuizAnswer } from '@/lib/quizProgress'
 import {
@@ -18,9 +19,15 @@ import { QUIZ_SHARE_UI_TEXT } from '@/lib/uiText'
 /** URL から復元し、手元のデータと突き合わせ済みの「挑戦状」。 */
 export interface ChallengeDefinition {
   title: string
-  mode: SharedQuizMode
-  /** 出題する生徒名(手元のデータに存在し、音声があるもののみ)。 */
-  names: string[]
+  author: string | null
+  desc: string | null
+  /** 出題プラン(手元のデータに存在し、音声があるもののみ)。 */
+  plans: QuestionPlan[]
+  /** true なら挑むたびに出題順をシャッフルする。 */
+  shuffle: boolean
+  skippedCount: number
+  /** 形式の内訳(例: 択一6・マッチ3・入力1)。 */
+  questionSummary: string
   /** 元のエンコード文字列。結果シェア時に同じ挑戦 URL を組み立て直すために保持。 */
   encoded: string
 }
@@ -409,9 +416,24 @@ export const setupQuizShare = (
   const showChallengeBanner = (challenge: ChallengeDefinition) => {
     pendingChallenge = challenge
     if (bannerText) {
-      const modeLabel = QUIZ_SHARE_UI_TEXT.modeLabels[challenge.mode]
       const title = challenge.title || QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName
-      bannerText.textContent = `「${title}」(全${challenge.names.length}問・${modeLabel})${QUIZ_SHARE_UI_TEXT.challengeArrivedSuffix}`
+      const lines = [
+        `「${title}」(全${challenge.plans.length}問・${challenge.questionSummary})${QUIZ_SHARE_UI_TEXT.challengeArrivedSuffix}`,
+      ]
+      if (challenge.author) {
+        lines.push(
+          `${QUIZ_SHARE_UI_TEXT.challengeAuthorPrefix}${challenge.author}`,
+        )
+      }
+      if (challenge.desc) {
+        lines.push(challenge.desc)
+      }
+      if (challenge.skippedCount > 0) {
+        lines.push(
+          `※${challenge.skippedCount}${QUIZ_SHARE_UI_TEXT.challengeSkippedSuffix}`,
+        )
+      }
+      bannerText.textContent = lines.join('\n')
     }
     setHidden(banner, false)
     switchToQuizView()
@@ -442,22 +464,30 @@ export const setupQuizShare = (
       clearShareHash()
       return
     }
-    const names = payload.ids
-      .map((id) => entryById.get(id)?.Name)
-      .filter((name): name is string => name !== undefined)
-    if (names.length === 0) {
+    const { plans, skippedCount, questionSummary } = buildChallengePlans(
+      payload,
+      entryById,
+    )
+    if (plans.length === 0) {
       window.alert(QUIZ_SHARE_UI_TEXT.importNoPlayableStudents)
       clearShareHash()
       return
     }
     showChallengeBanner({
       title: payload.title,
-      mode: payload.mode,
-      names,
+      author: payload.v === 2 ? (payload.author ?? null) : null,
+      desc: payload.v === 2 ? (payload.desc ?? null) : null,
+      plans,
+      // v1 は従来どおり毎回シャッフル。v2 は作者の指定に従う。
+      shuffle: payload.v === 2 ? payload.shuffle === true : true,
+      skippedCount,
+      questionSummary,
       encoded,
     })
   }
   void importFromLocation()
+  // 開いているタブに共有URLを貼り付けた場合はハッシュだけが変わりリロードされない。
+  window.addEventListener('hashchange', () => void importFromLocation())
 
   // --- リザルトの SNS シェア ---
   const resultShareRow = document.getElementById('quiz-result-share')

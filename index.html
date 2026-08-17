@@ -589,6 +589,13 @@
                   >
                     クイズを作って共有
                   </button>
+                  <button
+                    id="quiz-editor-open-button"
+                    class="quiz-action-button quiz-share-open-button"
+                    type="button"
+                  >
+                    クイズを1問ずつ作る
+                  </button>
                 </aside>
               </div>
             </div>
@@ -628,6 +635,16 @@
               </button>
             </div>
             <div class="quiz-choices" id="quiz-choices"></div>
+            <div id="quiz-match" class="quiz-match" hidden>
+              <p
+                id="quiz-match-instruction"
+                class="quiz-match-instruction"
+              ></p>
+              <div
+                id="quiz-match-cards"
+                class="quiz-choices quiz-match-cards"
+              ></div>
+            </div>
             <form
               id="quiz-name-answer-form"
               class="quiz-name-answer-form"
@@ -1003,6 +1020,170 @@
         <button id="quiz-share-tweet-button" type="button">Xでシェア</button>
       </div>
       <p id="quiz-share-status" class="app-dialog-status" role="status"></p>
+    </dialog>
+    <dialog
+      id="quiz-editor-dialog"
+      class="app-dialog quiz-editor-dialog"
+      tabindex="-1"
+    >
+      <div class="filter-dialog-head">
+        <h3 class="filter-dialog-title">クイズを1問ずつ作る</h3>
+        <button
+          id="quiz-editor-close-button"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <p class="app-dialog-description">
+        択一（2〜8択）・マッチング・名前入力の問題を1問ずつ手作りして、URLだけで公開できます。編集内容はこの端末に自動保存されます。
+      </p>
+      <label class="app-dialog-field" for="quiz-editor-title-input">
+        クイズのタイトル
+        <input
+          id="quiz-editor-title-input"
+          type="text"
+          maxlength="40"
+          autocomplete="off"
+          placeholder="例: 似た声だけ集めた地獄の10問"
+        />
+      </label>
+      <div class="quiz-editor-meta-row">
+        <label class="app-dialog-field" for="quiz-editor-author-input">
+          作者名（任意）
+          <input
+            id="quiz-editor-author-input"
+            type="text"
+            maxlength="20"
+            autocomplete="off"
+          />
+        </label>
+        <label class="app-dialog-field" for="quiz-editor-desc-input">
+          説明（任意）
+          <input
+            id="quiz-editor-desc-input"
+            type="text"
+            maxlength="100"
+            autocomplete="off"
+            placeholder="例: 全部わかったら本物"
+          />
+        </label>
+      </div>
+      <label class="quiz-editor-shuffle-label">
+        <input id="quiz-editor-shuffle-checkbox" type="checkbox" />
+        出題順を挑むたびにシャッフルする
+      </label>
+      <div class="filter-section-label">問題リスト</div>
+      <div id="quiz-editor-questions" class="quiz-editor-questions"></div>
+      <div class="app-dialog-actions">
+        <button id="quiz-editor-add-choice-button" type="button">
+          ＋択一
+        </button>
+        <button id="quiz-editor-add-match-button" type="button">
+          ＋マッチング
+        </button>
+        <button id="quiz-editor-add-input-button" type="button">
+          ＋名前入力
+        </button>
+      </div>
+      <details class="quiz-share-paste-details">
+        <summary>テキストで一括作成・書き出し（スプレッドシート対応）</summary>
+        <p class="settings-note">
+          1行1問で「択一, 正解, 誤答...」「マッチ, 名前...」「入力,
+          名前」（Lunatic は「入力L」）。区切りはタブ・カンマ両対応です。
+        </p>
+        <textarea
+          id="quiz-editor-sheet-textarea"
+          class="app-dialog-textarea"
+          rows="5"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="択一	シロコ	シロコ＊テラー	空崎ヒナ&#10;マッチ	シロコ	シロコ（水着）&#10;入力	天童アリス"
+        ></textarea>
+        <div class="app-dialog-actions">
+          <button id="quiz-editor-sheet-import-button" type="button">
+            取り込んで問題に追加
+          </button>
+          <button id="quiz-editor-sheet-export-button" type="button">
+            現在の問題を書き出し
+          </button>
+        </div>
+      </details>
+      <details class="quiz-share-paste-details">
+        <summary>JSON・共有URLの読み込み / 書き出し（バックアップ・再編集）</summary>
+        <textarea
+          id="quiz-editor-json-textarea"
+          class="app-dialog-textarea"
+          rows="5"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="ここに書き出したJSONか、共有URLを貼り付けて「読み込む」"
+        ></textarea>
+        <div class="app-dialog-actions">
+          <button id="quiz-editor-json-import-button" type="button">
+            読み込む
+          </button>
+          <button id="quiz-editor-json-export-button" type="button">
+            JSONを書き出し
+          </button>
+        </div>
+      </details>
+      <div class="app-dialog-actions">
+        <button id="quiz-editor-generate-button" type="button">
+          共有URLを作成
+        </button>
+        <button id="quiz-editor-clear-button" type="button">
+          すべて消して最初から
+        </button>
+      </div>
+      <input
+        id="quiz-editor-url-output"
+        class="quiz-share-url-output"
+        type="text"
+        readonly
+        hidden
+      />
+      <div id="quiz-editor-url-actions" class="app-dialog-actions" hidden>
+        <button id="quiz-editor-url-copy-button" type="button">
+          URLをコピー
+        </button>
+        <button id="quiz-editor-url-test-button" type="button">
+          自分で挑戦して確認
+        </button>
+        <button id="quiz-editor-url-tweet-button" type="button">
+          Xでシェア
+        </button>
+      </div>
+      <p id="quiz-editor-status" class="app-dialog-status" role="status"></p>
+    </dialog>
+    <dialog
+      id="quiz-editor-picker-dialog"
+      class="app-dialog quiz-editor-picker-dialog"
+      tabindex="-1"
+    >
+      <div class="filter-dialog-head">
+        <h3 id="quiz-editor-picker-title" class="filter-dialog-title">
+          生徒を選ぶ
+        </h3>
+        <button
+          id="quiz-editor-picker-close-button"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <input
+        id="quiz-editor-picker-search"
+        class="quiz-editor-picker-search"
+        type="text"
+        autocomplete="off"
+        placeholder="生徒名・声優名で検索"
+      />
+      <div id="quiz-editor-picker-list" class="quiz-editor-picker-list"></div>
     </dialog>
     <dialog id="sync-dialog" class="app-dialog" tabindex="-1">
       <h3>クラウド同期</h3>

@@ -28,7 +28,17 @@ export const QUIZ_UI_TEXT = {
   incorrectLabel: '不正解',
   correctPrefix: '正答',
   answerPrefix: '回答',
+  matchGradedInstruction:
+    '答え合わせ！カードをタップすると正解の音声を聴き直せます。',
+  matchAllPairsCorrect: '全ペア正解',
 } as const
+
+/** マッチング問題の操作案内。 */
+export const formatMatchInstruction = (
+  clipNumber: number,
+  totalClips: number,
+): string =>
+  `♪${clipNumber} / ${totalClips} を再生中。この声だと思うカードをタップ（タップし直しで解除）`
 
 export const PROGRESS_UI_TEXT = {
   exportTitle: '進捗をエクスポート',
@@ -86,6 +96,8 @@ export const QUIZ_SHARE_UI_TEXT = {
   tweetDefaultQuizName: 'タイトルコールクイズ',
   tweetInviteSuffix: 'に挑戦してみてください！',
   challengeArrivedSuffix: 'の挑戦状が届いています！',
+  challengeAuthorPrefix: '作者: ',
+  challengeSkippedSuffix: '問は現在のデータで出題できないためスキップされます',
   importBrokenUrl:
     '共有URLを読み込めませんでした。URL が途中で切れていないか確認してください。',
   importNoPlayableStudents:
@@ -95,11 +107,45 @@ export const QUIZ_SHARE_UI_TEXT = {
   cardAppName: 'ブルアカ タイトルコールクイズ',
   cardPerfect: '💮100点満点、花丸です！',
   cardAccuracyPrefix: '正答率 ',
-  modeLabels: {
-    'multiple-choice': '4択',
-    'name-input': '名前入力',
-    'name-input-lunatic': '名前入力 ( Lunatic )',
-  } as Record<string, string>,
+} as const
+
+export const QUIZ_EDITOR_UI_TEXT = {
+  typeChoice: '択一',
+  typeMatch: 'マッチング',
+  typeInput: '名前入力',
+  unset: '（未設定）',
+  pickStudent: '生徒を選ぶ',
+  pickAnswerTitle: '正解の生徒を選ぶ',
+  pickWrongTitle: '誤答の選択肢を選ぶ',
+  pickMatchTitle: 'マッチング対象を選ぶ',
+  answerLabel: '正解',
+  wrongLabel: '誤答',
+  matchLabel: '対象',
+  addWrong: '＋誤答を追加',
+  addMatchMember: '＋対象を追加',
+  addAllForms: '同キャラの全フォームを追加',
+  lunaticLabel: 'Lunatic（入力候補を出さない）',
+  clipLabel: '音声: ',
+  clipRandom: '毎回ランダム',
+  listen: '試聴',
+  duplicate: '複製',
+  delete: '削除',
+  remove: '外す',
+  emptyQuestions:
+    'まだ問題がありません。「＋択一」などのボタンで問題を追加してください。',
+  questionPrefix: '問題',
+  problemNoAnswer: '正解の生徒が未設定です',
+  problemNoWrong: '誤答の選択肢を1人以上追加してください',
+  problemMatchTooFew: 'マッチングは対象を2人以上にしてください',
+  problemNoQuestions: '完成した問題がありません。',
+  tooManyQuestions: '問題数の上限(100問)に達しています。',
+  sheetImportedSuffix: '問を取り込みました。',
+  sheetExportedSuffix: '問を書き出しました。',
+  jsonExported: 'JSONを書き出しました。コピーして保管してください。',
+  jsonImported: '読み込みました。',
+  jsonImportFailed:
+    '読み込めませんでした。書き出したJSONか、この形式の共有URLを貼り付けてください。',
+  clearConfirm: '編集中の内容と下書きをすべて削除します。よろしいですか？',
 } as const
 
 /** 回答方式(4択・名前入力)の説明。選択中の値に応じて設定画面に出す。 */
