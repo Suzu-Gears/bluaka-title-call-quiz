@@ -102,8 +102,9 @@ export const QUIZ_SHARE_UI_TEXT = {
     '共有URLを読み込めませんでした。URL が途中で切れていないか確認してください。',
   importNoPlayableStudents:
     '共有されたクイズに、現在のデータで出題できる生徒がいませんでした。',
-  imageFailed: '結果画像を作成できませんでした。',
-  imageDownloaded: '結果画像を保存しました。',
+  imageFailed: '画像を作成できませんでした。',
+  imageDownloaded: '画像を保存しました。Xの投稿に添付してください。',
+  imageCopied: '画像をコピーしました。Xの投稿画面に貼り付けてください。',
   cardAppName: 'ブルアカ タイトルコールクイズ',
   cardPerfect: '💮100点満点、花丸です！',
   cardAccuracyPrefix: '正答率 ',

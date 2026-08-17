@@ -13,6 +13,12 @@ import {
   SHARED_QUIZ_VERSION,
   type SharedQuizMode,
 } from '@/lib/quizShare'
+import {
+  deliverCardImage,
+  drawChallengeCard,
+  drawResultCard,
+  imageDeliveryMessage,
+} from '@/lib/shareImage'
 import { setHidden } from '@/lib/uiState'
 import { QUIZ_SHARE_UI_TEXT } from '@/lib/uiText'
 
@@ -63,92 +69,6 @@ const switchToQuizView = (): void => {
   )
   button?.click()
 }
-
-/** 結果画像(スクショ共有用のスコアカード)を canvas に描く。 */
-const drawResultCard = (
-  canvas: HTMLCanvasElement,
-  context: QuizResultShareContext,
-): boolean => {
-  const width = 1200
-  const height = 630
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    return false
-  }
-  const fontFamily = "'Kosugi Maru', 'Hiragino Sans', sans-serif"
-
-  const background = ctx.createLinearGradient(0, 0, width, height)
-  background.addColorStop(0, '#2f86d6')
-  background.addColorStop(1, '#164a80')
-  ctx.fillStyle = background
-  ctx.fillRect(0, 0, width, height)
-
-  // 白いカード面
-  const cardX = 60
-  const cardY = 60
-  const cardWidth = width - cardX * 2
-  const cardHeight = height - cardY * 2
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
-  ctx.beginPath()
-  ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 28)
-  ctx.fill()
-
-  ctx.textAlign = 'center'
-  ctx.fillStyle = '#2f86d6'
-  ctx.font = `bold 40px ${fontFamily}`
-  ctx.fillText(QUIZ_SHARE_UI_TEXT.cardAppName, width / 2, cardY + 84)
-
-  const title = context.challenge?.title
-  if (title) {
-    ctx.fillStyle = '#333333'
-    ctx.font = `bold 44px ${fontFamily}`
-    let displayTitle = `「${title}」`
-    while (
-      ctx.measureText(displayTitle).width > cardWidth - 80 &&
-      displayTitle.length > 4
-    ) {
-      displayTitle = `「${displayTitle.slice(1, -2)}…」`
-    }
-    ctx.fillText(displayTitle, width / 2, cardY + 160)
-  }
-
-  const accuracy =
-    context.totalCount > 0
-      ? Math.round((context.correctCount / context.totalCount) * 100)
-      : 0
-  const isPerfect =
-    context.totalCount > 0 && context.correctCount === context.totalCount
-
-  ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
-  ctx.font = `bold 128px ${fontFamily}`
-  ctx.fillText(
-    `${context.correctCount} / ${context.totalCount}`,
-    width / 2,
-    cardY + 330,
-  )
-
-  ctx.fillStyle = '#555555'
-  ctx.font = `bold 44px ${fontFamily}`
-  ctx.fillText(
-    isPerfect
-      ? QUIZ_SHARE_UI_TEXT.cardPerfect
-      : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
-    width / 2,
-    cardY + 410,
-  )
-
-  ctx.fillStyle = '#888888'
-  ctx.font = `28px ${fontFamily}`
-  ctx.fillText(window.location.host, width / 2, cardY + cardHeight - 40)
-  return true
-}
-
-const canvasToBlob = (canvas: HTMLCanvasElement): Promise<Blob | null> =>
-  new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), 'image/png')
-  })
 
 export const setupQuizShare = (
   options: QuizShareOptions,
@@ -201,6 +121,9 @@ export const setupQuizShare = (
   ) as HTMLButtonElement | null
   const tweetButton = document.getElementById(
     'quiz-share-tweet-button',
+  ) as HTMLButtonElement | null
+  const shareImageButton = document.getElementById(
+    'quiz-share-image-button',
   ) as HTMLButtonElement | null
   const shareStatus = document.getElementById('quiz-share-status')
   const closeButton = document.getElementById(
@@ -395,6 +318,31 @@ export const setupQuizShare = (
     const title = (titleInput?.value ?? '').trim()
     const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
     window.open(buildTweetIntentUrl(text), '_blank', 'noopener')
+  })
+
+  // X の Web Intent には画像を添付できないため、アイキャッチは
+  // 共有シート(モバイル) / クリップボード(PC) / ダウンロードで渡す。
+  shareImageButton?.addEventListener('click', () => {
+    const url = urlOutput?.value
+    if (!url) {
+      return
+    }
+    const title = (titleInput?.value ?? '').trim()
+    const canvas = drawChallengeCard({
+      title,
+      author: null,
+      desc: null,
+      questionCount: selectedNames.size,
+      questionSummary: modeSelect?.selectedOptions[0]?.label ?? '4択',
+    })
+    if (!canvas) {
+      setShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
+      return
+    }
+    const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
+    void deliverCardImage(canvas, 'quiz-invite.png', text).then((method) =>
+      setShareStatus(imageDeliveryMessage(method)),
+    )
   })
 
   // --- 挑戦状バナー(URL からのインポート) ---
@@ -627,42 +575,20 @@ export const setupQuizShare = (
     if (!currentResult) {
       return
     }
-    const canvas = document.createElement('canvas')
-    if (!drawResultCard(canvas, currentResult)) {
+    const canvas = drawResultCard({
+      title: currentResult.challenge?.title || null,
+      correctCount: currentResult.correctCount,
+      totalCount: currentResult.totalCount,
+    })
+    if (!canvas) {
       setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
       return
     }
-    void canvasToBlob(canvas).then(async (blob) => {
-      if (!blob) {
-        setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
-        return
-      }
-      const file = new File([blob], 'quiz-result.png', { type: 'image/png' })
-      // モバイルでは共有シート(スクショと同じ感覚で SNS に流せる)を優先し、
-      // 使えない環境ではダウンロードにフォールバックする。
-      if (
-        typeof navigator.share === 'function' &&
-        typeof navigator.canShare === 'function' &&
-        navigator.canShare({ files: [file] })
-      ) {
-        try {
-          await navigator.share({
-            files: [file],
-            text: buildCurrentShareText() ?? undefined,
-          })
-          return
-        } catch {
-          // 共有キャンセル時などはダウンロードへ切り替えず黙って終わる。
-          return
-        }
-      }
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = 'quiz-result.png'
-      link.click()
-      URL.revokeObjectURL(link.href)
-      setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageDownloaded)
-    })
+    void deliverCardImage(
+      canvas,
+      'quiz-result.png',
+      buildCurrentShareText() ?? undefined,
+    ).then((method) => setResultShareStatus(imageDeliveryMessage(method)))
   })
 
   return {

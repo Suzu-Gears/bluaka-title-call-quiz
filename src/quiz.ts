@@ -1172,7 +1172,9 @@ export const setupQuiz = (
         ? QUIZ_UI_TEXT.matchAllPairsCorrect
         : wrongPairs.join('、'),
       isCorrect: allCorrect,
-      clip: null,
+      // 連結名では画像を解決できずグレーになるため、1本目のクリップを持たせて
+      // リザルトで形態の画像表示と聴き直しを効かせる。
+      clip: matchClips[0]?.clip ?? null,
     })
     statusText.textContent = formatAnswerResultStatus(allCorrect, answerLabel)
     finishCurrentQuestion()

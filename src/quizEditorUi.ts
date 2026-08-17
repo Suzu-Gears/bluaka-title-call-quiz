@@ -18,10 +18,16 @@ import {
   SHARED_QUIZ_MATCH_MIN_ENTRIES,
   SHARED_QUIZ_MAX_QUESTIONS,
   SHARED_QUIZ_VERSION_V2,
+  summarizeQuestionTypes,
   type SharedQuizPayloadV2,
   type SharedQuizQuestion,
 } from '@/lib/quizShare'
 import { readStorageJson, removeStorage, writeStorage } from '@/lib/safeStorage'
+import {
+  deliverCardImage,
+  drawChallengeCard,
+  imageDeliveryMessage,
+} from '@/lib/shareImage'
 import { pickRandomClip } from '@/lib/titleCallClips'
 import { setHidden } from '@/lib/uiState'
 import { QUIZ_EDITOR_UI_TEXT, QUIZ_SHARE_UI_TEXT } from '@/lib/uiText'
@@ -163,6 +169,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
   const urlCopyButton = el<HTMLButtonElement>('quiz-editor-url-copy-button')
   const urlTestButton = el<HTMLButtonElement>('quiz-editor-url-test-button')
   const urlTweetButton = el<HTMLButtonElement>('quiz-editor-url-tweet-button')
+  const urlImageButton = el<HTMLButtonElement>('quiz-editor-url-image-button')
   const statusText = el<HTMLParagraphElement>('quiz-editor-status')
   const pickerDialog = el<HTMLDialogElement>('quiz-editor-picker-dialog')
   const pickerTitle = el<HTMLHeadingElement>('quiz-editor-picker-title')
@@ -720,6 +727,31 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
     const title = state.title.trim()
     const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
     window.open(buildTweetIntentUrl(text), '_blank', 'noopener')
+  })
+
+  // アイキャッチ画像: 共有シート(モバイル) / コピー(PC) / ダウンロードで渡す
+  urlImageButton?.addEventListener('click', () => {
+    const url = urlOutput?.value
+    const payload = buildPayload()
+    if (!url || !payload) {
+      return
+    }
+    const canvas = drawChallengeCard({
+      title: payload.title,
+      author: payload.author ?? null,
+      desc: payload.desc ?? null,
+      questionCount: payload.q.length,
+      questionSummary: summarizeQuestionTypes(payload.q),
+    })
+    if (!canvas) {
+      setStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
+      return
+    }
+    const title = payload.title
+    const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
+    void deliverCardImage(canvas, 'quiz-invite.png', text).then((method) =>
+      setStatus(imageDeliveryMessage(method)),
+    )
   })
 
   // 作った本人がその場で通しプレイして確認できるようにする。
