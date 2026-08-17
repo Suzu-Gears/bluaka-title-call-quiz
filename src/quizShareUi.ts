@@ -452,26 +452,23 @@ export const setupQuizShare = (
     clearShareHash()
   })
 
-  const importFromLocation = async () => {
-    const encoded = extractSharedQuizParam(window.location.hash)
-    if (!encoded) {
-      return
-    }
+  /**
+   * エンコード文字列を検証して挑戦状バナーを出す。
+   * 成功なら null、失敗なら利用者向けのエラーメッセージを返す。
+   */
+  const importEncodedChallenge = async (
+    encoded: string,
+  ): Promise<string | null> => {
     const payload = await decodeSharedQuizPayload(encoded)
     if (!payload) {
-      setShareStatus('')
-      window.alert(QUIZ_SHARE_UI_TEXT.importBrokenUrl)
-      clearShareHash()
-      return
+      return QUIZ_SHARE_UI_TEXT.importBrokenUrl
     }
     const { plans, skippedCount, questionSummary } = buildChallengePlans(
       payload,
       entryById,
     )
     if (plans.length === 0) {
-      window.alert(QUIZ_SHARE_UI_TEXT.importNoPlayableStudents)
-      clearShareHash()
-      return
+      return QUIZ_SHARE_UI_TEXT.importNoPlayableStudents
     }
     showChallengeBanner({
       title: payload.title,
@@ -484,10 +481,93 @@ export const setupQuizShare = (
       questionSummary,
       encoded,
     })
+    return null
+  }
+
+  const importFromLocation = async () => {
+    const encoded = extractSharedQuizParam(window.location.hash)
+    if (!encoded) {
+      return
+    }
+    const error = await importEncodedChallenge(encoded)
+    if (error) {
+      setShareStatus('')
+      window.alert(error)
+      clearShareHash()
+    }
   }
   void importFromLocation()
   // 開いているタブに共有URLを貼り付けた場合はハッシュだけが変わりリロードされない。
   window.addEventListener('hashchange', () => void importFromLocation())
+
+  // --- 挑戦状URLの貼り付けインポート ---
+  // ホーム画面起動の PWA は共有リンクをタップしてもアプリ側で開けない
+  // (ブラウザが開き、進捗の保存先も別になる)ため、アプリ内に貼り付け口を用意する。
+  const pasteButton = document.getElementById(
+    'quiz-challenge-paste-button',
+  ) as HTMLButtonElement | null
+  const importDialog = document.getElementById(
+    'quiz-challenge-import-dialog',
+  ) as HTMLDialogElement | null
+  const importInput = document.getElementById(
+    'quiz-challenge-import-input',
+  ) as HTMLInputElement | null
+  const importStatus = document.getElementById('quiz-challenge-import-status')
+  const importOpenButton = document.getElementById(
+    'quiz-challenge-import-open-button',
+  ) as HTMLButtonElement | null
+  const importCloseButton = document.getElementById(
+    'quiz-challenge-import-close-button',
+  ) as HTMLButtonElement | null
+
+  /** URL・「#c=…」・エンコード文字列そのもの、どの形の貼り付けでも受ける。 */
+  const extractEncodedFromText = (text: string): string | null => {
+    const trimmed = text.trim()
+    if (!trimmed) {
+      return null
+    }
+    if (/^[01]\./.test(trimmed)) {
+      return trimmed
+    }
+    const hashIndex = trimmed.indexOf('#')
+    return extractSharedQuizParam(
+      hashIndex >= 0 ? trimmed.slice(hashIndex) : `#${trimmed}`,
+    )
+  }
+
+  const setImportStatus = (message: string) => {
+    if (importStatus) {
+      importStatus.textContent = message
+    }
+  }
+
+  pasteButton?.addEventListener('click', () => {
+    if (!importDialog) {
+      return
+    }
+    if (importInput) {
+      importInput.value = ''
+    }
+    setImportStatus('')
+    importDialog.showModal()
+    importDialog.focus({ preventScroll: true })
+  })
+  importCloseButton?.addEventListener('click', () => importDialog?.close())
+  importOpenButton?.addEventListener('click', () => {
+    void (async () => {
+      const encoded = extractEncodedFromText(importInput?.value ?? '')
+      if (!encoded) {
+        setImportStatus(QUIZ_SHARE_UI_TEXT.importBrokenUrl)
+        return
+      }
+      const error = await importEncodedChallenge(encoded)
+      if (error) {
+        setImportStatus(error)
+        return
+      }
+      importDialog?.close()
+    })()
+  })
 
   // --- リザルトの SNS シェア ---
   const resultShareRow = document.getElementById('quiz-result-share')

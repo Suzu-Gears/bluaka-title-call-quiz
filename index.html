@@ -596,6 +596,13 @@
                   >
                     クイズを1問ずつ作る
                   </button>
+                  <button
+                    id="quiz-challenge-paste-button"
+                    class="quiz-action-button quiz-share-open-button"
+                    type="button"
+                  >
+                    挑戦状URLを開く
+                  </button>
                 </aside>
               </div>
             </div>
@@ -636,10 +643,7 @@
             </div>
             <div class="quiz-choices" id="quiz-choices"></div>
             <div id="quiz-match" class="quiz-match" hidden>
-              <p
-                id="quiz-match-instruction"
-                class="quiz-match-instruction"
-              ></p>
+              <p id="quiz-match-instruction" class="quiz-match-instruction"></p>
               <div
                 id="quiz-match-cards"
                 class="quiz-choices quiz-match-cards"
@@ -1078,9 +1082,7 @@
       <div class="filter-section-label">問題リスト</div>
       <div id="quiz-editor-questions" class="quiz-editor-questions"></div>
       <div class="app-dialog-actions">
-        <button id="quiz-editor-add-choice-button" type="button">
-          ＋択一
-        </button>
+        <button id="quiz-editor-add-choice-button" type="button">＋択一</button>
         <button id="quiz-editor-add-match-button" type="button">
           ＋マッチング
         </button>
@@ -1112,7 +1114,9 @@
         </div>
       </details>
       <details class="quiz-share-paste-details">
-        <summary>JSON・共有URLの読み込み / 書き出し（バックアップ・再編集）</summary>
+        <summary>
+          JSON・共有URLの読み込み / 書き出し（バックアップ・再編集）
+        </summary>
         <textarea
           id="quiz-editor-json-textarea"
           class="app-dialog-textarea"
@@ -1157,6 +1161,33 @@
         </button>
       </div>
       <p id="quiz-editor-status" class="app-dialog-status" role="status"></p>
+    </dialog>
+    <dialog id="quiz-challenge-import-dialog" class="app-dialog" tabindex="-1">
+      <h3>挑戦状URLを開く</h3>
+      <p class="app-dialog-description">
+        共有された挑戦状のURLを貼り付けてください。ホーム画面から起動している場合でも、ここから挑戦できます。
+      </p>
+      <input
+        id="quiz-challenge-import-input"
+        class="quiz-share-url-output"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="https://…/#c=1.xxxx"
+      />
+      <p
+        id="quiz-challenge-import-status"
+        class="app-dialog-status"
+        role="status"
+      ></p>
+      <div class="app-dialog-actions">
+        <button id="quiz-challenge-import-open-button" type="button">
+          開く
+        </button>
+        <button id="quiz-challenge-import-close-button" type="button">
+          閉じる
+        </button>
+      </div>
     </dialog>
     <dialog
       id="quiz-editor-picker-dialog"
