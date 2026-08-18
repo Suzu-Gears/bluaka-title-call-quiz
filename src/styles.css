@@ -1922,7 +1922,8 @@ h1,
   background: #edf5ff;
 }
 
-.quiz-match-badge {
+/* .quiz-choice-button span の色指定(#2f3a46)に負けないよう詳細度を上げる */
+.quiz-match-card .quiz-match-badge {
   position: absolute;
   top: 0.35rem;
   right: 0.35rem;
@@ -1930,13 +1931,14 @@ h1,
   padding: 0.1em 0.35em;
   border-radius: 0.7em;
   background: #2f5c8f;
+  border: 2px solid #fff;
   color: #fff;
   font-size: 0.85rem;
   font-weight: 700;
   box-sizing: border-box;
 }
 
-.quiz-match-badge:empty {
+.quiz-match-card .quiz-match-badge:empty {
   display: none;
 }
 
