@@ -116,7 +116,6 @@ const loadEntries = async (): Promise<QuizEntry[]> => {
 // iOS Safari では空の touchstart リスナーが存在しないと :active 疑似クラスが発火しない
 document.addEventListener('touchstart', () => {}, { passive: true })
 
-
 const bootstrap = async () => {
   // 通常のブラウザタブでは黙って自動更新する。
   // PWA(スタンドアロン)では設定画面からの手動更新+バッジ表示に切り替える。

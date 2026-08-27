@@ -221,6 +221,37 @@ h1 {
   display: none;
 }
 
+/* 設定ダイアログの見出しはスクロールで流れないよう上部に固定する。
+   ダイアログ側の上パディングを消し、見出し自身が上端に貼り付く構造にする
+   (パディングを残すとその帯にスクロール中のコンテンツが透けて見える) */
+/* 後方の .app-dialog { padding: 1rem } に勝つよう詳細度を上げる */
+.app-dialog.settings-dialog {
+  padding-top: 0;
+}
+
+.settings-dialog .filter-dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -1rem 1rem;
+  padding: 0.85rem 1rem 0.6rem;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid #e3e8ee;
+}
+
+/* GitHub リンクはアイコン付き */
+.settings-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.settings-github-icon {
+  width: 1.1em;
+  height: 1.1em;
+  fill: currentColor;
+}
+
 /* 設定ダイアログのセクション間隔と注記 */
 .settings-dialog .filter-section-label {
   margin-top: 1.1rem;
