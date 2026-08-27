@@ -187,6 +187,13 @@ export const setupQuiz = (
   const matchRoot = document.getElementById('quiz-match')
   const matchInstruction = document.getElementById('quiz-match-instruction')
   const matchCards = document.getElementById('quiz-match-cards')
+  const matchClipButtons = document.getElementById('quiz-match-clip-buttons')
+  const matchSubmitButton = document.getElementById(
+    'quiz-match-submit-button',
+  ) as HTMLButtonElement | null
+  const skipButton = document.getElementById(
+    'quiz-skip-button',
+  ) as HTMLButtonElement | null
   const nameAnswerForm = document.getElementById(
     'quiz-name-answer-form',
   ) as HTMLFormElement | null
@@ -354,6 +361,8 @@ export const setupQuiz = (
   let matchClips: { ownerName: string; clip: TitleCallClip | null }[] = []
   /** 音声ごとの割り当て先カード名。null は未割り当て。 */
   let matchAssignments: (string | null)[] = []
+  /** いま再生・割り当て対象になっている音声のスロット。 */
+  let matchActiveSlot = 0
   let matchGraded = false
   const kokonaAudio: HTMLAudioElement = new Audio(
     resolveAssetUrl('kokona-hanamaru.mp3'),
@@ -398,6 +407,7 @@ export const setupQuiz = (
     if (!running) {
       setHidden(nextButton, true)
       setHidden(replayButton, true)
+      setHidden(skipButton, true)
       setHidden(resultActions, true)
     }
     if (menuRestartButton) {
@@ -803,12 +813,14 @@ export const setupQuiz = (
   const showQuizProgressActions = () => {
     setHidden(nextButton, !hasAnsweredCurrentQuestion)
     setHidden(replayButton, false)
+    setHidden(skipButton, hasAnsweredCurrentQuestion)
     setHidden(resultActions, true)
   }
 
   const showResultActions = () => {
     setHidden(nextButton, true)
     setHidden(replayButton, true)
+    setHidden(skipButton, true)
     setHidden(resultActions, false)
   }
 
@@ -930,6 +942,7 @@ export const setupQuiz = (
     statusText.textContent = INITIAL_STATUS_TEXT
     setHidden(nextButton, true)
     setHidden(replayButton, true)
+    setHidden(skipButton, true)
     setHidden(resultActions, true)
     nextButton.textContent = QUIZ_UI_TEXT.next
     replayButton.disabled = true
@@ -956,6 +969,7 @@ export const setupQuiz = (
       : QUIZ_UI_TEXT.next
     replayButton.disabled = awaitingResult
     setHidden(replayButton, awaitingResult)
+    setHidden(skipButton, true)
     setHidden(nextButton, false)
     nextButton.disabled = false
   }
@@ -1099,9 +1113,17 @@ export const setupQuiz = (
 
   // --- マッチング問題 -------------------------------------------------------
 
-  /** いま再生すべき音声のスロット(最初の未割り当て)。全部割り当て済みなら -1。 */
-  const currentMatchSlot = () =>
-    matchAssignments.findIndex((assigned) => assigned === null)
+  /** matchActiveSlot 以降で最初の未割り当てスロット。無ければ -1。 */
+  const nextUnassignedMatchSlot = () => {
+    const total = matchAssignments.length
+    for (let offset = 1; offset <= total; offset++) {
+      const slot = (matchActiveSlot + offset) % total
+      if (matchAssignments[slot] === null) {
+        return slot
+      }
+    }
+    return matchAssignments[matchActiveSlot] === null ? matchActiveSlot : -1
+  }
 
   const updateMatchCards = () => {
     matchCards
@@ -1115,19 +1137,35 @@ export const setupQuiz = (
         }
         button.classList.toggle('is-assigned', assignedIndex >= 0)
       })
+    matchClipButtons
+      ?.querySelectorAll<HTMLButtonElement>('button')
+      .forEach((button, index) => {
+        button.classList.toggle(
+          'is-active',
+          !matchGraded && index === matchActiveSlot,
+        )
+        button.classList.toggle(
+          'is-assigned',
+          !matchGraded && matchAssignments[index] !== null,
+        )
+      })
+    if (matchSubmitButton && !matchGraded) {
+      matchSubmitButton.disabled = matchAssignments.some(
+        (assigned) => assigned === null,
+      )
+    }
   }
 
-  const playCurrentMatchClip = () => {
-    const slot = currentMatchSlot()
-    if (slot < 0) {
-      return
-    }
+  /** ♪スロットを選択して再生する。番号ボタン・カード操作の両方から使う。 */
+  const selectMatchSlot = (slot: number) => {
+    matchActiveSlot = slot
     currentQuestionClip = matchClips[slot].clip
     if (matchInstruction) {
-      matchInstruction.textContent = formatMatchInstruction(
-        slot + 1,
-        matchClips.length,
+      matchInstruction.textContent = matchAssignments.some(
+        (assigned) => assigned === null,
       )
+        ? formatMatchInstruction(slot + 1, matchClips.length)
+        : QUIZ_UI_TEXT.matchAllAssignedInstruction
     }
     updateMatchCards()
     playCurrentAudio()
@@ -1168,6 +1206,15 @@ export const setupQuiz = (
             : 'wrong-selected',
         )
       })
+    matchClipButtons
+      ?.querySelectorAll<HTMLButtonElement>('button')
+      .forEach((button) => {
+        button.classList.remove('is-active', 'is-assigned')
+      })
+    if (matchSubmitButton) {
+      matchSubmitButton.disabled = true
+    }
+    setHidden(matchSubmitButton, true)
     if (matchInstruction) {
       matchInstruction.textContent = QUIZ_UI_TEXT.matchGradedInstruction
     }
@@ -1198,20 +1245,21 @@ export const setupQuiz = (
     }
     const assignedIndex = matchAssignments.indexOf(name)
     if (assignedIndex >= 0) {
-      // 割り当て済みカードをタップで解除し、その音声からやり直す。
+      // 割り当て済みカードをタップで解除し、その音声を選択し直す。
       matchAssignments[assignedIndex] = null
-      playCurrentMatchClip()
+      selectMatchSlot(assignedIndex)
       return
     }
-    const slot = currentMatchSlot()
-    if (slot < 0) {
-      return
-    }
-    matchAssignments[slot] = name
-    if (currentMatchSlot() < 0) {
-      gradeMatchQuestion()
+    matchAssignments[matchActiveSlot] = name
+    const next = nextUnassignedMatchSlot()
+    if (next >= 0) {
+      selectMatchSlot(next)
     } else {
-      playCurrentMatchClip()
+      // 全部割り当て済み。自動では送信せず「回答する」を待つ。
+      if (matchInstruction) {
+        matchInstruction.textContent = QUIZ_UI_TEXT.matchAllAssignedInstruction
+      }
+      updateMatchCards()
     }
   }
 
@@ -1224,6 +1272,7 @@ export const setupQuiz = (
       clip: pickRandomClip(clipsForName(name)),
     }))
     matchAssignments = matchClips.map(() => null)
+    matchActiveSlot = 0
     matchGraded = false
     currentAnswer = ''
     prepareQuestionView()
@@ -1231,6 +1280,31 @@ export const setupQuiz = (
     setHidden(nameAnswerForm, true)
     hideNameSuggestions()
     setHidden(matchRoot, false)
+    setHidden(matchSubmitButton, false)
+    if (matchSubmitButton) {
+      matchSubmitButton.disabled = true
+    }
+    if (matchClipButtons) {
+      matchClipButtons.innerHTML = ''
+      matchClips.forEach((_, index) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'quiz-match-clip-button'
+        button.textContent = `♪${index + 1}`
+        // 番号タップで順番に関係なくその音声を聴ける(答え合わせ後も再生できる)。
+        button.addEventListener('click', () => {
+          if (matchGraded) {
+            const clip = matchClips[index].clip
+            if (clip) {
+              playClip(clip)
+            }
+            return
+          }
+          selectMatchSlot(index)
+        })
+        matchClipButtons.appendChild(button)
+      })
+    }
     if (matchCards) {
       matchCards.innerHTML = ''
       matchEntryNames.forEach((name) => {
@@ -1253,8 +1327,54 @@ export const setupQuiz = (
         matchCards.appendChild(button)
       })
     }
-    playCurrentMatchClip()
+    selectMatchSlot(0)
   }
+
+  matchSubmitButton?.addEventListener('click', () => {
+    if (matchGraded || matchAssignments.some((assigned) => assigned === null)) {
+      return
+    }
+    gradeMatchQuestion()
+  })
+
+  // スキップも1回の回答として扱う(未回答=不正解で記録し、正解を見せて次へ)。
+  skipButton?.addEventListener('click', () => {
+    if (hasAnsweredCurrentQuestion || !isQuizRunning) {
+      return
+    }
+    if (matchRoot && !matchRoot.hidden) {
+      if (!matchGraded) {
+        // 未割り当てのペアは不正解として、その場で答え合わせする。
+        gradeMatchQuestion()
+      }
+      return
+    }
+    if (!currentAnswer) {
+      return
+    }
+    const wasChoiceMode = currentMode === QUIZ_MODE_MULTIPLE_CHOICE
+    finalizeAnswer('', false)
+    if (wasChoiceMode) {
+      // 正解した時の見た目(緑1枚)と区別できるよう、正解以外は誤答の赤にする。
+      choicesRoot
+        .querySelectorAll<HTMLButtonElement>('button')
+        .forEach((choiceButton) => {
+          choiceButton.classList.add(
+            choiceButton.dataset.choiceName === currentAnswer
+              ? 'correct'
+              : 'wrong-selected',
+          )
+        })
+    } else {
+      if (nameAnswerInput) {
+        nameAnswerInput.disabled = true
+      }
+      if (nameAnswerSubmit) {
+        nameAnswerSubmit.disabled = true
+      }
+      hideNameSuggestions()
+    }
+  })
 
   /** 挑戦状の1問を、プランの形式(択一・入力・マッチ)に応じて出題する。 */
   const renderPlannedQuestion = (plan: QuestionPlan) => {
@@ -1275,10 +1395,14 @@ export const setupQuiz = (
     prepareQuestionView()
     playCurrentAudio()
     if (plan.kind === 'choice') {
+      // ランダム枠は挑むたびに全生徒から引き直す(正解・固定誤答とは重複させない)。
+      const randomWrongs = shuffleArray(
+        sortedCandidateNames.filter(
+          (name) => name !== plan.answerName && !plan.wrongNames.includes(name),
+        ),
+      ).slice(0, plan.randomWrongCount)
       renderChoiceButtons(
-        plan.wrongNames
-          ? shuffleArray([plan.answerName, ...plan.wrongNames])
-          : buildChoices(currentAnswer, sortedCandidateNames),
+        shuffleArray([plan.answerName, ...plan.wrongNames, ...randomWrongs]),
       )
       return
     }
@@ -1342,6 +1466,8 @@ export const setupQuiz = (
       startChallengeQuiz(activeChallenge)
       return true
     }
+    // 届いていた挑戦状に乗らず普通に始めたら、バナーと共有URLハッシュを片付ける。
+    shareController?.dismissPendingChallenge()
     updateModeUI()
     refreshFilterState()
     if (activeNames.length < 1) {
@@ -1382,6 +1508,8 @@ export const setupQuiz = (
   const startChallengeQuiz = (challenge: ChallengeDefinition) => {
     stopAudio()
     stopKokonaAudio()
+    // バナー・ハッシュは開始した時点で役目を終える(結果シェアは encoded から組み直す)。
+    shareController?.dismissPendingChallenge()
     activeChallenge = challenge
     usedChoiceNames = new Set()
     currentAnswer = ''

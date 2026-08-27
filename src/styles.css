@@ -1346,6 +1346,21 @@ h1,
   background-color: #77dfff;
 }
 
+/* スキップと次へは同じ場所(行の右端)に出す。同時には表示されないので、
+   「もう一度再生」を動かさずに右端の同じ位置を連打して進められる */
+.quiz-skip-button,
+#quiz-next-button {
+  margin-left: auto;
+}
+
+.quiz-skip-button {
+  color: #5a6b80;
+}
+
+.quiz-skip-button::before {
+  background-color: #e8edf3;
+}
+
 #quiz-menu-button:not(:disabled):hover,
 .quiz-menu-panel button:not(:disabled):hover {
   border-color: #9fc7ff;
@@ -1392,6 +1407,9 @@ h1,
   margin-top: 0;
   display: grid;
   gap: 0.5rem;
+  /* 外枠がコントロール群の最小幅(.quiz-setup-grid の min-width)より狭いときは
+     パネルを突き破らず、この中で横スクロールする */
+  overflow-x: auto;
 }
 
 #quiz-setup-controls[hidden] {
@@ -1403,11 +1421,20 @@ h1,
   display: grid;
   gap: 1rem;
   align-items: stretch;
+  box-sizing: border-box;
+  /* ボタンの平行四辺形(skewX)が左右へはみ出すぶんの逃げ。
+     これが無いと overflow-x: auto の親に常に数pxのスクロールが生まれる */
+  padding-inline: 0.3em;
+  /* コントロール群が崩れず並ぶ最小幅(320px端末で外側スクロールが出ない値)。
+     これ未満は親の横スクロールに任せる */
+  min-width: 240px;
 }
 
 @media (min-width: 660px) {
   .quiz-setup-grid {
-    grid-template-columns: minmax(0, 1.5fr) minmax(230px, 1fr);
+    /* 右列(問題数カウンター+開始)は中身の幅を最優先で確保し、
+       幅が足りないぶんは左列(設定項目)側を縮めて折り返させる */
+    grid-template-columns: minmax(0, 1.5fr) minmax(min-content, 1fr);
   }
 }
 
@@ -1480,12 +1507,26 @@ h1,
   font-size: var(--quiz-control-font-size);
 }
 
-/* 「掃討」パネル風: 問題数カウンターを淡色ボックスに収める */
+/* 「掃討」パネル風: 問題数カウンターを淡色ボックスに収める。
+   min-width は既定(auto)のまま、カウンターの必要幅を列幅へ伝える。
+   左列が高いときは余りを問題数と開始の間に集め、ボタン群を下に詰める */
 .quiz-setup-action {
-  min-width: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
-  align-content: space-between;
+}
+
+.quiz-setup-action .quiz-start-cta {
+  margin-top: auto;
+  /* 開始(CTA)は下の作成系ボタンと離して区別する(通常幅で gap と合わせて約2.5rem)。
+     コントロール類が縮む幅では隙間も同じ比率で縮むよう、サイズ変数に連動させる */
+  margin-bottom: calc(1.45 * var(--quiz-control-font-size));
+}
+
+/* 縦積みでも開始ボタンの上に下側と同じ隙間を確保する
+   (margin-top: auto は余白が無いと 0 になるため、最低値はここで足す) */
+.quiz-setup-action .quiz-count-panel {
+  margin-bottom: calc(1.45 * var(--quiz-control-font-size));
 }
 
 /* 回答方式・出題モードの選択に応じて出す説明文 */
@@ -1514,9 +1555,6 @@ h1,
 
 .quiz-count-panel {
   box-sizing: border-box;
-  /* グリッドアイテムの最小幅がカウンターの中身に引っ張られて
-     白エリアからはみ出さないようにする */
-  min-width: 0;
   border: 1px solid #dde7f1;
   border-radius: 10px;
   background: #eef3f9;
@@ -1549,7 +1587,9 @@ h1,
   font-size: 1.3rem;
 }
 
-/* 幅が狭い端末ではクイズ操作系をひとまわり小さくして収める */
+/* 幅が狭い端末ではクイズ操作系をひとまわり小さくして収める。
+   これ以上の縮小はしない(枠の全幅化・セグメントの折り返し・カウンターの
+   余白詰めで 320px 端末まで収まる)。入り切らない極小幅は横スクロールに任せる */
 @media (max-width: 420px) {
   :root {
     --quiz-control-height: 2.4rem;
@@ -1806,6 +1846,17 @@ h1,
   background: #fdf1f0;
 }
 
+/* ランダム誤答枠のチップ。生徒チップと区別できるよう点線にする */
+.quiz-editor-chip-random {
+  border-style: dashed;
+  background: #f4f8fc;
+}
+
+.quiz-editor-chip-random .quiz-editor-chip-body {
+  cursor: default;
+  color: #2f5c8f;
+}
+
 .quiz-editor-clip-label {
   display: inline-flex;
   align-items: center;
@@ -1907,6 +1958,45 @@ h1,
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
   color: var(--color-text-muted);
+}
+
+/* ♪番号ボタン: 順不同にどの音声でも聴ける。選択中は青、割り当て済みは沈める */
+.quiz-match-clip-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.quiz-match-clip-button {
+  min-width: 3em;
+  padding: 0.3em 0.6em;
+  border: 1px solid #b9cbdd;
+  border-radius: 0.6em;
+  background: var(--color-bg-surface, #fff);
+  color: #2f5c8f;
+  font-weight: 700;
+  font-family: 'Kosugi Maru', sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.quiz-match-clip-button.is-active {
+  background: #2f86d6;
+  border-color: #2f86d6;
+  color: #fff;
+  box-shadow: 0 0.12em 0.3em rgb(47 134 214 / 45%);
+}
+
+.quiz-match-clip-button.is-assigned:not(.is-active) {
+  background: #edf5ff;
+  color: #7f95ab;
+}
+
+.quiz-match-submit-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
 }
 
 .quiz-match-cards {
@@ -2364,7 +2454,12 @@ footer a {
     padding: 0;
   }
 
+  /* クイズの枠も生徒リストと同様に画面端まで広げ、横の余白を設定UIへ回す */
   #quiz-view {
+    width: calc(100% + 2rem);
+    margin-inline: -1rem;
+    border-inline: none;
+    border-radius: 0;
     padding: 0.5rem;
   }
 

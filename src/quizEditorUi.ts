@@ -11,6 +11,7 @@ import {
   decodeSharedQuizPayload,
   encodeSharedQuizPayload,
   extractSharedQuizParam,
+  matchPastedStudentNames,
   normalizeSharedQuizPayloadV2,
   parseQuestionSheetText,
   SHARED_QUIZ_CHOICE_MAX_WRONG,
@@ -50,7 +51,14 @@ const baseFormName = (name: string): string =>
 
 /** 編集中の問題。作成途中(正解未設定など)も表現できるよう null を許す。 */
 type EditorQuestion =
-  | { t: 'c'; a: number | null; o: number[]; clip: string | null }
+  | {
+      t: 'c'
+      a: number | null
+      o: number[]
+      /** 挑むたびにランダムに選ぶ誤答の数。 */
+      r: number
+      clip: string | null
+    }
   | { t: 'm'; e: number[] }
   | { t: 'i'; a: number | null; lu: boolean; clip: string | null }
 
@@ -94,10 +102,15 @@ const loadDraft = (validIds: ReadonlySet<number>): EditorState => {
         continue
       }
       if (item.t === 'c') {
+        const o = ids(item.o)
         questions.push({
           t: 'c',
           a: id(item.a),
-          o: ids(item.o),
+          o,
+          r:
+            typeof item.r === 'number' && Number.isInteger(item.r) && item.r > 0
+              ? Math.min(item.r, SHARED_QUIZ_CHOICE_MAX_WRONG - o.length)
+              : 0,
           clip: typeof item.clip === 'string' ? item.clip : null,
         })
       } else if (item.t === 'm') {
@@ -165,7 +178,6 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
   const generateButton = el<HTMLButtonElement>('quiz-editor-generate-button')
   const clearButton = el<HTMLButtonElement>('quiz-editor-clear-button')
   const urlOutput = el<HTMLInputElement>('quiz-editor-url-output')
-  const urlActions = el<HTMLDivElement>('quiz-editor-url-actions')
   const urlCopyButton = el<HTMLButtonElement>('quiz-editor-url-copy-button')
   const urlTestButton = el<HTMLButtonElement>('quiz-editor-url-test-button')
   const urlTweetButton = el<HTMLButtonElement>('quiz-editor-url-tweet-button')
@@ -203,7 +215,6 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
       urlOutput.value = ''
     }
     setHidden(urlOutput, true)
-    setHidden(urlActions, true)
   }
 
   const mutate = (change: () => void) => {
@@ -394,7 +405,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
 
   const questionTypeLabel = (question: EditorQuestion): string => {
     if (question.t === 'c') {
-      return `${QUIZ_EDITOR_UI_TEXT.typeChoice}（${question.o.length + 1}択）`
+      return `${QUIZ_EDITOR_UI_TEXT.typeChoice}（${question.o.length + question.r + 1}択）`
     }
     if (question.t === 'm') {
       return `${QUIZ_EDITOR_UI_TEXT.typeMatch}（${question.e.length}人）`
@@ -502,7 +513,27 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
           ),
         )
       })
-      if (question.o.length < SHARED_QUIZ_CHOICE_MAX_WRONG) {
+      // ランダム枠のチップ。挑むたびに全生徒から選び直される誤答。
+      for (let i = 0; i < question.r; i++) {
+        const chip = document.createElement('span')
+        chip.className = 'quiz-editor-chip quiz-editor-chip-random'
+        const body_ = document.createElement('span')
+        body_.className = 'quiz-editor-chip-body'
+        body_.append(QUIZ_EDITOR_UI_TEXT.randomWrongChip)
+        const remove = document.createElement('button')
+        remove.type = 'button'
+        remove.className = 'quiz-editor-chip-remove'
+        remove.textContent = '×'
+        remove.setAttribute('aria-label', QUIZ_EDITOR_UI_TEXT.remove)
+        remove.addEventListener('click', () =>
+          mutate(() => {
+            question.r -= 1
+          }),
+        )
+        chip.append(body_, remove)
+        wrongRow.appendChild(chip)
+      }
+      if (question.o.length + question.r < SHARED_QUIZ_CHOICE_MAX_WRONG) {
         wrongRow.appendChild(
           makeSmallButton(QUIZ_EDITOR_UI_TEXT.addWrong, () =>
             openPicker(
@@ -516,6 +547,13 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
                   question.o.push(entry.PrimaryId)
                 }),
             ),
+          ),
+        )
+        wrongRow.appendChild(
+          makeSmallButton(QUIZ_EDITOR_UI_TEXT.addRandomWrong, () =>
+            mutate(() => {
+              question.r += 1
+            }),
           ),
         )
       }
@@ -627,7 +665,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
           problems.push(`${label}: ${QUIZ_EDITOR_UI_TEXT.problemNoAnswer}`)
           return
         }
-        if (question.o.length === 0) {
+        if (question.o.length + question.r === 0) {
           problems.push(`${label}: ${QUIZ_EDITOR_UI_TEXT.problemNoWrong}`)
           return
         }
@@ -635,6 +673,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
           t: 'c',
           a: question.a,
           o: [...question.o],
+          ...(question.r > 0 ? { r: question.r } : {}),
           ...(question.clip ? { clip: question.clip } : {}),
         })
         return
@@ -683,101 +722,129 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
     }
   }
 
-  generateButton?.addEventListener('click', () => {
+  /**
+   * 共有URLを用意する(未生成なら作成を挟む)。シェア系ボタンはURL作成前から
+   * 押せるようにし、問題に不備があればステータスにエラーを出して null を返す。
+   */
+  const ensureShareUrl = async (): Promise<{
+    url: string
+    payload: SharedQuizPayloadV2
+  } | null> => {
     const payload = buildPayload()
     if (!payload) {
-      return
+      // buildPayload が不備の内容をステータスに表示済み
+      return null
     }
-    void encodeSharedQuizPayload(payload)
-      .then((encoded) => {
-        lastEncoded = encoded
-        const url = buildSharedQuizUrl(
-          `${window.location.origin}${window.location.pathname}`,
-          encoded,
-        )
-        if (urlOutput) {
-          urlOutput.value = url
-        }
-        setHidden(urlOutput, false)
-        setHidden(urlActions, false)
+    if (lastEncoded === null) {
+      try {
+        lastEncoded = await encodeSharedQuizPayload(payload)
+      } catch {
+        setStatus(QUIZ_SHARE_UI_TEXT.generateFailed)
+        return null
+      }
+    }
+    const url = buildSharedQuizUrl(
+      `${window.location.origin}${window.location.pathname}`,
+      lastEncoded,
+    )
+    if (urlOutput) {
+      urlOutput.value = url
+    }
+    setHidden(urlOutput, false)
+    return { url, payload }
+  }
+
+  const shareInviteText = (title: string, url: string): string =>
+    `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
+
+  generateButton?.addEventListener('click', () => {
+    void ensureShareUrl().then((result) => {
+      if (result) {
         setStatus(QUIZ_SHARE_UI_TEXT.generateSucceeded)
-      })
-      .catch(() => setStatus(QUIZ_SHARE_UI_TEXT.generateFailed))
+      }
+    })
   })
 
   urlCopyButton?.addEventListener('click', () => {
-    const url = urlOutput?.value
-    if (!url) {
-      return
-    }
-    navigator.clipboard
-      .writeText(url)
-      .then(() => setStatus(QUIZ_SHARE_UI_TEXT.copySucceeded))
-      .catch(() => {
-        urlOutput?.select()
-        setStatus(QUIZ_SHARE_UI_TEXT.copyFailed)
-      })
+    void ensureShareUrl().then((result) => {
+      if (!result) {
+        return
+      }
+      navigator.clipboard
+        .writeText(result.url)
+        .then(() => setStatus(QUIZ_SHARE_UI_TEXT.copySucceeded))
+        .catch(() => {
+          urlOutput?.select()
+          setStatus(QUIZ_SHARE_UI_TEXT.copyFailed)
+        })
+    })
   })
 
   urlTweetButton?.addEventListener('click', () => {
-    const url = urlOutput?.value
-    if (!url) {
-      return
-    }
-    const title = state.title.trim()
-    const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
-    window.open(buildTweetIntentUrl(text), '_blank', 'noopener')
+    void ensureShareUrl().then((result) => {
+      if (!result) {
+        return
+      }
+      window.open(
+        buildTweetIntentUrl(shareInviteText(result.payload.title, result.url)),
+        '_blank',
+        'noopener',
+      )
+    })
   })
 
   // アイキャッチ画像: 共有シート(モバイル) / コピー(PC) / ダウンロードで渡す
   urlImageButton?.addEventListener('click', () => {
-    const url = urlOutput?.value
-    const payload = buildPayload()
-    if (!url || !payload) {
-      return
-    }
-    const canvas = drawChallengeCard({
-      title: payload.title,
-      author: payload.author ?? null,
-      desc: payload.desc ?? null,
-      questionCount: payload.q.length,
-      questionSummary: summarizeQuestionTypes(payload.q),
+    void ensureShareUrl().then((result) => {
+      if (!result) {
+        return
+      }
+      const { payload, url } = result
+      const canvas = drawChallengeCard({
+        title: payload.title,
+        author: payload.author ?? null,
+        desc: payload.desc ?? null,
+        questionCount: payload.q.length,
+        questionSummary: summarizeQuestionTypes(payload.q),
+      })
+      if (!canvas) {
+        setStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
+        return
+      }
+      void deliverCardImage(
+        canvas,
+        'quiz-invite.png',
+        shareInviteText(payload.title, url),
+      ).then((method) => setStatus(imageDeliveryMessage(method)))
     })
-    if (!canvas) {
-      setStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
-      return
-    }
-    const title = payload.title
-    const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
-    void deliverCardImage(canvas, 'quiz-invite.png', text).then((method) =>
-      setStatus(imageDeliveryMessage(method)),
-    )
   })
 
   // 作った本人がその場で通しプレイして確認できるようにする。
   urlTestButton?.addEventListener('click', () => {
-    const payload = buildPayload()
-    if (!payload || lastEncoded === null) {
-      return
-    }
-    const { plans, skippedCount, questionSummary } = buildChallengePlans(
-      payload,
-      entryById,
-    )
-    if (plans.length === 0) {
-      setStatus(QUIZ_SHARE_UI_TEXT.importNoPlayableStudents)
-      return
-    }
-    dialog.close()
-    onStartChallenge({
-      title: payload.title,
-      author: payload.author ?? null,
-      desc: payload.desc ?? null,
-      plans,
-      shuffle: payload.shuffle === true,
-      skippedCount,
-      questionSummary,
-      encoded: lastEncoded,
+    void ensureShareUrl().then((result) => {
+      if (!result || lastEncoded === null) {
+        return
+      }
+      const { payload } = result
+      const { plans, skippedCount, questionSummary } = buildChallengePlans(
+        payload,
+        entryById,
+      )
+      if (plans.length === 0) {
+        setStatus(QUIZ_SHARE_UI_TEXT.importNoPlayableStudents)
+        return
+      }
+      dialog.close()
+      onStartChallenge({
+        title: payload.title,
+        author: payload.author ?? null,
+        desc: payload.desc ?? null,
+        plans,
+        shuffle: payload.shuffle === true,
+        skippedCount,
+        questionSummary,
+        encoded: lastEncoded,
+      })
     })
   })
 
@@ -795,7 +862,13 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
         }
         state.q.push(
           question.t === 'c'
-            ? { t: 'c', a: question.a, o: [...question.o], clip: null }
+            ? {
+                t: 'c',
+                a: question.a,
+                o: [...question.o],
+                r: question.r ?? 0,
+                clip: null,
+              }
             : question.t === 'm'
               ? { t: 'm', e: [...question.e] }
               : { t: 'i', a: question.a, lu: question.lu === true, clip: null },
@@ -866,6 +939,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
                     t: 'c',
                     a: question.a,
                     o: [...question.o],
+                    r: question.r ?? 0,
                     clip: question.clip ?? null,
                   }
                 : question.t === 'm'
@@ -943,8 +1017,9 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
       state.q.push(question)
     })
   }
+  // 択一は「ランダム誤答3つ」から始める(正解を選ぶだけで普通の4択になる)。
   addChoiceButton?.addEventListener('click', () =>
-    addQuestion({ t: 'c', a: null, o: [], clip: null }),
+    addQuestion({ t: 'c', a: null, o: [], r: 3, clip: null }),
   )
   addMatchButton?.addEventListener('click', () =>
     addQuestion({ t: 'm', e: [] }),
@@ -952,6 +1027,197 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
   addInputButton?.addEventListener('click', () =>
     addQuestion({ t: 'i', a: null, lu: false, clip: null }),
   )
+
+  // --- 生徒を選んでまとめて追加(旧「おまかせ作成」の後継) ------------------------
+  // 選んだ生徒を1人1問ずつ問題リストへ変換する。4択の誤答はここでランダムに
+  // 確定させる(挑戦のたびに変わらず、追加後に個別編集もできる)。
+
+  const bulkButton = el<HTMLButtonElement>('quiz-editor-bulk-button')
+  const bulkDialog = el<HTMLDialogElement>('quiz-editor-bulk-dialog')
+  const bulkCloseButton = el<HTMLButtonElement>('quiz-editor-bulk-close-button')
+  const bulkModeSelect = el<HTMLSelectElement>('quiz-editor-bulk-mode-select')
+  const bulkSearchInput = el<HTMLInputElement>('quiz-editor-bulk-search-input')
+  const bulkList = el<HTMLDivElement>('quiz-editor-bulk-student-list')
+  const bulkSelectedCount = el<HTMLParagraphElement>(
+    'quiz-editor-bulk-selected-count',
+  )
+  const bulkSelectVisibleButton = el<HTMLButtonElement>(
+    'quiz-editor-bulk-select-visible-button',
+  )
+  const bulkClearButton = el<HTMLButtonElement>('quiz-editor-bulk-clear-button')
+  const bulkPasteTextarea = el<HTMLTextAreaElement>(
+    'quiz-editor-bulk-paste-textarea',
+  )
+  const bulkPasteApplyButton = el<HTMLButtonElement>(
+    'quiz-editor-bulk-paste-apply-button',
+  )
+  const bulkAddButton = el<HTMLButtonElement>('quiz-editor-bulk-add-button')
+  const bulkStatus = el<HTMLParagraphElement>('quiz-editor-bulk-status')
+
+  const bulkSelectedIds = new Set<number>()
+  const bulkCheckboxById = new Map<number, HTMLInputElement>()
+
+  const setBulkStatus = (message: string) => {
+    if (bulkStatus) {
+      bulkStatus.textContent = message
+    }
+  }
+
+  const updateBulkSelectedCount = () => {
+    if (bulkSelectedCount) {
+      bulkSelectedCount.textContent = `${bulkSelectedIds.size}${QUIZ_SHARE_UI_TEXT.selectedCountSuffix}`
+    }
+  }
+
+  const renderBulkList = () => {
+    if (!bulkList) {
+      return
+    }
+    bulkList.innerHTML = ''
+    bulkCheckboxById.clear()
+    sortedEntries.forEach((entry) => {
+      const label = document.createElement('label')
+      label.className = 'quiz-share-student-item'
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.checked = bulkSelectedIds.has(entry.PrimaryId)
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          bulkSelectedIds.add(entry.PrimaryId)
+        } else {
+          bulkSelectedIds.delete(entry.PrimaryId)
+        }
+        updateBulkSelectedCount()
+      })
+      const nameText = document.createElement('span')
+      nameText.textContent = entry.Name
+      label.append(checkbox, nameText)
+      label.dataset.studentId = String(entry.PrimaryId)
+      label.dataset.nameKey = normalizeQuizAnswer(entry.Name)
+      bulkList.appendChild(label)
+      bulkCheckboxById.set(entry.PrimaryId, checkbox)
+    })
+  }
+
+  const applyBulkSearchFilter = () => {
+    const query = normalizeQuizAnswer(bulkSearchInput?.value ?? '')
+    bulkList
+      ?.querySelectorAll<HTMLElement>('.quiz-share-student-item')
+      .forEach((item) => {
+        setHidden(
+          item,
+          query.length > 0 && !(item.dataset.nameKey ?? '').includes(query),
+        )
+      })
+  }
+
+  const syncBulkCheckboxes = () => {
+    bulkCheckboxById.forEach((checkbox, id) => {
+      checkbox.checked = bulkSelectedIds.has(id)
+    })
+    updateBulkSelectedCount()
+  }
+
+  bulkButton?.addEventListener('click', () => {
+    if (!bulkDialog) {
+      return
+    }
+    bulkSelectedIds.clear()
+    if (bulkSearchInput) {
+      bulkSearchInput.value = ''
+    }
+    if (bulkPasteTextarea) {
+      bulkPasteTextarea.value = ''
+    }
+    renderBulkList()
+    updateBulkSelectedCount()
+    setBulkStatus('')
+    bulkDialog.showModal()
+    bulkDialog.focus({ preventScroll: true })
+    bulkDialog.scrollTop = 0
+  })
+  bulkCloseButton?.addEventListener('click', () => bulkDialog?.close())
+  bulkSearchInput?.addEventListener('input', applyBulkSearchFilter)
+
+  bulkSelectVisibleButton?.addEventListener('click', () => {
+    bulkList
+      ?.querySelectorAll<HTMLElement>('.quiz-share-student-item')
+      .forEach((item) => {
+        if (!item.hidden && item.dataset.studentId) {
+          bulkSelectedIds.add(Number(item.dataset.studentId))
+        }
+      })
+    syncBulkCheckboxes()
+  })
+
+  bulkClearButton?.addEventListener('click', () => {
+    bulkSelectedIds.clear()
+    syncBulkCheckboxes()
+  })
+
+  bulkPasteApplyButton?.addEventListener('click', () => {
+    const text = bulkPasteTextarea?.value ?? ''
+    if (!text.trim()) {
+      setBulkStatus(QUIZ_SHARE_UI_TEXT.pasteEmpty)
+      return
+    }
+    const { matched, unmatched } = matchPastedStudentNames(
+      text,
+      sortedEntries.map((entry) => entry.Name),
+    )
+    const idByName = new Map(
+      sortedEntries.map((entry) => [entry.Name, entry.PrimaryId]),
+    )
+    matched.forEach((name) => {
+      const id = idByName.get(name)
+      if (id !== undefined) {
+        bulkSelectedIds.add(id)
+      }
+    })
+    syncBulkCheckboxes()
+    setBulkStatus(
+      unmatched.length > 0
+        ? `${matched.length}${QUIZ_SHARE_UI_TEXT.pasteMatchedSuffix} / ${QUIZ_SHARE_UI_TEXT.pasteUnmatchedPrefix}: ${unmatched.slice(0, 5).join('、')}${unmatched.length > 5 ? ' ほか' : ''}`
+        : `${matched.length}${QUIZ_SHARE_UI_TEXT.pasteMatchedSuffix}`,
+    )
+  })
+
+  bulkAddButton?.addEventListener('click', () => {
+    if (bulkSelectedIds.size === 0) {
+      setBulkStatus(QUIZ_SHARE_UI_TEXT.generateNeedsSelection)
+      return
+    }
+    const mode = bulkModeSelect?.value
+    const selected = sortedEntries.filter((entry) =>
+      bulkSelectedIds.has(entry.PrimaryId),
+    )
+    let added = 0
+    mutate(() => {
+      for (const entry of selected) {
+        if (state.q.length >= SHARED_QUIZ_MAX_QUESTIONS) {
+          break
+        }
+        if (mode === 'name-input' || mode === 'name-input-lunatic') {
+          state.q.push({
+            t: 'i',
+            a: entry.PrimaryId,
+            lu: mode === 'name-input-lunatic',
+            clip: null,
+          })
+        } else {
+          // 誤答はランダム枠3つ=通常の4択と同じく挑むたびに変わる。
+          state.q.push({ t: 'c', a: entry.PrimaryId, o: [], r: 3, clip: null })
+        }
+        added += 1
+      }
+    })
+    bulkDialog?.close()
+    setStatus(
+      added < selected.length
+        ? `${added}${QUIZ_EDITOR_UI_TEXT.bulkAddedSuffix}\n${QUIZ_EDITOR_UI_TEXT.tooManyQuestions}`
+        : `${added}${QUIZ_EDITOR_UI_TEXT.bulkAddedSuffix}`,
+    )
+  })
 
   openButton.addEventListener('click', () => {
     syncMetaInputs()

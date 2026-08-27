@@ -30,6 +30,8 @@ export const QUIZ_UI_TEXT = {
   answerPrefix: '回答',
   matchGradedInstruction:
     '答え合わせ！カードをタップすると正解の音声を聴き直せます。',
+  matchAllAssignedInstruction:
+    'すべて割り当てました。「回答する」で答え合わせ！（カードをタップすると変更できます）',
   matchAllPairsCorrect: '全ペア正解',
 } as const
 
@@ -82,7 +84,6 @@ export const SYNC_UI_TEXT = {
 } as const
 
 export const QUIZ_SHARE_UI_TEXT = {
-  createDialogTitle: 'クイズを作って共有',
   selectedCountSuffix: '人選択中',
   pasteEmpty: '貼り付けるテキストを入力してください。',
   pasteMatchedSuffix: '人を選択に追加しました。',
@@ -123,6 +124,8 @@ export const QUIZ_EDITOR_UI_TEXT = {
   wrongLabel: '誤答',
   matchLabel: '対象',
   addWrong: '＋誤答を追加',
+  addRandomWrong: '＋ランダム誤答',
+  randomWrongChip: 'ランダム',
   addMatchMember: '＋対象を追加',
   addAllForms: '同キャラの全フォームを追加',
   lunaticLabel: 'Lunatic（入力候補を出さない）',
@@ -136,11 +139,12 @@ export const QUIZ_EDITOR_UI_TEXT = {
     'まだ問題がありません。「＋択一」などのボタンで問題を追加してください。',
   questionPrefix: '問題',
   problemNoAnswer: '正解の生徒が未設定です',
-  problemNoWrong: '誤答の選択肢を1人以上追加してください',
+  problemNoWrong: '誤答（生徒かランダム枠）を1つ以上追加してください',
   problemMatchTooFew: 'マッチングは対象を2人以上にしてください',
   problemNoQuestions: '完成した問題がありません。',
   tooManyQuestions: '問題数の上限(100問)に達しています。',
   sheetImportedSuffix: '問を取り込みました。',
+  bulkAddedSuffix: '問を追加しました。',
   sheetExportedSuffix: '問を書き出しました。',
   jsonExported: 'JSONを書き出しました。コピーして保管してください。',
   jsonImported: '読み込みました。',
