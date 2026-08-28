@@ -1242,16 +1242,38 @@
         同期コードはパスワードと同じ扱いです。他人に教えないでください。<br />
         別の端末で同じコードを入力すると、同じ進捗を読み書きできます。
       </p>
-      <label class="app-dialog-field" for="sync-code-input">
-        同期コード
+      <!-- パスワードマネージャーに保存させるため form + password 型にする -->
+      <form id="sync-code-form">
         <input
-          id="sync-code-input"
           type="text"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="未設定"
+          name="username"
+          value="同期コード"
+          autocomplete="username"
+          class="sync-hidden-username"
+          tabindex="-1"
+          aria-hidden="true"
+          readonly
         />
-      </label>
+        <label class="app-dialog-field" for="sync-code-input">
+          同期コード
+          <span class="sync-code-row">
+            <input
+              id="sync-code-input"
+              type="password"
+              autocomplete="current-password"
+              spellcheck="false"
+              placeholder="未設定"
+            />
+            <button
+              id="sync-code-toggle"
+              type="button"
+              aria-label="同期コードを表示"
+            >
+              表示
+            </button>
+          </span>
+        </label>
+      </form>
       <label class="app-dialog-field" for="sync-endpoint-input">
         保存先URL（空欄なら作者のシートに保存）
         <input
