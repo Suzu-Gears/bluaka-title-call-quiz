@@ -46,6 +46,7 @@ import {
   type ChallengeDefinition,
   type QuizShareController,
 } from '@/quizShareUi'
+import './quizModeControl.css'
 
 const DEFAULT_IMAGE = resolveAssetUrl('default-student-image.webp')
 const QUIZ_MODE_MULTIPLE_CHOICE = 'multiple-choice'
@@ -364,9 +365,10 @@ export const setupQuiz = (
   /** いま再生・割り当て対象になっている音声のスロット。 */
   let matchActiveSlot = 0
   let matchGraded = false
-  const kokonaAudio: HTMLAudioElement = new Audio(
-    resolveAssetUrl('kokona-hanamaru.mp3'),
-  )
+  // 100点満点のときにしか鳴らさないので、再生時まで取得を遅らせる。
+  const kokonaAudio: HTMLAudioElement = new Audio()
+  kokonaAudio.preload = 'none'
+  kokonaAudio.src = resolveAssetUrl('kokona-hanamaru.mp3')
   const allCandidateNames = new Set(Object.values(candidateGroups).flat())
   const sortedCandidateNames = [...allCandidateNames].sort((a, b) =>
     a.localeCompare(b, 'ja'),

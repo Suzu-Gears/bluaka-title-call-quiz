@@ -28,6 +28,9 @@ pnpm-debug.log*
 .claude/
 
 public/*/
+# サブセットフォントは生成物だがビルド環境に Python が無いためコミットする
+# (再生成は tools/build-font-subset.py)
+!public/fonts/
 tmp/
 
 # GAS (local credentials/config)

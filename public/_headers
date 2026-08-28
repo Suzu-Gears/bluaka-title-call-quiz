@@ -1,0 +1,19 @@
+# Cloudflare Pages のキャッシュ設定。
+# デフォルトは全ファイル max-age=0, must-revalidate で、再訪のたびに
+# 全アセットの再検証が走っていた。
+# version.json / cache-manifest.json / data/ はここに書かず、
+# デフォルト(毎回再検証)のままにして更新判定の鮮度を保つ。
+
+# ハッシュ付きバンドルは内容が変わればファイル名も変わるので恒久キャッシュ
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# サブセットフォント(再生成はまれ。1週間キャッシュ)
+/fonts/*
+  Cache-Control: public, max-age=604800
+
+# カード画像・タイトルコール音声(差し替えはまれ。1週間キャッシュ)
+/image/*
+  Cache-Control: public, max-age=604800
+/audio/*
+  Cache-Control: public, max-age=604800

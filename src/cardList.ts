@@ -59,6 +59,10 @@ export const createCard = (
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
+  // 実寸(200x226 前後)に合わせた寸法指定。表示サイズは CSS が決めるが、
+  // 明示しておくと読み込み前のレイアウト確定が速くなる。
+  image.width = 200
+  image.height = 220
   image.src = resolveAssetUrl(formatImageKey(memberId))
   image.alt = entry.Name
   image.onerror = () => {
@@ -429,6 +433,18 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   // 復元した設定を初期表示に反映する。
   applySortForCurrentState()
   filterCards(lastAppliedStudentFilter)
+
+  // ソート反映後の先頭(=ファーストビュー)のカードは遅延させず即時読み込みにし、
+  // LCP になる画像の発見・取得を前倒しする。先頭数枚はさらに優先度を上げる。
+  ;[...grid.querySelectorAll<HTMLImageElement>('.grid-item img')]
+    .filter((img) => img.closest<HTMLElement>('.grid-item')?.style.display !== 'none')
+    .slice(0, 24)
+    .forEach((img, index) => {
+      img.loading = 'eager'
+      if (index < 8) {
+        img.fetchPriority = 'high'
+      }
+    })
 
   let fittyInstances: FittyInstance[] = setupFitty()
   let devicePixelRatio = window.devicePixelRatio

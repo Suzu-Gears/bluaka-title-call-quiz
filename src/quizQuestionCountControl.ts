@@ -1,4 +1,5 @@
 import { resolveQuestionCount } from '@/lib/quizProgress'
+import './quizQuestionCountControl.css'
 
 type QuizQuestionCountControlElements = {
   input: HTMLInputElement
