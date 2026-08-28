@@ -60,6 +60,26 @@ const fitText = (
   return fitted
 }
 
+/**
+ * 省略できない文字列(スコアなど)を、収まるまでフォントを縮めて描くためのサイズ計算。
+ * 呼び出し後の ctx.font は決定したサイズになっている。
+ */
+const fitFontSize = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  startSize: number,
+  minSize: number,
+): number => {
+  let size = startSize
+  ctx.font = `bold ${size}px ${FONT_FAMILY}`
+  while (size > minSize && ctx.measureText(text).width > maxWidth) {
+    size -= 4
+    ctx.font = `bold ${size}px ${FONT_FAMILY}`
+  }
+  return size
+}
+
 const drawAppName = (ctx: CanvasRenderingContext2D) => {
   ctx.fillStyle = '#2f86d6'
   ctx.font = `bold 40px ${FONT_FAMILY}`
@@ -221,6 +241,39 @@ export const drawResultCard = async (
   const innerWidth = RESULT_WIDTH - (RESULT_PADDING + 28) * 2
 
   // --- ヘッダー(スコア) ---
+  const accuracy =
+    content.totalCount > 0
+      ? Math.round((content.correctCount / content.totalCount) * 100)
+      : 0
+  const isPerfect =
+    content.totalCount > 0 && content.correctCount === content.totalCount
+  const showStamp = isPerfect && !!stamp
+
+  // 満点のときは「スコア + スタンプ」を 1 セットとして中央に置く。
+  // 位置を固定すると桁数によってスタンプへ潜り込んだり妙な隙間が空くため、
+  // スコアの実寸を測ってから左端を決める。
+  // スタンプはタイトル行より下(スコアと同じ帯)なので、タイトルは満点でも
+  // 幅いっぱい使える。
+  const STAMP_SIZE = 180
+  const STAMP_GAP = 24
+  const stampCenterY = RESULT_PADDING + 218
+  const scoreText = `${content.correctCount} / ${content.totalCount}`
+  // 「9999 / 9999」のような長いスコアは収まるまで自動で縮める
+  const scoreFontSize = fitFontSize(
+    ctx,
+    scoreText,
+    innerWidth - (showStamp ? STAMP_SIZE + STAMP_GAP : 0),
+    96,
+    44,
+  )
+  const scoreWidth = ctx.measureText(scoreText).width
+  const groupLeft = (RESULT_WIDTH - (scoreWidth + STAMP_GAP + STAMP_SIZE)) / 2
+  const scoreRight = showStamp ? groupLeft + scoreWidth : null
+  const stampCenterX = groupLeft + scoreWidth + STAMP_GAP + STAMP_SIZE / 2
+  /** 満点時はスタンプの左隣(右寄せ)、それ以外は従来どおり中央。 */
+  const textAnchor = scoreRight === null ? RESULT_WIDTH / 2 : scoreRight
+  const captionWidth = scoreRight === null ? innerWidth : scoreRight - innerX
+
   ctx.textAlign = 'center'
   ctx.fillStyle = '#2f86d6'
   ctx.font = `bold 34px ${FONT_FAMILY}`
@@ -240,38 +293,38 @@ export const drawResultCard = async (
     )
   }
 
-  const accuracy =
-    content.totalCount > 0
-      ? Math.round((content.correctCount / content.totalCount) * 100)
-      : 0
-  const isPerfect =
-    content.totalCount > 0 && content.correctCount === content.totalCount
-
+  ctx.textAlign = scoreRight === null ? 'center' : 'right'
   ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
-  ctx.font = `bold 96px ${FONT_FAMILY}`
-  ctx.fillText(
-    `${content.correctCount} / ${content.totalCount}`,
-    RESULT_WIDTH / 2,
-    RESULT_PADDING + 226,
-  )
+  ctx.font = `bold ${scoreFontSize}px ${FONT_FAMILY}`
+  ctx.fillText(scoreText, textAnchor, RESULT_PADDING + 226)
 
   ctx.fillStyle = '#555555'
   ctx.font = `bold 34px ${FONT_FAMILY}`
   ctx.fillText(
-    isPerfect
-      ? QUIZ_SHARE_UI_TEXT.cardPerfect
-      : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
-    RESULT_WIDTH / 2,
+    fitText(
+      ctx,
+      isPerfect
+        ? QUIZ_SHARE_UI_TEXT.cardPerfect
+        : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
+      captionWidth,
+    ),
+    textAnchor,
     RESULT_PADDING + 288,
   )
+  ctx.textAlign = 'center'
 
   if (isPerfect && stamp) {
     // つぶれないよう大きめに、少し傾けてスタンプらしく押す。
-    const size = 230
     ctx.save()
-    ctx.translate(RESULT_WIDTH - RESULT_PADDING - 150, RESULT_PADDING + 180)
+    ctx.translate(stampCenterX, stampCenterY)
     ctx.rotate(-0.18)
-    ctx.drawImage(stamp, -size / 2, -size / 2, size, size)
+    ctx.drawImage(
+      stamp,
+      -STAMP_SIZE / 2,
+      -STAMP_SIZE / 2,
+      STAMP_SIZE,
+      STAMP_SIZE,
+    )
     ctx.restore()
   }
 
