@@ -7,6 +7,7 @@ import {
   applyPendingAppUpdate,
   registerAppServiceWorker,
 } from '@/lib/appUpdate'
+import { setupAnalytics } from '@/lib/analytics'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import {
   FINAL_DATA_SCHEMA_VERSION,
@@ -126,6 +127,7 @@ const bootstrap = async () => {
     // 通常のブラウザタブは従来どおり SW なしで動かす。
     registerAppServiceWorker()
   }
+  setupAnalytics()
   setupSettings()
   setupTitleFit()
   setupPageSwitch()

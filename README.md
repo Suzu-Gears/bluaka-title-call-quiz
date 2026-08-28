@@ -473,9 +473,6 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
 | キー                                              | 説明                             |
 | ------------------------------------------------- | -------------------------------- |
 | `bluaka-title-call-quiz2.proficiency.v1`          | 現行の保存キー                   |
-| `bluaka-title-call-quiz.proficiency.v1`           | 旧キー（自動移行）               |
-| `bluaka-title-call-quiz.proficiency`              | 旧キー（自動移行）               |
-| `quizProficiency`                                 | 最古の旧キー（自動移行）         |
 | `bluaka-title-call-quiz2.syncCode.v1`             | クラウド同期の同期コード         |
 | `bluaka-title-call-quiz2.proficiencyUpdatedAt.v1` | 最終更新時刻（同期の新旧判定用） |
 
