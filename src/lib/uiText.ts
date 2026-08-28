@@ -66,6 +66,7 @@ export const PROGRESS_UI_TEXT = {
 export const SYNC_UI_TEXT = {
   title: 'クラウド同期',
   noCode: '同期コードが未設定です。「新しいコードを発行」を押してください。',
+  generating: '同期コードを発行しています...',
   generated:
     '新しい同期コードを発行しました。控えておいてください。まだクラウドには保存されていません。',
   uploading: 'クラウドへ保存しています...',
@@ -73,7 +74,8 @@ export const SYNC_UI_TEXT = {
   downloading: 'クラウドから読み込んでいます...',
   downloadEmpty: 'このコードで保存されたデータは見つかりませんでした。',
   failed: '通信に失敗しました。時間をおいて試してください。',
-  invalidCode: '同期コードの形式が正しくありません。',
+  invalidCode:
+    '同期コードの形式が正しくありません。英字と数字を含む10文字です。',
   invalidEndpoint:
     '保存先URLの形式が正しくありません。https:// で始まるURLを入力してください。',
   endpointSaved: '保存先を自分のスプレッドシートに変更しました。',

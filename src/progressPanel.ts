@@ -9,12 +9,12 @@ import type { ProficiencyMap } from '@/lib/quizProgress'
 import { readStorage, writeStorage } from '@/lib/safeStorage'
 import {
   fetchRemoteProgress,
-  generateSyncCode,
   getCustomSyncEndpoint,
   isSyncEnabled,
   isValidSyncCode,
   isValidSyncEndpointUrl,
   pushRemoteProgress,
+  requestNewSyncCode,
   setCustomSyncEndpoint,
 } from '@/lib/syncClient'
 import {
@@ -269,11 +269,23 @@ export const setupProgressPanel = (
     setStatus(syncStatus, SYNC_UI_TEXT.endpointSaved)
   })
 
-  generateButton?.addEventListener('click', () => {
-    const code = generateSyncCode()
-    syncCodeInput.value = code
-    storeSyncCode(code)
-    setStatus(syncStatus, SYNC_UI_TEXT.generated)
+  generateButton?.addEventListener('click', async () => {
+    if (!isSyncEnabled()) {
+      setStatus(syncStatus, SYNC_UI_TEXT.noEndpoint)
+      return
+    }
+    generateButton.disabled = true
+    setStatus(syncStatus, SYNC_UI_TEXT.generating)
+    try {
+      const code = await requestNewSyncCode()
+      syncCodeInput.value = code
+      storeSyncCode(code)
+      setStatus(syncStatus, SYNC_UI_TEXT.generated)
+    } catch {
+      setStatus(syncStatus, SYNC_UI_TEXT.failed)
+    } finally {
+      generateButton.disabled = false
+    }
   })
 
   syncCodeInput.addEventListener('change', () => {

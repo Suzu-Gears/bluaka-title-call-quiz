@@ -210,8 +210,10 @@ src/
     └── verifyPipeline.ts    # final.json の内容を検算する診断スクリプト               [サーバー]
 
 docs/
-├── data-pipeline-redesign-plan.md  # 本パイプラインの設計計画書
-└── spreadsheet-sync.gs             # 進捗同期用の Google Apps Script
+└── data-pipeline-redesign-plan.md  # 本パイプラインの設計計画書
+
+gas/
+└── spreadsheet-sync.gs             # 進捗同期用の Google Apps Script（clasp管理）
 ```
 
 ---
@@ -505,7 +507,7 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
 - 保存はクイズ終了時と手動操作のときだけ。回答ごとには送りません。
 - 競合は **更新時刻が新しい方を採用**し、クラウド側を採用する場合は確認ダイアログを挟みます。
 - 通信に失敗しても静かに `localStorage` 運用を継続します（ベストエフォート）。
-- サーバー側は `docs/spreadsheet-sync.gs` を Google Apps Script のウェブアプリとして
+- サーバー側は `gas/spreadsheet-sync.gs` を Google Apps Script のウェブアプリとして
   デプロイするだけです。管理者向け・利用者向け両方のセットアップ手順は
   `docs/sync-setup.md` を参照してください。
 

@@ -924,13 +924,15 @@ const deterministicRandom = () => 0
 }
 
 {
-  assert.equal(isValidSyncCode('3f0c1a2b-4d5e-4f60-8a9b-0c1d2e3f4a5b'), true)
-  assert.equal(
-    isValidSyncCode('  3F0C1A2B-4D5E-4F60-8A9B-0C1D2E3F4A5B  '),
-    true,
-  )
-  assert.equal(isValidSyncCode('not-a-uuid'), false)
+  assert.equal(isValidSyncCode('0v9wr3km2p'), true)
+  assert.equal(isValidSyncCode('  0V9WR3KM2P  '), true)
+  assert.equal(isValidSyncCode('short'), false)
+  assert.equal(isValidSyncCode('0v9wr3km2p7'), false)
+  assert.equal(isValidSyncCode('3f0c1a2b-4d5e-4f60-8a9b-0c1d2e3f4a5b'), false)
   assert.equal(isValidSyncCode(''), false)
+  // 弱いコード: 数字だけ(電話番号・日付)、英字だけ(英単語・名前)は弾く。
+  assert.equal(isValidSyncCode('2026010101'), false)
+  assert.equal(isValidSyncCode('basketball'), false)
 
   assert.equal(
     isValidSyncEndpointUrl('https://script.google.com/macros/s/XXXX/exec'),

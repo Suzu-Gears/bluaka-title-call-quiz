@@ -8,7 +8,7 @@ import { readStorage, removeStorage, writeStorage } from '@/lib/safeStorage'
  * 認証を使わない「同期コード」方式のクラウド保存。
  *
  * サーバー(GAS Web App など)は「コード -> JSON ひとかたまり」の入れ物として
- * だけ振る舞う。コードは UUID v4 で、実質パスワードとして扱う。
+ * だけ振る舞う。コードは 10 文字のランダム文字列で、実質パスワードとして扱う。
  * 保存内容はクイズの成績のみで、失われても localStorage とエクスポートが残る
  * ベストエフォートの機能と位置づける。
  *
@@ -17,8 +17,10 @@ import { readStorage, removeStorage, writeStorage } from '@/lib/safeStorage'
  *   2. ビルド時の既定エンドポイント VITE_SYNC_ENDPOINT(作者のシート)
  */
 
-const SYNC_CODE_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// コードの発行はサーバー(GAS)側。クライアントは形式チェックだけを持つ。
+// 英字と数字の両方を必須にすることで、手入力されがちな弱いコード
+// (電話番号・日付などの数字だけ、英単語・名前などの英字だけ)を弾く。
+const SYNC_CODE_PATTERN = /^(?=.*[0-9])(?=.*[a-z])[0-9a-z]{10}$/i
 
 const CUSTOM_ENDPOINT_STORAGE_KEY = 'bluaka-title-call-quiz2.syncEndpoint.v1'
 
@@ -68,8 +70,29 @@ export function isValidSyncCode(code: string): boolean {
   return SYNC_CODE_PATTERN.test(code.trim())
 }
 
-export function generateSyncCode(): string {
-  return crypto.randomUUID()
+/**
+ * サーバーに新しい同期コードを発行させる。サーバーがシート上で行を確保して
+ * から返すため、コードの衝突は起きない。
+ */
+export async function requestNewSyncCode(): Promise<string> {
+  const endpoint = getSyncEndpoint()
+  if (!endpoint) {
+    throw new Error('同期エンドポイントが設定されていません。')
+  }
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'create' }),
+  })
+  if (!response.ok) {
+    throw new Error(`同期サーバーの応答が異常です (${response.status})`)
+  }
+  const data = (await response.json()) as { ok?: unknown; code?: unknown }
+  const code = typeof data.code === 'string' ? data.code.trim() : ''
+  if (!data.ok || !isValidSyncCode(code)) {
+    throw new Error('同期コードを発行できませんでした。')
+  }
+  return code
 }
 
 export function parseSyncPayload(raw: unknown): SyncPayload | null {
