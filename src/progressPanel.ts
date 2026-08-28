@@ -6,6 +6,7 @@ import {
   serializeProgressExport,
 } from '@/lib/progressTransfer'
 import type { ProficiencyMap } from '@/lib/quizProgress'
+import { showCopyFeedback } from '@/lib/copyFeedback'
 import { readStorage, writeStorage } from '@/lib/safeStorage'
 import {
   fetchRemoteProgress,
@@ -147,7 +148,8 @@ export const setupProgressPanel = (
   copyButton?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(textarea.value)
-      setStatus(dialogStatus, PROGRESS_UI_TEXT.copied)
+      setStatus(dialogStatus, '')
+      showCopyFeedback(copyButton)
     } catch {
       textarea.select()
       setStatus(dialogStatus, PROGRESS_UI_TEXT.copyFailed)

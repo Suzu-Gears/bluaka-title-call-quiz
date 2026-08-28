@@ -2362,6 +2362,23 @@ body:has(dialog[open]) {
   }
 }
 
+/* コピーボタンの成功フィードバック(ラベル差し替え+ひと呼吸のパルス) */
+button.copy-feedback {
+  animation: copy-feedback-pulse 0.35s ease;
+}
+
+@keyframes copy-feedback-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* 検索・解答欄は type="search"(iOS の連絡先自動入力対策)だが、
    WebKit 標準の虫眼鏡・×ボタンは既存デザインに合わないので消す */
 input[type='search'] {

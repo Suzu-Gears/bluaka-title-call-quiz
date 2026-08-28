@@ -1,6 +1,7 @@
 import { formatClipRef, formatImageKey } from '@/lib/assetKeys'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import { buildChallengePlans } from '@/lib/challengePlan'
+import { showCopyFeedback } from '@/lib/copyFeedback'
 import type { QuizEntry } from '@/lib/interfaces'
 import { stripCostume } from '@/lib/jsonUtils'
 import { normalizeQuizAnswer } from '@/lib/quizProgress'
@@ -772,7 +773,10 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
       }
       navigator.clipboard
         .writeText(result.url)
-        .then(() => setStatus(QUIZ_SHARE_UI_TEXT.copySucceeded))
+        .then(() => {
+          setStatus('')
+          showCopyFeedback(urlCopyButton)
+        })
         .catch(() => {
           urlOutput?.select()
           setStatus(QUIZ_SHARE_UI_TEXT.copyFailed)
