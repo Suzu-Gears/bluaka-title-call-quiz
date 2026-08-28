@@ -15,6 +15,7 @@ import {
   matchPastedStudentNames,
   normalizeSharedQuizPayloadV2,
   parseQuestionSheetText,
+  RESULT_SHARE_HASHTAG,
   SHARED_QUIZ_CHOICE_MAX_WRONG,
   SHARED_QUIZ_MATCH_MAX_ENTRIES,
   SHARED_QUIZ_MATCH_MIN_ENTRIES,
@@ -756,7 +757,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
   }
 
   const shareInviteText = (title: string, url: string): string =>
-    `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
+    `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${RESULT_SHARE_HASHTAG}\n${url}`
 
   generateButton?.addEventListener('click', () => {
     void ensureShareUrl().then((result) => {
