@@ -2352,11 +2352,14 @@ body:has(dialog[open]) {
 }
 
 /* iOS Safari は 16px 未満の入力欄にフォーカスすると画面ごとズームするため、
-   ダイアログ内の入力欄は 1rem(=16px) を下限にする(生徒リストの検索欄と同じ対策) */
-.app-dialog input,
-.app-dialog textarea,
-.app-dialog select {
-  font-size: 1rem;
+   タッチ端末に限りダイアログ内の入力欄を 1rem(=16px) 以上にする
+   (生徒リストの検索欄と同じ対策。ズームが起きないデスクトップは従来の大きさのまま) */
+@media (pointer: coarse) {
+  .app-dialog input,
+  .app-dialog textarea,
+  .app-dialog select {
+    font-size: 1rem;
+  }
 }
 
 /* 検索・解答欄は type="search"(iOS の連絡先自動入力対策)だが、
