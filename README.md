@@ -1,4 +1,4 @@
-# bluaka-title-call-quiz2
+# bluaka-title-call-quiz
 
 ブルーアーカイブのタイトルコール音声を聴いて生徒名を当てる、クイズゲームの Web アプリケーションです。  
 静的配信 + クライアントサイド挙動が中心のため、**Vite + TypeScript** 構成を採用しています。
