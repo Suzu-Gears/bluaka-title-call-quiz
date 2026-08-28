@@ -60,6 +60,26 @@ const fitText = (
   return fitted
 }
 
+/**
+ * 省略できない文字列(スコアなど)を、収まるまでフォントを縮めて描くためのサイズ計算。
+ * 呼び出し後の ctx.font は決定したサイズになっている。
+ */
+const fitFontSize = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  startSize: number,
+  minSize: number,
+): number => {
+  let size = startSize
+  ctx.font = `bold ${size}px ${FONT_FAMILY}`
+  while (size > minSize && ctx.measureText(text).width > maxWidth) {
+    size -= 4
+    ctx.font = `bold ${size}px ${FONT_FAMILY}`
+  }
+  return size
+}
+
 const drawAppName = (ctx: CanvasRenderingContext2D) => {
   ctx.fillStyle = '#2f86d6'
   ctx.font = `bold 40px ${FONT_FAMILY}`
@@ -221,6 +241,24 @@ export const drawResultCard = async (
   const innerWidth = RESULT_WIDTH - (RESULT_PADDING + 28) * 2
 
   // --- ヘッダー(スコア) ---
+  const accuracy =
+    content.totalCount > 0
+      ? Math.round((content.correctCount / content.totalCount) * 100)
+      : 0
+  const isPerfect =
+    content.totalCount > 0 && content.correctCount === content.totalCount
+  const showStamp = isPerfect && !!stamp
+
+  // スタンプは右側の固定枠に押し、タイトル・スコアはその左の枠に収める。
+  // こうしないと「9999 / 9999」のような長いスコアがスタンプに潜り込む。
+  const STAMP_SIZE = 200
+  const stampCenterX = RESULT_WIDTH - RESULT_PADDING - 110
+  const stampCenterY = RESULT_PADDING + 195
+  const textWidth = showStamp
+    ? stampCenterX - STAMP_SIZE / 2 - 20 - innerX
+    : innerWidth
+  const textCenterX = innerX + textWidth / 2
+
   ctx.textAlign = 'center'
   ctx.fillStyle = '#2f86d6'
   ctx.font = `bold 34px ${FONT_FAMILY}`
@@ -234,44 +272,43 @@ export const drawResultCard = async (
     ctx.fillStyle = '#333333'
     ctx.font = `bold 34px ${FONT_FAMILY}`
     ctx.fillText(
-      fitText(ctx, `「${content.title}」`, innerWidth),
-      RESULT_WIDTH / 2,
+      fitText(ctx, `「${content.title}」`, textWidth),
+      textCenterX,
       RESULT_PADDING + 116,
     )
   }
 
-  const accuracy =
-    content.totalCount > 0
-      ? Math.round((content.correctCount / content.totalCount) * 100)
-      : 0
-  const isPerfect =
-    content.totalCount > 0 && content.correctCount === content.totalCount
-
   ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
-  ctx.font = `bold 96px ${FONT_FAMILY}`
-  ctx.fillText(
-    `${content.correctCount} / ${content.totalCount}`,
-    RESULT_WIDTH / 2,
-    RESULT_PADDING + 226,
-  )
+  const scoreText = `${content.correctCount} / ${content.totalCount}`
+  fitFontSize(ctx, scoreText, textWidth, 96, 44)
+  ctx.fillText(scoreText, textCenterX, RESULT_PADDING + 226)
 
   ctx.fillStyle = '#555555'
   ctx.font = `bold 34px ${FONT_FAMILY}`
   ctx.fillText(
-    isPerfect
-      ? QUIZ_SHARE_UI_TEXT.cardPerfect
-      : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
-    RESULT_WIDTH / 2,
+    fitText(
+      ctx,
+      isPerfect
+        ? QUIZ_SHARE_UI_TEXT.cardPerfect
+        : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
+      textWidth,
+    ),
+    textCenterX,
     RESULT_PADDING + 288,
   )
 
   if (isPerfect && stamp) {
     // つぶれないよう大きめに、少し傾けてスタンプらしく押す。
-    const size = 230
     ctx.save()
-    ctx.translate(RESULT_WIDTH - RESULT_PADDING - 150, RESULT_PADDING + 180)
+    ctx.translate(stampCenterX, stampCenterY)
     ctx.rotate(-0.18)
-    ctx.drawImage(stamp, -size / 2, -size / 2, size, size)
+    ctx.drawImage(
+      stamp,
+      -STAMP_SIZE / 2,
+      -STAMP_SIZE / 2,
+      STAMP_SIZE,
+      STAMP_SIZE,
+    )
     ctx.restore()
   }
 

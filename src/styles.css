@@ -1458,6 +1458,9 @@ h1,
   /* ボタンの平行四辺形(skewX)が左右へはみ出すぶんの逃げ。
      これが無いと overflow-x: auto の親に常に数pxのスクロールが生まれる */
   padding-inline: 0.3em;
+  /* 親の overflow-x: auto は overflow-y も auto に格上げされるため、最下段の
+     ボタンの影(下方向 0.26em)が切られる。その分を内側に確保する */
+  padding-bottom: 0.35em;
   /* コントロール群が崩れず並ぶ最小幅(320px端末で外側スクロールが出ない値)。
      これ未満は親の横スクロールに任せる */
   min-width: 240px;
