@@ -1,6 +1,7 @@
 import { formatClipRef, formatImageKey } from '@/lib/assetKeys'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import { buildChallengePlans } from '@/lib/challengePlan'
+import { showCopyFeedback } from '@/lib/copyFeedback'
 import type { QuizEntry } from '@/lib/interfaces'
 import { stripCostume } from '@/lib/jsonUtils'
 import { normalizeQuizAnswer } from '@/lib/quizProgress'
@@ -14,6 +15,7 @@ import {
   matchPastedStudentNames,
   normalizeSharedQuizPayloadV2,
   parseQuestionSheetText,
+  RESULT_SHARE_HASHTAG,
   SHARED_QUIZ_CHOICE_MAX_WRONG,
   SHARED_QUIZ_MATCH_MAX_ENTRIES,
   SHARED_QUIZ_MATCH_MIN_ENTRIES,
@@ -755,7 +757,7 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
   }
 
   const shareInviteText = (title: string, url: string): string =>
-    `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
+    `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${RESULT_SHARE_HASHTAG}\n${url}`
 
   generateButton?.addEventListener('click', () => {
     void ensureShareUrl().then((result) => {
@@ -772,7 +774,10 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
       }
       navigator.clipboard
         .writeText(result.url)
-        .then(() => setStatus(QUIZ_SHARE_UI_TEXT.copySucceeded))
+        .then(() => {
+          setStatus('')
+          showCopyFeedback(urlCopyButton)
+        })
         .catch(() => {
           urlOutput?.select()
           setStatus(QUIZ_SHARE_UI_TEXT.copyFailed)

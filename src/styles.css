@@ -224,12 +224,14 @@ h1 {
 /* 設定ダイアログの見出しはスクロールで流れないよう上部に固定する。
    ダイアログ側の上パディングを消し、見出し自身が上端に貼り付く構造にする
    (パディングを残すとその帯にスクロール中のコンテンツが透けて見える) */
-/* 後方の .app-dialog { padding: 1rem } に勝つよう詳細度を上げる */
-.app-dialog.settings-dialog {
+/* 後方の .app-dialog { padding: 1rem } に勝つよう詳細度を上げる。
+   filter-dialog-head を持つダイアログ(設定・フィルター・クイズ作成・生徒選択)
+   すべてに適用する。:has 非対応の古いブラウザでは従来どおり固定なしになるだけ */
+.app-dialog:has(> .filter-dialog-head) {
   padding-top: 0;
 }
 
-.settings-dialog .filter-dialog-head {
+.app-dialog > .filter-dialog-head {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -2351,6 +2353,48 @@ body:has(dialog[open]) {
   overscroll-behavior: contain;
 }
 
+/* iOS Safari は 16px 未満の入力欄にフォーカスすると画面ごとズームするため、
+   タッチ端末に限りダイアログ内の入力欄を 1rem(=16px) 以上にする
+   (生徒リストの検索欄と同じ対策。ズームが起きないデスクトップは従来の大きさのまま) */
+@media (pointer: coarse) {
+  .app-dialog input,
+  .app-dialog textarea,
+  .app-dialog select {
+    font-size: 1rem;
+  }
+}
+
+/* コピーボタンの成功フィードバック(ラベル差し替え+ひと呼吸のパルス) */
+button.copy-feedback {
+  animation: copy-feedback-pulse 0.35s ease;
+}
+
+@keyframes copy-feedback-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 検索・解答欄は type="search"(iOS の連絡先自動入力対策)だが、
+   WebKit 標準の虫眼鏡・×ボタンは既存デザインに合わないので消す */
+input[type='search'] {
+  -webkit-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 .app-dialog:focus {
   outline: none;
 }
@@ -2394,6 +2438,35 @@ body:has(dialog[open]) {
   border-radius: 0.5rem;
   padding: 0.5rem;
   font-family: monospace;
+}
+
+/* 同期コード: パスワードマネージャー用の隠しユーザー名と表示切替 */
+.sync-hidden-username {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sync-code-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sync-code-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-code-row button {
+  flex: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-surface);
+  color: inherit;
+  cursor: pointer;
 }
 
 .app-dialog-status {

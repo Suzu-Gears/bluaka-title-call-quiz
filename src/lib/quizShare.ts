@@ -516,15 +516,13 @@ export const RESULT_SHARE_HASHTAG = '#ブルアカタイトルコールクイズ
 /** SNS 共有用の結果テキストを組み立てる。 */
 export function buildResultShareText(options: ResultShareTextOptions): string {
   const { title, correctCount, totalCount, url } = options
-  const accuracy =
-    totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0
   const quizLabel = title ? `「${title}」` : 'タイトルコールクイズ'
-  const scoreLine = `${quizLabel}で ${correctCount}/${totalCount}問 正解！(正答率${accuracy}%)`
+  const scoreLine = `${quizLabel}で ${correctCount}/${totalCount}問 正解！`
   const perfectLine =
     totalCount > 0 && correctCount === totalCount
       ? '💮100点満点、花丸です！\n'
       : ''
-  return `${scoreLine}\n${perfectLine}${RESULT_SHARE_HASHTAG}\n${url}`
+  return `${scoreLine}\n${perfectLine}あなたは全員わかりますか？\n${RESULT_SHARE_HASHTAG}\n${url}`
 }
 
 /** X(Twitter) の投稿画面を開く URL。 */

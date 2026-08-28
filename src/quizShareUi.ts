@@ -1,4 +1,5 @@
 import { buildChallengePlans, type QuestionPlan } from '@/lib/challengePlan'
+import { showCopyFeedback } from '@/lib/copyFeedback'
 import type { QuizEntry } from '@/lib/interfaces'
 import {
   buildResultShareText,
@@ -297,7 +298,10 @@ export const setupQuizShare = (
     }
     navigator.clipboard
       .writeText(text)
-      .then(() => setResultShareStatus(QUIZ_SHARE_UI_TEXT.copySucceeded))
+      .then(() => {
+        setResultShareStatus('')
+        showCopyFeedback(resultCopyButton)
+      })
       .catch(() => setResultShareStatus(QUIZ_SHARE_UI_TEXT.copyFailed))
   })
 

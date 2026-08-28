@@ -65,6 +65,7 @@ npm run typecheck
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ENDPOINT` / `R2_BUCKET_NAME` | R2 を使う場合 | Cloudflare R2 への接続                                   |
 | `BASE_PATH`                                                                    | 任意          | サブディレクトリ配信時のベースパス                       |
 | `VITE_SYNC_ENDPOINT`                                                           | 任意          | 進捗のクラウド同期先（未設定なら同期 UI は表示されない） |
+| `VITE_GA_TRACKING_ID`                                                          | 任意          | Google アナリティクスの測定 ID（未設定なら読み込まない） |
 | `SCHALEDB_REQUEST_INTERVAL_MS`                                                 | 任意          | SchaleDB への連続リクエスト間隔（既定 1000ms）           |
 
 R2 の環境変数が未設定でもビルドは動きます。その場合はローカルの `public/` を正本として扱い、
@@ -194,6 +195,7 @@ src/
 │   ├── assetPath.ts         # ベースパスの解決                                       [クライアント]
 │   ├── safeStorage.ts       # localStorage の例外を吸収する薄いラッパ                [クライアント]
 │   ├── syncClient.ts        # 同期コード方式のクラウド保存                            [クライアント]
+│   ├── analytics.ts         # Google アナリティクス（gtag）の遅延読み込み             [クライアント]
 │   ├── voiceData.ts         # voice.json の解釈とスキーマ検査                        [サーバー]
 │   ├── jsonUtils.ts         # QuizEntry の組み立て（純関数）                          [サーバー]
 │   ├── assetPipeline.ts     # ビルドの統括（取得・補充・ミラー・出力）                [サーバー]
@@ -500,7 +502,9 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
    自分の GAS ウェブアプリの URL を入力すると、そちらが優先されます
    （`localStorage` に保存。空欄に戻すと既定に戻る）。
 
-- 認証の代わりに **同期コード（UUID v4）** を使います。実質パスワードなので他人に見せないでください。
+- 認証の代わりに **同期コード（英数字混在の 10 文字）** を使います。実質パスワードなので他人に見せないでください。
+  コードはサーバー（GAS）が発行時にシート上で行を確保してから返すため、衝突しません。
+  入力欄はパスワード型なので、ブラウザのパスワードマネージャーに保存できます。
 - 保存はクイズ終了時と手動操作のときだけ。回答ごとには送りません。
 - 競合は **更新時刻が新しい方を採用**し、クラウド側を採用する場合は確認ダイアログを挟みます。
 - 通信に失敗しても静かに `localStorage` 運用を継続します（ベストエフォート）。

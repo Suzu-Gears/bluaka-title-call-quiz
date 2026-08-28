@@ -1049,9 +1049,10 @@ const deterministicRandom = () => 0
   })
   assert.ok(text.includes('「アビドス縛り」'))
   assert.ok(text.includes('8/10問'))
-  assert.ok(text.includes('80%'))
+  assert.ok(text.includes('あなたは全員わかりますか？'))
   assert.ok(text.includes('#ブルアカタイトルコールクイズ'))
   assert.ok(text.endsWith('https://example.com/#c=xxx'))
+  assert.ok(!text.includes('正答率'))
   assert.ok(!text.includes('花丸'))
 
   const perfectText = buildResultShareText({

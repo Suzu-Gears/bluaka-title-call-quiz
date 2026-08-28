@@ -6,6 +6,7 @@ import {
   serializeProgressExport,
 } from '@/lib/progressTransfer'
 import type { ProficiencyMap } from '@/lib/quizProgress'
+import { showCopyFeedback } from '@/lib/copyFeedback'
 import { readStorage, writeStorage } from '@/lib/safeStorage'
 import {
   fetchRemoteProgress,
@@ -147,7 +148,8 @@ export const setupProgressPanel = (
   copyButton?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(textarea.value)
-      setStatus(dialogStatus, PROGRESS_UI_TEXT.copied)
+      setStatus(dialogStatus, '')
+      showCopyFeedback(copyButton)
     } catch {
       textarea.select()
       setStatus(dialogStatus, PROGRESS_UI_TEXT.copyFailed)
@@ -229,6 +231,12 @@ export const setupProgressPanel = (
   const syncCloseButton = document.getElementById(
     'sync-close-button',
   ) as HTMLButtonElement | null
+  const syncCodeForm = document.getElementById(
+    'sync-code-form',
+  ) as HTMLFormElement | null
+  const syncCodeToggle = document.getElementById(
+    'sync-code-toggle',
+  ) as HTMLButtonElement | null
 
   if (!syncDialog || !syncCodeInput) {
     return noopPanel
@@ -281,6 +289,7 @@ export const setupProgressPanel = (
       syncCodeInput.value = code
       storeSyncCode(code)
       setStatus(syncStatus, SYNC_UI_TEXT.generated)
+      offerToPasswordManager(code)
     } catch {
       setStatus(syncStatus, SYNC_UI_TEXT.failed)
     } finally {
@@ -296,6 +305,56 @@ export const setupProgressPanel = (
     }
     storeSyncCode(code)
     setStatus(syncStatus, '')
+  })
+
+  // Chrome/Edge にはパスワードとして保存を明示的に促す(Safari は form の
+  // submit を検知して保存を提案するため、こちらは黙って失敗してよい)。
+  const offerToPasswordManager = (code: string) => {
+    const PasswordCredential = (
+      window as unknown as {
+        PasswordCredential?: new (init: {
+          id: string
+          password: string
+          name?: string
+        }) => Credential
+      }
+    ).PasswordCredential
+    if (!PasswordCredential || !navigator.credentials?.store) {
+      return
+    }
+    navigator.credentials
+      .store(
+        new PasswordCredential({
+          id: '同期コード',
+          password: code,
+          name: 'ブルアカタイトルコールクイズ',
+        }),
+      )
+      .catch(() => {})
+  }
+
+  // Enter キーや保存操作での submit をパスワードマネージャーの保存契機にする。
+  syncCodeForm?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const code = syncCodeInput.value.trim()
+    if (code && !isValidSyncCode(code)) {
+      setStatus(syncStatus, SYNC_UI_TEXT.invalidCode)
+      return
+    }
+    storeSyncCode(code)
+    if (code) {
+      offerToPasswordManager(code)
+    }
+  })
+
+  syncCodeToggle?.addEventListener('click', () => {
+    const show = syncCodeInput.type === 'password'
+    syncCodeInput.type = show ? 'text' : 'password'
+    syncCodeToggle.textContent = show ? '隠す' : '表示'
+    syncCodeToggle.setAttribute(
+      'aria-label',
+      show ? '同期コードを隠す' : '同期コードを表示',
+    )
   })
 
   const upload = async (silent: boolean) => {
