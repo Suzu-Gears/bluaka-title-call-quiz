@@ -224,12 +224,14 @@ h1 {
 /* 設定ダイアログの見出しはスクロールで流れないよう上部に固定する。
    ダイアログ側の上パディングを消し、見出し自身が上端に貼り付く構造にする
    (パディングを残すとその帯にスクロール中のコンテンツが透けて見える) */
-/* 後方の .app-dialog { padding: 1rem } に勝つよう詳細度を上げる */
-.app-dialog.settings-dialog {
+/* 後方の .app-dialog { padding: 1rem } に勝つよう詳細度を上げる。
+   filter-dialog-head を持つダイアログ(設定・フィルター・クイズ作成・生徒選択)
+   すべてに適用する。:has 非対応の古いブラウザでは従来どおり固定なしになるだけ */
+.app-dialog:has(> .filter-dialog-head) {
   padding-top: 0;
 }
 
-.settings-dialog .filter-dialog-head {
+.app-dialog > .filter-dialog-head {
   position: sticky;
   top: 0;
   z-index: 1;
