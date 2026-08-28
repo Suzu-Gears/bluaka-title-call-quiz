@@ -70,6 +70,12 @@ const switchToQuizView = (): void => {
     '[data-view-target="quiz-view"]',
   )
   button?.click()
+  // 生徒リストを下まで見ていた場合などに、画面外へ挑戦状が出て気づけないため
+  // 先頭へ戻す。読み込み直後のブラウザによるスクロール復元より後になるよう、
+  // 次のフレームでも一度戻す。
+  const toTop = () => window.scrollTo({ top: 0, behavior: 'auto' })
+  toTop()
+  requestAnimationFrame(toTop)
 }
 
 export const setupQuizShare = (
