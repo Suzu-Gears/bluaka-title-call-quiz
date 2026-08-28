@@ -583,18 +583,11 @@
                     開始
                   </button>
                   <button
-                    id="quiz-share-open-button"
-                    class="quiz-action-button quiz-share-open-button"
-                    type="button"
-                  >
-                    クイズを作って共有
-                  </button>
-                  <button
                     id="quiz-editor-open-button"
                     class="quiz-action-button quiz-share-open-button"
                     type="button"
                   >
-                    クイズを1問ずつ作る
+                    クイズを作る
                   </button>
                   <button
                     id="quiz-challenge-paste-button"
@@ -609,20 +602,28 @@
             <p id="quiz-status" role="status"></p>
             <div class="quiz-controls">
               <button
-                id="quiz-next-button"
-                class="quiz-action-button"
-                type="button"
-                disabled
-              >
-                次へ
-              </button>
-              <button
                 id="quiz-play-audio-button"
                 class="quiz-action-button"
                 type="button"
                 disabled
               >
                 もう一度再生
+              </button>
+              <button
+                id="quiz-skip-button"
+                class="quiz-action-button quiz-skip-button"
+                type="button"
+                hidden
+              >
+                スキップ
+              </button>
+              <button
+                id="quiz-next-button"
+                class="quiz-action-button"
+                type="button"
+                disabled
+              >
+                次へ
               </button>
             </div>
             <div id="quiz-result-actions" class="quiz-controls" hidden>
@@ -645,9 +646,23 @@
             <div id="quiz-match" class="quiz-match" hidden>
               <p id="quiz-match-instruction" class="quiz-match-instruction"></p>
               <div
+                id="quiz-match-clip-buttons"
+                class="quiz-match-clip-buttons"
+              ></div>
+              <div
                 id="quiz-match-cards"
                 class="quiz-choices quiz-match-cards"
               ></div>
+              <div class="quiz-match-submit-row">
+                <button
+                  id="quiz-match-submit-button"
+                  class="quiz-action-button quiz-match-submit-button"
+                  type="button"
+                  disabled
+                >
+                  回答する
+                </button>
+              </div>
             </div>
             <form
               id="quiz-name-answer-form"
@@ -894,11 +909,22 @@
       <div class="filter-section-label">情報</div>
       <p class="settings-note">
         <a
+          class="settings-github-link"
           href="https://github.com/Suzu-Gears/bluaka-title-call-quiz/"
           target="_blank"
           rel="noopener noreferrer"
-          >GitHub</a
         >
+          <svg
+            class="settings-github-icon"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+            />
+          </svg>
+          GitHub
+        </a>
       </p>
     </dialog>
     <dialog id="progress-dialog" class="app-dialog" tabindex="-1">
@@ -937,14 +963,14 @@
       </div>
     </dialog>
     <dialog
-      id="quiz-share-dialog"
+      id="quiz-editor-bulk-dialog"
       class="app-dialog quiz-share-dialog"
       tabindex="-1"
     >
       <div class="filter-dialog-head">
-        <h3 class="filter-dialog-title">クイズを作って共有</h3>
+        <h3 class="filter-dialog-title">生徒を選んでまとめて追加</h3>
         <button
-          id="quiz-share-close-button"
+          id="quiz-editor-bulk-close-button"
           class="filter-dialog-close"
           type="button"
           aria-label="閉じる"
@@ -953,22 +979,12 @@
         </button>
       </div>
       <p class="app-dialog-description">
-        出題する生徒を選んで共有URLを作成します。URLを開いた人は同じクイズに挑戦できます。
+        選んだ生徒が1人1問ずつ問題リストに追加されます。追加後に個別に編集できます。
       </p>
-      <label class="app-dialog-field" for="quiz-share-title-input">
-        クイズのタイトル
-        <input
-          id="quiz-share-title-input"
-          type="text"
-          maxlength="40"
-          autocomplete="off"
-          placeholder="例: アビドス縛りクイズ"
-        />
-      </label>
-      <label class="app-dialog-field" for="quiz-share-mode-select">
+      <label class="app-dialog-field" for="quiz-editor-bulk-mode-select">
         回答方式
-        <select id="quiz-share-mode-select">
-          <option value="multiple-choice">4択</option>
+        <select id="quiz-editor-bulk-mode-select">
+          <option value="multiple-choice">4択（誤答は毎回ランダム）</option>
           <option value="name-input">名前入力</option>
           <option value="name-input-lunatic">名前入力 ( Lunatic )</option>
         </select>
@@ -976,25 +992,30 @@
       <div class="filter-section-label">出題する生徒</div>
       <div class="quiz-share-list-toolbar">
         <input
-          id="quiz-share-search-input"
+          id="quiz-editor-bulk-search-input"
           type="text"
           autocomplete="off"
           placeholder="生徒名で絞り込み"
         />
-        <button id="quiz-share-select-visible-button" type="button">
+        <button id="quiz-editor-bulk-select-visible-button" type="button">
           表示中を全選択
         </button>
-        <button id="quiz-share-clear-button" type="button">全解除</button>
+        <button id="quiz-editor-bulk-clear-button" type="button">全解除</button>
       </div>
-      <div id="quiz-share-student-list" class="quiz-share-student-list"></div>
-      <p id="quiz-share-selected-count" class="settings-note">0人選択中</p>
+      <div
+        id="quiz-editor-bulk-student-list"
+        class="quiz-share-student-list"
+      ></div>
+      <p id="quiz-editor-bulk-selected-count" class="settings-note">
+        0人選択中
+      </p>
       <details class="quiz-share-paste-details">
         <summary>名前リストの貼り付けで選択（スプレッドシート対応）</summary>
         <p class="settings-note">
           改行・カンマ・タブ区切りの生徒名を貼り付けて反映できます。スプレッドシートの列をそのままコピペしてもOKです。
         </p>
         <textarea
-          id="quiz-share-paste-textarea"
+          id="quiz-editor-bulk-paste-textarea"
           class="app-dialog-textarea"
           rows="4"
           spellcheck="false"
@@ -1002,31 +1023,21 @@
           placeholder="アル&#10;ホシノ&#10;シロコ"
         ></textarea>
         <div class="app-dialog-actions">
-          <button id="quiz-share-paste-apply-button" type="button">
+          <button id="quiz-editor-bulk-paste-apply-button" type="button">
             貼り付けた名前を選択に反映
           </button>
         </div>
       </details>
       <div class="app-dialog-actions">
-        <button id="quiz-share-generate-button" type="button">
-          共有URLを作成
+        <button id="quiz-editor-bulk-add-button" type="button">
+          問題に追加
         </button>
       </div>
-      <input
-        id="quiz-share-url-output"
-        class="quiz-share-url-output"
-        type="text"
-        readonly
-        hidden
-      />
-      <div id="quiz-share-url-actions" class="app-dialog-actions" hidden>
-        <button id="quiz-share-copy-button" type="button">URLをコピー</button>
-        <button id="quiz-share-tweet-button" type="button">Xでシェア</button>
-        <button id="quiz-share-image-button" type="button">
-          アイキャッチ画像
-        </button>
-      </div>
-      <p id="quiz-share-status" class="app-dialog-status" role="status"></p>
+      <p
+        id="quiz-editor-bulk-status"
+        class="app-dialog-status"
+        role="status"
+      ></p>
     </dialog>
     <dialog
       id="quiz-editor-dialog"
@@ -1034,7 +1045,7 @@
       tabindex="-1"
     >
       <div class="filter-dialog-head">
-        <h3 class="filter-dialog-title">クイズを1問ずつ作る</h3>
+        <h3 class="filter-dialog-title">クイズを作る</h3>
         <button
           id="quiz-editor-close-button"
           class="filter-dialog-close"
@@ -1091,6 +1102,9 @@
         </button>
         <button id="quiz-editor-add-input-button" type="button">
           ＋名前入力
+        </button>
+        <button id="quiz-editor-bulk-button" type="button">
+          ＋生徒を選んでまとめて追加
         </button>
       </div>
       <details class="quiz-share-paste-details">
@@ -1152,7 +1166,7 @@
         readonly
         hidden
       />
-      <div id="quiz-editor-url-actions" class="app-dialog-actions" hidden>
+      <div id="quiz-editor-url-actions" class="app-dialog-actions">
         <button id="quiz-editor-url-copy-button" type="button">
           URLをコピー
         </button>

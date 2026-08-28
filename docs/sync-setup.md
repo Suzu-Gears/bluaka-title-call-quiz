@@ -2,7 +2,7 @@
 
 進捗のクラウド同期は「同期コード」方式です。サーバーは Google Apps Script (GAS) の
 ウェブアプリで、Google スプレッドシートを保存先として使います。
-アカウント登録は不要で、同期コード (UUID v4) が実質パスワードになります。
+アカウント登録は不要で、同期コード (10文字のランダム文字列) が実質パスワードになります。
 
 保存先は 2 通りあります。
 
@@ -23,7 +23,7 @@
 
 1. Google スプレッドシートを新規作成する
 2. メニューの「拡張機能 > Apps Script」を開き、
-   [`docs/spreadsheet-sync.gs`](./spreadsheet-sync.gs) の内容を貼り付けて保存する
+   [`gas/spreadsheet-sync.gs`](../gas/spreadsheet-sync.gs) の内容を貼り付けて保存する
 3. 「デプロイ > 新しいデプロイ > 種類: ウェブアプリ」を選び、次の設定でデプロイする
    - **次のユーザーとして実行: 自分**
    - **アクセスできるユーザー: 全員**
@@ -60,8 +60,8 @@ VITE_SYNC_ENDPOINT=https://script.google.com/macros/s/XXXX/exec
 
 **テンプレートをコピーする場合（推奨）:**
 
-1. 配布されているテンプレートのスプレッドシートを開く
-   （テンプレート URL: ※公開時に記載）
+1. テンプレートのコピー作成ページを開く:
+   <https://docs.google.com/spreadsheets/d/1_BwDb_7SdSf-JdOvWJDG4lnJd-FZdcw_jULD86k8ccs/copy>
 2. メニューの「ファイル > コピーを作成」で自分の Google ドライブにコピーする
    （シートに紐づいたスクリプトも一緒にコピーされます）
 
@@ -69,7 +69,7 @@ VITE_SYNC_ENDPOINT=https://script.google.com/macros/s/XXXX/exec
 
 1. Google スプレッドシートを新規作成する
 2. メニューの「拡張機能 > Apps Script」を開く
-3. [`docs/spreadsheet-sync.gs`](./spreadsheet-sync.gs) の内容を全部コピーして、
+3. [`gas/spreadsheet-sync.gs`](../gas/spreadsheet-sync.gs) の内容を全部コピーして、
    エディタに貼り付けて保存する（元からある `function myFunction()...` は消してよい）
 
 ### 2. ウェブアプリとしてデプロイする
@@ -109,6 +109,6 @@ VITE_SYNC_ENDPOINT=https://script.google.com/macros/s/XXXX/exec
   端末に進捗が残っていれば、新しいコードを発行して保存し直してください
 - **URL を貼っても失敗する** … コピーしたのが `/exec` で終わる URL か確認して
   ください（`/dev` で終わる URL はエディタ専用で、他人からはアクセスできません）
-- **スクリプトを更新したい** … リポジトリの `docs/spreadsheet-sync.gs` を貼り直し、
+- **スクリプトを更新したい** … リポジトリの `gas/spreadsheet-sync.gs` を貼り直し、
   「デプロイ > デプロイを管理」から既存デプロイの新バージョンを発行してください
   （新しいデプロイを作ると URL が変わるので、クイズ側の再設定が必要になります）

@@ -59,10 +59,7 @@ import {
   matchPastedStudentNames,
   normalizeSharedQuizPayload,
   parseQuestionSheetText,
-  SHARED_QUIZ_MAX_ENTRIES,
-  SHARED_QUIZ_VERSION,
   summarizeQuestionTypes,
-  type SharedQuizPayloadV1,
   type SharedQuizPayloadV2,
 } from '@/lib/quizShare'
 import { HttpStatusError, isNotFoundError } from '@/lib/schaleDBClient'
@@ -927,13 +924,15 @@ const deterministicRandom = () => 0
 }
 
 {
-  assert.equal(isValidSyncCode('3f0c1a2b-4d5e-4f60-8a9b-0c1d2e3f4a5b'), true)
-  assert.equal(
-    isValidSyncCode('  3F0C1A2B-4D5E-4F60-8A9B-0C1D2E3F4A5B  '),
-    true,
-  )
-  assert.equal(isValidSyncCode('not-a-uuid'), false)
+  assert.equal(isValidSyncCode('0v9wr3km2p'), true)
+  assert.equal(isValidSyncCode('  0V9WR3KM2P  '), true)
+  assert.equal(isValidSyncCode('short'), false)
+  assert.equal(isValidSyncCode('0v9wr3km2p7'), false)
+  assert.equal(isValidSyncCode('3f0c1a2b-4d5e-4f60-8a9b-0c1d2e3f4a5b'), false)
   assert.equal(isValidSyncCode(''), false)
+  // 弱いコード: 数字だけ(電話番号・日付)、英字だけ(英単語・名前)は弾く。
+  assert.equal(isValidSyncCode('2026010101'), false)
+  assert.equal(isValidSyncCode('basketball'), false)
 
   assert.equal(
     isValidSyncEndpointUrl('https://script.google.com/macros/s/XXXX/exec'),
@@ -998,57 +997,15 @@ const deterministicRandom = () => 0
 }
 
 {
-  // 共有クイズ定義: エンコード→デコードの往復で元の内容へ戻る
-  const payload: SharedQuizPayloadV1 = {
-    v: SHARED_QUIZ_VERSION,
-    title: 'アビドス縛りクイズ',
-    mode: 'multiple-choice',
-    ids: [10000, 10005, 10008, 10015],
-  }
-  const encoded = await encodeSharedQuizPayload(payload)
-  // URL ハッシュに安全に載せられる文字のみで構成されること
-  assert.match(encoded, /^[0-9A-Za-z._-]+$/)
-  const decoded = await decodeSharedQuizPayload(encoded)
-  assert.deepEqual(decoded, payload)
-}
-
-{
   // 壊れた文字列・不正な JSON は null(例外を投げない)
   assert.equal(await decodeSharedQuizPayload('broken'), null)
   assert.equal(await decodeSharedQuizPayload('1.!!!'), null)
   assert.equal(await decodeSharedQuizPayload('0.e30'), null) // {} は定義として不正
-}
 
-{
-  // 検証: ids は正の整数のみ・重複除去・上限で打ち切り。タイトルは40文字まで
-  const normalized = normalizeSharedQuizPayload({
-    v: SHARED_QUIZ_VERSION,
-    title: `  ${'あ'.repeat(50)}  `,
-    mode: 'name-input',
-    ids: [3, 3, -1, 0, 1.5, 'x', 7],
-  })
-  if (normalized?.v !== 1) {
-    throw new Error('v1 として解釈されるべき')
-  }
-  assert.deepEqual(normalized.ids, [3, 7])
-  assert.equal(normalized.title.length, 40)
-  assert.equal(normalized.mode, 'name-input')
-
-  const oversized = normalizeSharedQuizPayload({
-    v: SHARED_QUIZ_VERSION,
-    title: '',
-    mode: 'multiple-choice',
-    ids: Array.from({ length: SHARED_QUIZ_MAX_ENTRIES + 100 }, (_, i) => i + 1),
-  })
-  if (oversized?.v !== 1) {
-    throw new Error('v1 として解釈されるべき')
-  }
-  assert.equal(oversized.ids.length, SHARED_QUIZ_MAX_ENTRIES)
-
-  // バージョン違い・モード不正・空の ids は不正扱い
+  // 現行バージョン(v2)以外は不正扱い(旧v1形式も受け付けない)
   assert.equal(
     normalizeSharedQuizPayload({
-      v: 99,
+      v: 1,
       title: '',
       mode: 'multiple-choice',
       ids: [1],
@@ -1056,16 +1013,7 @@ const deterministicRandom = () => 0
     null,
   )
   assert.equal(
-    normalizeSharedQuizPayload({ v: 1, title: '', mode: 'unknown', ids: [1] }),
-    null,
-  )
-  assert.equal(
-    normalizeSharedQuizPayload({
-      v: 1,
-      title: '',
-      mode: 'multiple-choice',
-      ids: [],
-    }),
+    normalizeSharedQuizPayload({ v: 99, q: [{ t: 'i', a: 1 }] }),
     null,
   )
 }
@@ -1130,7 +1078,8 @@ const deterministicRandom = () => 0
     shuffle: true,
     q: [
       { t: 'c', a: 10005, o: [10008, 10008, 10005, -1, 10012] }, // 重複・正解・不正IDは除去
-      { t: 'c', a: 10005, o: [] }, // 誤答ゼロは捨てる
+      { t: 'c', a: 10005, o: [] }, // 誤答ゼロ(ランダム枠も無し)は捨てる
+      { t: 'c', a: 10005, o: [], r: 99 }, // ランダム枠は上限7でクランプ
       { t: 'm', e: [10005, 20005, 30005] },
       { t: 'm', e: [10005] }, // 対象不足は捨てる
       { t: 'i', a: 10014, lu: true, clip: 'aru_title.g2' },
@@ -1147,11 +1096,12 @@ const deterministicRandom = () => 0
   assert.equal(normalized.shuffle, true)
   assert.deepEqual(normalized.q, [
     { t: 'c', a: 10005, o: [10008, 10012] },
+    { t: 'c', a: 10005, o: [], r: 7 },
     { t: 'm', e: [10005, 20005, 30005] },
     { t: 'i', a: 10014, lu: true, clip: 'aru_title.g2' },
     { t: 'i', a: 10014 },
   ])
-  assert.equal(summarizeQuestionTypes(normalized.q), '択一1・マッチ1・入力2')
+  assert.equal(summarizeQuestionTypes(normalized.q), '択一2・マッチ1・入力2')
 
   // 往復
   const encoded = await encodeSharedQuizPayload(normalized)
@@ -1213,15 +1163,24 @@ const deterministicRandom = () => 0
       { t: 'm', e: [1, 999] }, // 対象が欠けたマッチはスキップ
       { t: 'i', a: 2, lu: true, clip: 'aru_title.g1' },
       { t: 'i', a: 2, clip: 'unknown.g9' }, // 見つからないクリップはランダム扱い
+      { t: 'c', a: 3, o: [], r: 2 }, // ランダム誤答だけの択一も出題できる
     ],
   }
   const result = buildChallengePlans(v2, entryById)
   assert.equal(result.skippedCount, 2)
-  assert.equal(result.questionSummary, '択一1・マッチ1・入力2')
+  assert.equal(result.questionSummary, '択一2・マッチ1・入力2')
   assert.deepEqual(result.plans[0], {
     kind: 'choice',
     answerName: 'シロコ',
     wrongNames: ['アル'],
+    randomWrongCount: 0,
+    fixedClip: null,
+  })
+  assert.deepEqual(result.plans[4], {
+    kind: 'choice',
+    answerName: 'ホシノ',
+    wrongNames: [],
+    randomWrongCount: 2,
     fixedClip: null,
   })
   assert.deepEqual(result.plans[1], {
@@ -1236,20 +1195,6 @@ const deterministicRandom = () => 0
     result.plans[3].kind === 'input' && result.plans[3].fixedClip,
     null,
   )
-
-  // v1 は「全問同形式・選択肢自動」のプランに変換される
-  const v1Result = buildChallengePlans(
-    { v: 1, title: '', mode: 'multiple-choice', ids: [1, 999, 3] },
-    entryById,
-  )
-  assert.equal(v1Result.skippedCount, 1)
-  assert.equal(v1Result.questionSummary, '択一2')
-  assert.deepEqual(v1Result.plans[0], {
-    kind: 'choice',
-    answerName: 'シロコ',
-    wrongNames: null,
-    fixedClip: null,
-  })
 }
 
 // --- シート形式(1行1問)の取り込みと書き出し ---
@@ -1263,6 +1208,7 @@ const deterministicRandom = () => 0
   const { questions, errors } = parseQuestionSheetText(
     [
       '択一\tシロコ\tアル', // タブ区切り
+      '択一\tシロコ\tアル\tランダム\tランダム', // ランダム誤答枠
       'マッチ, しろこ, シロコ（水着）', // カンマ+かなゆれ
       '入力L, 天童アリス',
       '入力, 知らない生徒', // 行ごとエラー
@@ -1273,12 +1219,13 @@ const deterministicRandom = () => 0
   )
   assert.deepEqual(questions, [
     { t: 'c', a: 1, o: [3] },
+    { t: 'c', a: 1, o: [3], r: 2 },
     { t: 'm', e: [1, 2] },
     { t: 'i', a: 4, lu: true },
   ])
   assert.equal(errors.length, 2)
-  assert.match(errors[0], /4行目/)
-  assert.match(errors[1], /5行目/)
+  assert.match(errors[0], /5行目/)
+  assert.match(errors[1], /6行目/)
 
   // 書き出し→取り込みで往復できる
   const text = buildQuestionSheetText(questions, refs)

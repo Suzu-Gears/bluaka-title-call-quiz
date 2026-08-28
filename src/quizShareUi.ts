@@ -1,21 +1,14 @@
 import { buildChallengePlans, type QuestionPlan } from '@/lib/challengePlan'
 import type { QuizEntry } from '@/lib/interfaces'
-import { normalizeQuizAnswer } from '@/lib/quizProgress'
 import {
   buildResultShareText,
   buildSharedQuizUrl,
   buildTweetIntentUrl,
   decodeSharedQuizPayload,
-  encodeSharedQuizPayload,
   extractSharedQuizParam,
-  matchPastedStudentNames,
-  SHARED_QUIZ_TITLE_MAX_LENGTH,
-  SHARED_QUIZ_VERSION,
-  type SharedQuizMode,
 } from '@/lib/quizShare'
 import {
   deliverCardImage,
-  drawChallengeCard,
   drawResultCard,
   imageDeliveryMessage,
   type ResultCardEntry,
@@ -56,6 +49,11 @@ interface QuizShareOptions {
 export interface QuizShareController {
   showResultShare: (context: QuizResultShareContext) => void
   hideResultShare: () => void
+  /**
+   * 表示中の挑戦状バナーを畳み、URL のハッシュも消す。
+   * 挑戦しないまま別のクイズを始めたときに、バナーと共有URLが残り続けないようにする。
+   */
+  dismissPendingChallenge: () => void
 }
 
 const pageUrl = (): string =>
@@ -78,275 +76,6 @@ export const setupQuizShare = (
 ): QuizShareController => {
   const { entries, onStartChallenge } = options
   const entryById = new Map(entries.map((entry) => [entry.PrimaryId, entry]))
-  const sortedEntries = [...entries].sort(
-    (a, b) => a.DefaultOrder - b.DefaultOrder,
-  )
-
-  // --- クイズ作成ダイアログ ---
-  const openButton = document.getElementById(
-    'quiz-share-open-button',
-  ) as HTMLButtonElement | null
-  const dialog = document.getElementById(
-    'quiz-share-dialog',
-  ) as HTMLDialogElement | null
-  const titleInput = document.getElementById(
-    'quiz-share-title-input',
-  ) as HTMLInputElement | null
-  const modeSelect = document.getElementById(
-    'quiz-share-mode-select',
-  ) as HTMLSelectElement | null
-  const searchInput = document.getElementById(
-    'quiz-share-search-input',
-  ) as HTMLInputElement | null
-  const studentList = document.getElementById('quiz-share-student-list')
-  const selectedCountText = document.getElementById('quiz-share-selected-count')
-  const selectVisibleButton = document.getElementById(
-    'quiz-share-select-visible-button',
-  ) as HTMLButtonElement | null
-  const clearButton = document.getElementById(
-    'quiz-share-clear-button',
-  ) as HTMLButtonElement | null
-  const pasteTextarea = document.getElementById(
-    'quiz-share-paste-textarea',
-  ) as HTMLTextAreaElement | null
-  const pasteApplyButton = document.getElementById(
-    'quiz-share-paste-apply-button',
-  ) as HTMLButtonElement | null
-  const generateButton = document.getElementById(
-    'quiz-share-generate-button',
-  ) as HTMLButtonElement | null
-  const urlOutput = document.getElementById(
-    'quiz-share-url-output',
-  ) as HTMLInputElement | null
-  const urlActions = document.getElementById('quiz-share-url-actions')
-  const copyButton = document.getElementById(
-    'quiz-share-copy-button',
-  ) as HTMLButtonElement | null
-  const tweetButton = document.getElementById(
-    'quiz-share-tweet-button',
-  ) as HTMLButtonElement | null
-  const shareImageButton = document.getElementById(
-    'quiz-share-image-button',
-  ) as HTMLButtonElement | null
-  const shareStatus = document.getElementById('quiz-share-status')
-  const closeButton = document.getElementById(
-    'quiz-share-close-button',
-  ) as HTMLButtonElement | null
-
-  const selectedNames = new Set<string>()
-
-  const setShareStatus = (message: string) => {
-    if (shareStatus) {
-      shareStatus.textContent = message
-    }
-  }
-
-  const updateSelectedCount = () => {
-    if (selectedCountText) {
-      selectedCountText.textContent = `${selectedNames.size}${QUIZ_SHARE_UI_TEXT.selectedCountSuffix}`
-    }
-  }
-
-  const checkboxByName = new Map<string, HTMLInputElement>()
-
-  const renderStudentList = () => {
-    if (!studentList) {
-      return
-    }
-    studentList.innerHTML = ''
-    checkboxByName.clear()
-    sortedEntries.forEach((entry) => {
-      const label = document.createElement('label')
-      label.className = 'quiz-share-student-item'
-      const checkbox = document.createElement('input')
-      checkbox.type = 'checkbox'
-      checkbox.checked = selectedNames.has(entry.Name)
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-          selectedNames.add(entry.Name)
-        } else {
-          selectedNames.delete(entry.Name)
-        }
-        updateSelectedCount()
-      })
-      const nameText = document.createElement('span')
-      nameText.textContent = entry.Name
-      label.append(checkbox, nameText)
-      label.dataset.studentName = entry.Name
-      studentList.appendChild(label)
-      checkboxByName.set(entry.Name, checkbox)
-    })
-  }
-
-  const applySearchFilter = () => {
-    if (!studentList) {
-      return
-    }
-    const query = normalizeQuizAnswer(searchInput?.value ?? '')
-    studentList
-      .querySelectorAll<HTMLElement>('.quiz-share-student-item')
-      .forEach((item) => {
-        const name = item.dataset.studentName ?? ''
-        setHidden(
-          item,
-          query.length > 0 && !normalizeQuizAnswer(name).includes(query),
-        )
-      })
-  }
-
-  const syncCheckboxes = () => {
-    checkboxByName.forEach((checkbox, name) => {
-      checkbox.checked = selectedNames.has(name)
-    })
-    updateSelectedCount()
-  }
-
-  const resetUrlOutput = () => {
-    if (urlOutput) {
-      urlOutput.value = ''
-    }
-    setHidden(urlOutput, true)
-    setHidden(urlActions, true)
-  }
-
-  openButton?.addEventListener('click', () => {
-    if (!dialog) {
-      return
-    }
-    renderStudentList()
-    applySearchFilter()
-    updateSelectedCount()
-    setShareStatus('')
-    resetUrlOutput()
-    dialog.showModal()
-    dialog.scrollTop = 0
-  })
-  closeButton?.addEventListener('click', () => dialog?.close())
-
-  searchInput?.addEventListener('input', applySearchFilter)
-
-  selectVisibleButton?.addEventListener('click', () => {
-    studentList
-      ?.querySelectorAll<HTMLElement>('.quiz-share-student-item')
-      .forEach((item) => {
-        if (!item.hidden && item.dataset.studentName) {
-          selectedNames.add(item.dataset.studentName)
-        }
-      })
-    syncCheckboxes()
-  })
-
-  clearButton?.addEventListener('click', () => {
-    selectedNames.clear()
-    syncCheckboxes()
-  })
-
-  pasteApplyButton?.addEventListener('click', () => {
-    const text = pasteTextarea?.value ?? ''
-    if (!text.trim()) {
-      setShareStatus(QUIZ_SHARE_UI_TEXT.pasteEmpty)
-      return
-    }
-    const { matched, unmatched } = matchPastedStudentNames(
-      text,
-      sortedEntries.map((entry) => entry.Name),
-    )
-    matched.forEach((name) => selectedNames.add(name))
-    syncCheckboxes()
-    setShareStatus(
-      unmatched.length > 0
-        ? `${matched.length}${QUIZ_SHARE_UI_TEXT.pasteMatchedSuffix} / ${QUIZ_SHARE_UI_TEXT.pasteUnmatchedPrefix}: ${unmatched.slice(0, 5).join('、')}${unmatched.length > 5 ? ' ほか' : ''}`
-        : `${matched.length}${QUIZ_SHARE_UI_TEXT.pasteMatchedSuffix}`,
-    )
-  })
-
-  generateButton?.addEventListener('click', () => {
-    if (selectedNames.size === 0) {
-      setShareStatus(QUIZ_SHARE_UI_TEXT.generateNeedsSelection)
-      return
-    }
-    const nameToId = new Map(
-      sortedEntries.map((entry) => [entry.Name, entry.PrimaryId]),
-    )
-    const ids = [...selectedNames]
-      .map((name) => nameToId.get(name))
-      .filter((id): id is number => id !== undefined)
-    const modeValue = modeSelect?.value
-    const mode: SharedQuizMode =
-      modeValue === 'name-input' || modeValue === 'name-input-lunatic'
-        ? modeValue
-        : 'multiple-choice'
-    void encodeSharedQuizPayload({
-      v: SHARED_QUIZ_VERSION,
-      title: (titleInput?.value ?? '')
-        .trim()
-        .slice(0, SHARED_QUIZ_TITLE_MAX_LENGTH),
-      mode,
-      ids,
-    })
-      .then((encoded) => {
-        const url = buildSharedQuizUrl(pageUrl(), encoded)
-        if (urlOutput) {
-          urlOutput.value = url
-        }
-        setHidden(urlOutput, false)
-        setHidden(urlActions, false)
-        setShareStatus(QUIZ_SHARE_UI_TEXT.generateSucceeded)
-      })
-      .catch(() => {
-        setShareStatus(QUIZ_SHARE_UI_TEXT.generateFailed)
-      })
-  })
-
-  copyButton?.addEventListener('click', () => {
-    const url = urlOutput?.value
-    if (!url) {
-      return
-    }
-    navigator.clipboard
-      .writeText(url)
-      .then(() => setShareStatus(QUIZ_SHARE_UI_TEXT.copySucceeded))
-      .catch(() => {
-        // クリップボードが使えない環境では選択して手動コピーしてもらう。
-        urlOutput?.select()
-        setShareStatus(QUIZ_SHARE_UI_TEXT.copyFailed)
-      })
-  })
-
-  tweetButton?.addEventListener('click', () => {
-    const url = urlOutput?.value
-    if (!url) {
-      return
-    }
-    const title = (titleInput?.value ?? '').trim()
-    const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
-    window.open(buildTweetIntentUrl(text), '_blank', 'noopener')
-  })
-
-  // X の Web Intent には画像を添付できないため、アイキャッチは
-  // 共有シート(モバイル) / クリップボード(PC) / ダウンロードで渡す。
-  shareImageButton?.addEventListener('click', () => {
-    const url = urlOutput?.value
-    if (!url) {
-      return
-    }
-    const title = (titleInput?.value ?? '').trim()
-    const canvas = drawChallengeCard({
-      title,
-      author: null,
-      desc: null,
-      questionCount: selectedNames.size,
-      questionSummary: modeSelect?.selectedOptions[0]?.label ?? '4択',
-    })
-    if (!canvas) {
-      setShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
-      return
-    }
-    const text = `${title ? `「${title}」` : QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName}${QUIZ_SHARE_UI_TEXT.tweetInviteSuffix}\n${url}`
-    void deliverCardImage(canvas, 'quiz-invite.png', text).then((method) =>
-      setShareStatus(imageDeliveryMessage(method)),
-    )
-  })
 
   // --- 挑戦状バナー(URL からのインポート) ---
   const banner = document.getElementById('quiz-challenge-banner')
@@ -423,11 +152,10 @@ export const setupQuizShare = (
     }
     showChallengeBanner({
       title: payload.title,
-      author: payload.v === 2 ? (payload.author ?? null) : null,
-      desc: payload.v === 2 ? (payload.desc ?? null) : null,
+      author: payload.author ?? null,
+      desc: payload.desc ?? null,
       plans,
-      // v1 は従来どおり毎回シャッフル。v2 は作者の指定に従う。
-      shuffle: payload.v === 2 ? payload.shuffle === true : true,
+      shuffle: payload.shuffle === true,
       skippedCount,
       questionSummary,
       encoded,
@@ -442,7 +170,6 @@ export const setupQuizShare = (
     }
     const error = await importEncodedChallenge(encoded)
     if (error) {
-      setShareStatus('')
       window.alert(error)
       clearShareHash()
     }
@@ -608,6 +335,13 @@ export const setupQuizShare = (
       currentResult = null
       setResultShareStatus('')
       setHidden(resultShareRow, true)
+    },
+    dismissPendingChallenge: () => {
+      pendingChallenge = null
+      hideBanner()
+      if (extractSharedQuizParam(window.location.hash)) {
+        clearShareHash()
+      }
     },
   }
 }

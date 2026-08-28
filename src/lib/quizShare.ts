@@ -11,44 +11,27 @@ import { normalizeQuizAnswer } from '@/lib/quizProgress'
  * CompressionStream が使えない環境でも読み書きできるようにする。
  */
 
-export const SHARED_QUIZ_VERSION = 1
 export const SHARED_QUIZ_VERSION_V2 = 2
 export const SHARED_QUIZ_HASH_KEY = 'c'
 export const SHARED_QUIZ_TITLE_MAX_LENGTH = 40
 export const SHARED_QUIZ_AUTHOR_MAX_LENGTH = 20
 export const SHARED_QUIZ_DESC_MAX_LENGTH = 100
-/** URL が非常識な長さにならないよう、1つの共有クイズに入れられる生徒数の上限。 */
-export const SHARED_QUIZ_MAX_ENTRIES = 300
-/** v2(手作り問題)の問題数上限。URL 長の実測に基づく(設計書 §2-2)。 */
+/** 問題数上限。URL 長の実測に基づく(設計書 §2-2)。 */
 export const SHARED_QUIZ_MAX_QUESTIONS = 100
 /** 択一の誤答数の上限(正解と合わせて 2〜8 択)。 */
 export const SHARED_QUIZ_CHOICE_MAX_WRONG = 7
 export const SHARED_QUIZ_MATCH_MIN_ENTRIES = 2
 export const SHARED_QUIZ_MATCH_MAX_ENTRIES = 6
 
-export const SHARED_QUIZ_MODES = [
-  'multiple-choice',
-  'name-input',
-  'name-input-lunatic',
-] as const
-
-export type SharedQuizMode = (typeof SHARED_QUIZ_MODES)[number]
-
-/** v1: 生徒セット共有(全問同形式・選択肢自動)。 */
-export interface SharedQuizPayloadV1 {
-  v: 1
-  /** クイズのタイトル。空文字も許容する(表示側で既定名を補う)。 */
-  title: string
-  mode: SharedQuizMode
-  /** 出題する生徒の PrimaryId のリスト。 */
-  ids: number[]
-}
-
-/** 択一(可変択数)。a=正解、o=誤答(1〜7個)。clip でクリップ固定(既定はランダム)。 */
+/**
+ * 択一(可変択数)。a=正解、o=誤答。clip でクリップ固定(既定はランダム)。
+ * r は「挑むたびに全生徒からランダムに選ぶ誤答」の数(o と合わせて1〜7)。
+ */
 export interface SharedQuizChoiceQuestion {
   t: 'c'
   a: number
   o: number[]
+  r?: number
   clip?: string
 }
 
@@ -82,17 +65,13 @@ export interface SharedQuizPayloadV2 {
   q: SharedQuizQuestion[]
 }
 
-export type SharedQuizPayload = SharedQuizPayloadV1 | SharedQuizPayloadV2
+export type SharedQuizPayload = SharedQuizPayloadV2
 
 const ENCODING_DEFLATE_PREFIX = '1.'
 const ENCODING_PLAIN_PREFIX = '0.'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
-
-export const isSharedQuizMode = (value: unknown): value is SharedQuizMode =>
-  typeof value === 'string' &&
-  (SHARED_QUIZ_MODES as readonly string[]).includes(value)
 
 const normalizeStudentId = (value: unknown): number | null =>
   typeof value === 'number' && Number.isInteger(value) && value > 0
@@ -127,11 +106,17 @@ export function normalizeSharedQuizQuestion(
           .filter((id): id is number => id !== null && id !== a),
       ),
     ].slice(0, SHARED_QUIZ_CHOICE_MAX_WRONG)
-    if (o.length === 0) {
+    const r = Math.min(
+      typeof raw.r === 'number' && Number.isInteger(raw.r) && raw.r > 0
+        ? raw.r
+        : 0,
+      SHARED_QUIZ_CHOICE_MAX_WRONG - o.length,
+    )
+    if (o.length + r === 0) {
       return null
     }
     const clip = normalizeClipRef(raw.clip)
-    return { t: 'c', a, o, ...(clip ? { clip } : {}) }
+    return { t: 'c', a, o, ...(r > 0 ? { r } : {}), ...(clip ? { clip } : {}) }
   }
   if (raw.t === 'm') {
     if (!Array.isArray(raw.e)) {
@@ -166,37 +151,6 @@ export function normalizeSharedQuizQuestion(
   return null
 }
 
-function normalizeSharedQuizPayloadV1(
-  raw: unknown,
-): SharedQuizPayloadV1 | null {
-  if (!isRecord(raw)) {
-    return null
-  }
-  if (!isSharedQuizMode(raw.mode)) {
-    return null
-  }
-  if (!Array.isArray(raw.ids)) {
-    return null
-  }
-  const ids = [
-    ...new Set(
-      raw.ids.filter(
-        (id): id is number =>
-          typeof id === 'number' && Number.isInteger(id) && id > 0,
-      ),
-    ),
-  ].slice(0, SHARED_QUIZ_MAX_ENTRIES)
-  if (ids.length === 0) {
-    return null
-  }
-  return {
-    v: SHARED_QUIZ_VERSION,
-    title: normalizeText(raw.title, SHARED_QUIZ_TITLE_MAX_LENGTH),
-    mode: raw.mode,
-    ids,
-  }
-}
-
 export function normalizeSharedQuizPayloadV2(
   raw: unknown,
 ): SharedQuizPayloadV2 | null {
@@ -222,23 +176,14 @@ export function normalizeSharedQuizPayloadV2(
   }
 }
 
-/**
- * 外部由来の値を検証して共有クイズ定義に整える。壊れていれば null。
- * バージョン(v)で v1(生徒セット)と v2(手作り問題)に分岐する。
- */
+/** 外部由来の値を検証して共有クイズ定義に整える。壊れていれば null。 */
 export function normalizeSharedQuizPayload(
   raw: unknown,
 ): SharedQuizPayload | null {
-  if (!isRecord(raw)) {
+  if (!isRecord(raw) || raw.v !== SHARED_QUIZ_VERSION_V2) {
     return null
   }
-  if (raw.v === SHARED_QUIZ_VERSION) {
-    return normalizeSharedQuizPayloadV1(raw)
-  }
-  if (raw.v === SHARED_QUIZ_VERSION_V2) {
-    return normalizeSharedQuizPayloadV2(raw)
-  }
-  return null
+  return normalizeSharedQuizPayloadV2(raw)
 }
 
 /** 挑戦状バナー等に出す形式の内訳(例: 択一6・マッチ3・入力1)。 */
@@ -417,11 +362,13 @@ const SHEET_TYPE_CHOICE = '択一'
 const SHEET_TYPE_MATCH = 'マッチ'
 const SHEET_TYPE_INPUT = '入力'
 const SHEET_TYPE_INPUT_LUNATIC = '入力L'
+/** 択一の誤答セルに書くと「挑むたびにランダムな誤答」になる予約語。 */
+export const SHEET_RANDOM_WRONG = 'ランダム'
 
 /**
  * 1行=1問のテキスト(スプレッドシート由来)を問題リストへ変換する。
  *
- *   択一, シロコ, シロコ＊テラー, 空崎ヒナ   ← 先頭が正解、以降が誤答
+ *   択一, シロコ, シロコ＊テラー, ランダム   ← 先頭が正解、以降が誤答
  *   マッチ, シロコ, シロコ（水着）
  *   入力, 天童アリス                          ← 「入力L」で Lunatic
  *
@@ -446,7 +393,16 @@ export function parseQuestionSheetText(
       return
     }
     const lineNo = index + 1
-    const [type, ...names] = cells
+    const [type, ...rawNames] = cells
+    // 択一の誤答セルは「ランダム」でランダム枠になる(名前照合の対象外)。
+    let randomCount = 0
+    const names = rawNames.filter((name) => {
+      if (type === SHEET_TYPE_CHOICE && name === SHEET_RANDOM_WRONG) {
+        randomCount += 1
+        return false
+      }
+      return true
+    })
     const ids: number[] = []
     const unknown: string[] = []
     for (const name of names) {
@@ -465,11 +421,18 @@ export function parseQuestionSheetText(
     let question: SharedQuizQuestion | null = null
     if (type === SHEET_TYPE_CHOICE) {
       question =
-        ids.length >= 2
-          ? normalizeSharedQuizQuestion({ t: 'c', a: ids[0], o: ids.slice(1) })
+        ids.length >= 1
+          ? normalizeSharedQuizQuestion({
+              t: 'c',
+              a: ids[0],
+              o: ids.slice(1),
+              r: randomCount,
+            })
           : null
       if (!question) {
-        errors.push(`${lineNo}行目: 択一は「正解, 誤答...」の2名以上が必要です`)
+        errors.push(
+          `${lineNo}行目: 択一は「正解, 誤答...」(誤答は名前か${SHEET_RANDOM_WRONG})が必要です`,
+        )
         return
       }
     } else if (type === SHEET_TYPE_MATCH) {
@@ -520,7 +483,12 @@ export function buildQuestionSheetText(
   return questions
     .map((question) => {
       if (question.t === 'c') {
-        return [SHEET_TYPE_CHOICE, name(question.a), ...question.o.map(name)]
+        return [
+          SHEET_TYPE_CHOICE,
+          name(question.a),
+          ...question.o.map(name),
+          ...Array.from({ length: question.r ?? 0 }, () => SHEET_RANDOM_WRONG),
+        ]
       }
       if (question.t === 'm') {
         return [SHEET_TYPE_MATCH, ...question.e.map(name)]

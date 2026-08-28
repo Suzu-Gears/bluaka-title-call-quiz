@@ -8,14 +8,14 @@
 
 .quiz-mode-component-wrapper {
   display: flex;
+  /* 収まらない幅では内側スクロールではなく折り返して縦に逃がす
+     (横スクロールは設定エリア全体の1階層だけにする) */
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1px;
-  /* ボタン本体の高さ + 上下の影ぶんの余白。全クイズコントロールで共通 */
-  height: calc(var(--quiz-control-height) + 2 * var(--quiz-control-pad));
+  gap: 0.3em 1px;
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
   padding-block: var(--quiz-control-pad);
   padding-inline-start: 0.5em;
   -webkit-tap-highlight-color: transparent;
@@ -27,7 +27,8 @@
 .quiz-mode-component-wrapper .para {
   position: relative;
   flex-shrink: 0;
-  height: 100%;
+  /* 折り返し対応のため親の高さ依存をやめ、ボタン自身の高さで揃える */
+  height: var(--quiz-control-height);
   font-size: var(--quiz-control-font-size);
   background: transparent;
   border: none;

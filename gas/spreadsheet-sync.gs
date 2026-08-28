@@ -13,14 +13,35 @@
  *          「保存先URL」欄に貼り付ける
  *
  * 設計上の割り切り:
- *   - 認証はしない。同期コード(UUID v4)の推測不能性だけが保護になる。
+ *   - 認証はしない。同期コード(10文字のランダム文字列)の推測不能性だけが保護になる。
  *   - 保存するのはクイズの成績のみ。失われても端末の localStorage と
  *     エクスポート機能が残るため、ベストエフォートの機能と位置づける。
  */
 
 const SHEET_NAME = 'progress'
-const CODE_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// 英字と数字の両方を必須にして、推測されやすい手入力コードを弾く。
+const CODE_PATTERN = /^(?=.*[0-9])(?=.*[a-z])[0-9a-z]{10}$/i
+/** Crockford Base32(紛らわしい i/l/o/u を除外)。10 文字で 50bit。 */
+const CODE_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz'
+
+function generateCode() {
+  for (;;) {
+    // Math.random は避け、getUuid をハッシュしてランダムバイトを得る。
+    const bytes = Utilities.computeDigest(
+      Utilities.DigestAlgorithm.SHA_256,
+      Utilities.getUuid(),
+    )
+    let code = ''
+    for (let i = 0; i < 10; i += 1) {
+      // バイトは -128..127 の符号付き。+256 して 32 で割ると一様になる。
+      code += CODE_ALPHABET[(bytes[i] + 256) % 32]
+    }
+    // 英字と数字の混在条件を満たすまで引き直す(全部英字は約2%)。
+    if (CODE_PATTERN.test(code)) {
+      return code
+    }
+  }
+}
 /** スプレッドシートの 1 セルは 50000 文字まで。想定は 15KB 程度。 */
 const MAX_JSON_LENGTH = 45000
 
@@ -79,6 +100,20 @@ function doPost(e) {
 
   try {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}')
+
+    // 新規コードの発行。ロック内で行を確保するため衝突は起きない。
+    if (body.action === 'create') {
+      const sheet = getSheet()
+      for (;;) {
+        const newCode = generateCode()
+        if (findRowIndex(sheet, newCode) < 0) {
+          // json は空のまま行だけ確保する(doGet は found:true / 空を返す)。
+          sheet.appendRow([newCode, new Date().toISOString(), ''])
+          return jsonResponse({ ok: true, code: newCode })
+        }
+      }
+    }
+
     const code = String(body.code || '').trim()
     if (!CODE_PATTERN.test(code)) {
       return jsonResponse({ ok: false, error: 'invalid code' })

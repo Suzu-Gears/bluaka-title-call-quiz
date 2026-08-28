@@ -1,4 +1,4 @@
-# bluaka-title-call-quiz2
+# bluaka-title-call-quiz
 
 ブルーアーカイブのタイトルコール音声を聴いて生徒名を当てる、クイズゲームの Web アプリケーションです。  
 静的配信 + クライアントサイド挙動が中心のため、**Vite + TypeScript** 構成を採用しています。
@@ -176,7 +176,7 @@ src/
 ├── cardList.ts              # カード一覧の DOM 構築・並び替え・フィルタ・音声再生    [クライアント]
 ├── quiz.ts                  # クイズ画面のロジック                                  [クライアント]
 ├── progressPanel.ts         # 進捗のエクスポート/インポート・クラウド同期の UI       [クライアント]
-├── quizShareUi.ts           # 自作クイズの作成・共有・挑戦状バナー・結果シェアの UI   [クライアント]
+├── quizShareUi.ts           # 挑戦状バナー・URL貼り付けインポート・結果シェアの UI   [クライアント]
 ├── quizQuestionCountControl.ts # 問題数コントロール                                 [クライアント]
 ├── styles.css               # 全体スタイルシート                                    [クライアント]
 ├── server-constants.ts      # 環境変数定数                                          [サーバー]
@@ -210,8 +210,10 @@ src/
     └── verifyPipeline.ts    # final.json の内容を検算する診断スクリプト               [サーバー]
 
 docs/
-├── data-pipeline-redesign-plan.md  # 本パイプラインの設計計画書
-└── spreadsheet-sync.gs             # 進捗同期用の Google Apps Script
+└── data-pipeline-redesign-plan.md  # 本パイプラインの設計計画書
+
+gas/
+└── spreadsheet-sync.gs             # 進捗同期用の Google Apps Script（clasp管理）
 ```
 
 ---
@@ -441,19 +443,20 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
 
 サーバーを介さず、クイズ定義そのものを URL に埋め込んで共有する仕組みです。
 
-- **作成**: クイズ設定画面の「クイズを作って共有」から、タイトル・回答方式・出題する生徒を
-  選んで共有 URL を作成します。生徒は検索して選ぶほか、改行・カンマ・タブ区切りの名前リスト
-  （スプレッドシートの列のコピペ）を貼り付けて一括選択もできます。
+- **作成**: クイズ設定画面の「クイズを作る」から、択一（2〜8択）・マッチング・名前入力の
+  問題を1問ずつ作って共有 URL を作成します（エディタは `src/quizEditorUi.ts`、編集内容は
+  `localStorage` に自動保存）。「生徒を選んでまとめて追加」で生徒を複数選択（検索・
+  名前リストのコピペ対応）して1人1問ずつ一括生成もでき、4択の誤答はその場でランダムに
+  確定されます。シート形式（1行1問のテキスト）や JSON での入出力にも対応しています。
 - **URL 形式**: `https://.../#c=<エンコード済み定義>`。定義は
-  `{ v, title, mode, ids }`（ids は生徒の `PrimaryId`）の JSON を deflate-raw で圧縮し
-  base64url 化したものです。圧縮方式のプレフィックス（`1.`=deflate / `0.`=無圧縮）付きで、
-  `CompressionStream` が無い環境でも読み書きできます。実装は `src/lib/quizShare.ts`（純関数）と
-  `src/quizShareUi.ts`（UI）です。
+  `{ v: 2, title, author?, desc?, shuffle?, q }`（q は問題の配列、生徒は `PrimaryId` で参照）の
+  JSON を deflate-raw で圧縮し base64url 化したものです。圧縮方式のプレフィックス
+  （`1.`=deflate / `0.`=無圧縮）付きで、`CompressionStream` が無い環境でも読み書きできます。
+  実装は `src/lib/quizShare.ts`（純関数）と `src/quizShareUi.ts`（挑戦状・結果シェア UI）です。
 - **インポート**: 共有 URL を開くと挑戦状バナーが表示され、「挑戦する」でその定義どおりの
-  回答方式・出題リストでクイズが始まります。内部的には学習・復習モードと同じ
-  「固定キュー出題」(`roundQueue`) を使います。4択の誤答候補は出題対象フィルタと無関係に
-  全生徒から選び、少人数のクイズでも常に 4 択が成立するようにしています。
-  手元のデータに存在しない `PrimaryId` は黙って読み飛ばします（コラボ生徒の削除等に備えるため）。
+  問題リストでクイズが始まります。内部的には学習・復習モードと同じ
+  「固定キュー出題」(`roundQueue`) を使います。
+  手元のデータに存在しない `PrimaryId` の問題は読み飛ばして件数を知らせます。
 - **結果の SNS シェア**: リザルト画面から、スコア入りテキストの X（Twitter）シェア・
   クリップボードコピー・canvas で生成したスコアカード画像の共有（Web Share API、
   非対応環境では PNG ダウンロード）ができます。挑戦状をプレイした場合はシェア文に
@@ -470,9 +473,6 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
 | キー                                              | 説明                             |
 | ------------------------------------------------- | -------------------------------- |
 | `bluaka-title-call-quiz2.proficiency.v1`          | 現行の保存キー                   |
-| `bluaka-title-call-quiz.proficiency.v1`           | 旧キー（自動移行）               |
-| `bluaka-title-call-quiz.proficiency`              | 旧キー（自動移行）               |
-| `quizProficiency`                                 | 最古の旧キー（自動移行）         |
 | `bluaka-title-call-quiz2.syncCode.v1`             | クラウド同期の同期コード         |
 | `bluaka-title-call-quiz2.proficiencyUpdatedAt.v1` | 最終更新時刻（同期の新旧判定用） |
 
@@ -504,7 +504,7 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
 - 保存はクイズ終了時と手動操作のときだけ。回答ごとには送りません。
 - 競合は **更新時刻が新しい方を採用**し、クラウド側を採用する場合は確認ダイアログを挟みます。
 - 通信に失敗しても静かに `localStorage` 運用を継続します（ベストエフォート）。
-- サーバー側は `docs/spreadsheet-sync.gs` を Google Apps Script のウェブアプリとして
+- サーバー側は `gas/spreadsheet-sync.gs` を Google Apps Script のウェブアプリとして
   デプロイするだけです。管理者向け・利用者向け両方のセットアップ手順は
   `docs/sync-setup.md` を参照してください。
 
