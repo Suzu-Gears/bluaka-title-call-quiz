@@ -289,7 +289,7 @@
                   <input
                     id="student-filter-input"
                     class="student-filter-input"
-                    type="text"
+                    type="search"
                     placeholder="生徒の名前を入力してください"
                     autocomplete="off"
                   />
@@ -669,9 +669,11 @@
               class="quiz-name-answer-form"
               hidden
             >
+              <!-- type="search": iOS Safari が名前欄と誤認して連絡先の自動入力を
+                   提案するのを防ぐ(検索欄・解答欄は連絡先候補の対象外になる) -->
               <input
                 id="quiz-name-answer-input"
-                type="text"
+                type="search"
                 autocomplete="off"
                 placeholder="生徒名を入力"
               />
@@ -993,7 +995,7 @@
       <div class="quiz-share-list-toolbar">
         <input
           id="quiz-editor-bulk-search-input"
-          type="text"
+          type="search"
           autocomplete="off"
           placeholder="生徒名で絞り込み"
         />
@@ -1230,7 +1232,7 @@
       <input
         id="quiz-editor-picker-search"
         class="quiz-editor-picker-search"
-        type="text"
+        type="search"
         autocomplete="off"
         placeholder="生徒名・声優名で検索"
       />

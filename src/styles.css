@@ -2351,6 +2351,28 @@ body:has(dialog[open]) {
   overscroll-behavior: contain;
 }
 
+/* iOS Safari は 16px 未満の入力欄にフォーカスすると画面ごとズームするため、
+   ダイアログ内の入力欄は 1rem(=16px) を下限にする(生徒リストの検索欄と同じ対策) */
+.app-dialog input,
+.app-dialog textarea,
+.app-dialog select {
+  font-size: 1rem;
+}
+
+/* 検索・解答欄は type="search"(iOS の連絡先自動入力対策)だが、
+   WebKit 標準の虫眼鏡・×ボタンは既存デザインに合わないので消す */
+input[type='search'] {
+  -webkit-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 .app-dialog:focus {
   outline: none;
 }
