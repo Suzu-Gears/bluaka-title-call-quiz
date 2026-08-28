@@ -1,4 +1,4 @@
-import { readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -39,6 +39,11 @@ const versionJsonPlugin = (): Plugin => ({
   name: 'version-json',
   apply: 'build',
   closeBundle() {
+    // ビルドが途中で失敗すると dist が無いまま closeBundle が呼ばれ、
+    // ここでの ENOENT が本来のビルドエラーを覆い隠してしまうため何もしない。
+    if (!existsSync(distDir)) {
+      return
+    }
     writeFileSync(
       resolve(distDir, 'version.json'),
       JSON.stringify({
@@ -67,6 +72,10 @@ const cacheManifestPlugin = (): Plugin => ({
   name: 'cache-manifest',
   apply: 'build',
   closeBundle() {
+    // version-json プラグインと同じく、ビルド失敗時はエラーを隠さないよう何もしない。
+    if (!existsSync(distDir)) {
+      return
+    }
     const files = listFilesRecursively(distDir)
       .filter((relativePath) => !CACHE_MANIFEST_EXCLUDED.has(relativePath))
       .map((relativePath) => ({
