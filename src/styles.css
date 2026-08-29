@@ -122,9 +122,11 @@ select option {
   text-align: center;
 }
 
-/* fitty の計測基準になるラッパー(padding を持たせないこと) */
+/* タイトルの基準幅になるラッパー(padding を持たせないこと)。
+   h1 の font-size はこの幅(cqi)から決まる。 */
 .app-title-fit {
   width: 100%;
+  container-type: inline-size;
 }
 
 /* タイトルが原寸で収まらない狭さでは、中央寄せをやめて左寄せにし、
@@ -136,12 +138,30 @@ select option {
   }
 }
 
+/* 設定ボタンは PWA のときだけ JS が表示する。出ていないときはボタンぶんの
+   余白を空ける理由が無いので、左右対称に戻してタイトルを中央へ置く
+   (余白が減るぶん cqi が広がり、タイトルも原寸に近づく)。
+   上の狭幅ルールより詳細度が高いので、狭い画面でも中央のままになる。 */
+.app-header-inner:has(> .settings-button[hidden]) {
+  padding-inline: 1rem;
+  text-align: center;
+}
+
 h1 {
   margin: 0;
   padding: 0 0.4em 0.1em;
   display: inline-block;
   white-space: nowrap;
+  /* タイトルは固定文字列なので幅は font-size に比例する。原寸(1.8rem =
+     28.8px)での実測幅 440.6px から比率 0.0653 を出し、ラッパーの幅
+     (= 設定ボタンぶんの padding を除いた実際の使用可能幅)に収まる
+     サイズを CSS だけで決める。
+     以前は JS(fitty)で縮めていたため、初期描画では原寸のままはみ出し、
+     ビューポートより広くなった結果 iOS がページ全体を縮小表示していた。
+     下限 0.75rem は fitty の minSize:12 と同じ。
+     cqi 非対応ブラウザは直前の 1.8rem にフォールバックする。 */
   font-size: 1.8rem;
+  font-size: clamp(0.75rem, calc(100cqi * 0.0653), 1.8rem);
   font-weight: bold;
   font-family: 'Kosugi Maru', sans-serif;
   color: var(--color-navy);
