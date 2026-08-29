@@ -405,6 +405,18 @@ h1,
     -1.5px -1.5px 0 var(--text-outline);
 }
 
+/* paint-order 対応ブラウザ(Safari 11+/Chrome 87+/Firefox)では、字の下に
+   stroke を敷けるので字が痩せない。8方向 shadow は斜めのすき間が凹んで
+   縁がボコボコになるため、対応環境では滑らかな stroke に差し替える。 */
+@supports (paint-order: stroke) {
+  h1,
+  .panel-head-title {
+    text-shadow: none;
+    paint-order: stroke fill;
+    -webkit-text-stroke: 4px var(--text-outline);
+  }
+}
+
 .content {
   margin: 0 auto;
   padding: 0 1rem;
