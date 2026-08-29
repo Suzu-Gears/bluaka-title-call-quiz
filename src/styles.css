@@ -2561,6 +2561,9 @@ input[type='search']::-webkit-search-cancel-button {
 }
 
 .app-dialog-actions button {
+  /* 行が狭いときはラベルを中で折り返さず、ボタンごと次の行へ送る
+     (行側は flex-wrap: wrap。バッジ付き「更新を適用」が2行になる対策) */
+  white-space: nowrap;
   border: 1px solid #d5dbe3;
   border-radius: 999px;
   background: var(--color-bg-surface);
