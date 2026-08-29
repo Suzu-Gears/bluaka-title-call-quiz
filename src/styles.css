@@ -118,7 +118,8 @@ select option {
 /* タイトルのバナー。右端に設定ボタン(PWA時のみ表示)が乗る */
 .app-header {
   width: 100%;
-  background: #f8fbfb;
+  /* ロゴ(白背景)やノッチ左右の白と地続きにするため純白にする */
+  background: #ffffff;
   border-bottom: 1px solid #e3e9ee;
   box-shadow: 0 1px 4px rgba(31, 68, 109, 0.08);
   color: var(--color-navy);
@@ -242,7 +243,7 @@ h1 {
   height: 9px;
   border-radius: 50%;
   background: #fb4516;
-  border: 2px solid #f8fbfb;
+  border: 2px solid #ffffff;
 }
 
 .settings-badge[hidden] {
