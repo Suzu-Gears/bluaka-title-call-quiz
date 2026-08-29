@@ -59,10 +59,11 @@ export const createCard = (
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
-  // 実寸(200x226 前後)に合わせた寸法指定。表示サイズは CSS が決めるが、
-  // 明示しておくと読み込み前のレイアウト確定が速くなる。
-  image.width = 200
-  image.height = 220
+  // width/height 属性は付けないこと。CSS は width と aspect-ratio だけを
+  // 指定していて height を持たないため、height 属性があるとそれが有効な
+  // 高さになって aspect-ratio が効かなくなり、画像が .image-container の
+  // 枠(padding-bottom: 110%)をはみ出して名前と下の行を覆ってしまう。
+  // 表示領域は .image-container 側で確保済みなので寸法指定は不要。
   image.src = resolveAssetUrl(formatImageKey(memberId))
   image.alt = entry.Name
   image.onerror = () => {
