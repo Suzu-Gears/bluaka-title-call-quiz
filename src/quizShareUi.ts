@@ -1,5 +1,4 @@
 import { buildChallengePlans, type QuestionPlan } from '@/lib/challengePlan'
-import { showCopyFeedback } from '@/lib/copyFeedback'
 import type { QuizEntry } from '@/lib/interfaces'
 import {
   buildResultShareText,
@@ -9,9 +8,14 @@ import {
   extractSharedQuizParam,
 } from '@/lib/quizShare'
 import {
-  deliverCardImage,
+  canShareCardImage,
+  copyCardImageToClipboard,
+  drawChallengeResultCard,
   drawResultCard,
   imageDeliveryMessage,
+  saveCardImage,
+  shareCardImageToOs,
+  type ImageDeliveryMethod,
   type ResultCardEntry,
 } from '@/lib/shareImage'
 import { setHidden } from '@/lib/uiState'
@@ -259,11 +263,14 @@ export const setupQuizShare = (
   const resultTweetButton = document.getElementById(
     'quiz-result-share-x-button',
   ) as HTMLButtonElement | null
-  const resultImageButton = document.getElementById(
-    'quiz-result-share-image-button',
+  const resultOsShareButton = document.getElementById(
+    'quiz-result-share-os-button',
   ) as HTMLButtonElement | null
   const resultCopyButton = document.getElementById(
     'quiz-result-share-copy-button',
+  ) as HTMLButtonElement | null
+  const resultSaveButton = document.getElementById(
+    'quiz-result-share-save-button',
   ) as HTMLButtonElement | null
   const resultShareStatus = document.getElementById('quiz-result-share-status')
 
@@ -297,48 +304,74 @@ export const setupQuizShare = (
     }
   })
 
-  resultCopyButton?.addEventListener('click', () => {
-    const text = buildCurrentShareText()
-    if (!text) {
-      return
+  /** その回の結果カードを描く。挑戦状と標準クイズで中身が違う。 */
+  const drawCurrentResultCard = async (): Promise<HTMLCanvasElement | null> => {
+    if (!currentResult) {
+      return null
     }
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setResultShareStatus('')
-        showCopyFeedback(resultCopyButton)
-      })
-      .catch(() => setResultShareStatus(QUIZ_SHARE_UI_TEXT.copyFailed))
-  })
+    const challenge = currentResult.challenge
+    // 挑戦状は共有 URL と一緒に出回るので、正誤一覧を載せると答えを配って
+    // しまう。アイキャッチにスコアを載せた形にする。
+    return challenge
+      ? drawChallengeResultCard({
+          title: challenge.title,
+          author: challenge.author,
+          desc: challenge.desc,
+          questionCount: currentResult.totalCount,
+          questionSummary: challenge.questionSummary,
+          correctCount: currentResult.correctCount,
+          totalCount: currentResult.totalCount,
+        })
+      : drawResultCard({
+          title: null,
+          correctCount: currentResult.correctCount,
+          totalCount: currentResult.totalCount,
+          entries: currentResult.entries,
+        })
+  }
 
-  resultImageButton?.addEventListener('click', () => {
+  /** 画像を作って、渡し方(共有シート/コピー/保存)だけを差し替える。 */
+  const withResultCard = (
+    deliver: (canvas: HTMLCanvasElement) => Promise<ImageDeliveryMethod>,
+  ): void => {
     void (async () => {
-      if (!currentResult) {
-        return
-      }
-      const canvas = await drawResultCard({
-        title: currentResult.challenge?.title || null,
-        correctCount: currentResult.correctCount,
-        totalCount: currentResult.totalCount,
-        entries: currentResult.entries,
-      })
+      const canvas = await drawCurrentResultCard()
       if (!canvas) {
         setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
         return
       }
-      const method = await deliverCardImage(
+      setResultShareStatus(imageDeliveryMessage(await deliver(canvas)))
+    })()
+  }
+
+  resultOsShareButton?.addEventListener('click', () =>
+    withResultCard((canvas) =>
+      shareCardImageToOs(
         canvas,
         'quiz-result.png',
         buildCurrentShareText() ?? undefined,
-      )
-      setResultShareStatus(imageDeliveryMessage(method))
-    })()
-  })
+      ),
+    ),
+  )
+
+  resultCopyButton?.addEventListener('click', () =>
+    withResultCard(copyCardImageToClipboard),
+  )
+
+  resultSaveButton?.addEventListener('click', () =>
+    withResultCard((canvas) => saveCardImage(canvas, 'quiz-result.png')),
+  )
 
   return {
     showResultShare: (context) => {
       currentResult = context
       setResultShareStatus('')
+      // 共有シートが使える端末は 1 操作で画像とテキストを渡せるので、
+      // コピーと X の投稿画面は出さない(逆もまた然り)。
+      const osShare = canShareCardImage()
+      setHidden(resultOsShareButton, !osShare)
+      setHidden(resultCopyButton, osShare)
+      setHidden(resultTweetButton, osShare)
       setHidden(resultShareRow, false)
     },
     hideResultShare: () => {

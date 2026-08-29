@@ -781,15 +781,21 @@
             <section id="quiz-result" class="quiz-result" hidden>
               <h3>リザルト</h3>
               <p id="quiz-result-summary"></p>
+              <!-- 共有シートが使える端末(スマホ)は「結果を共有」1つで画像と
+                   テキストを同時に渡せる。使えない環境(PC)は画像のコピーと
+                   X の投稿画面を別々に出す。表示の出し分けは JS が行う。 -->
               <div id="quiz-result-share" class="quiz-result-share" hidden>
-                <button id="quiz-result-share-x-button" type="button">
-                  Xで結果をシェア
+                <button id="quiz-result-share-os-button" type="button" hidden>
+                  結果を共有
                 </button>
-                <button id="quiz-result-share-image-button" type="button">
-                  結果画像を共有
+                <button id="quiz-result-share-copy-button" type="button" hidden>
+                  結果画像をコピー
                 </button>
-                <button id="quiz-result-share-copy-button" type="button">
-                  結果をコピー
+                <button id="quiz-result-share-save-button" type="button">
+                  結果画像を保存
+                </button>
+                <button id="quiz-result-share-x-button" type="button" hidden>
+                  Xで共有
                 </button>
               </div>
               <p

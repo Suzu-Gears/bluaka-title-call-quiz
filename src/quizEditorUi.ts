@@ -800,12 +800,12 @@ export const setupQuizEditor = (options: QuizEditorOptions): void => {
 
   // アイキャッチ画像: 共有シート(モバイル) / コピー(PC) / ダウンロードで渡す
   urlImageButton?.addEventListener('click', () => {
-    void ensureShareUrl().then((result) => {
+    void ensureShareUrl().then(async (result) => {
       if (!result) {
         return
       }
       const { payload, url } = result
-      const canvas = drawChallengeCard({
+      const canvas = await drawChallengeCard({
         title: payload.title,
         author: payload.author ?? null,
         desc: payload.desc ?? null,
