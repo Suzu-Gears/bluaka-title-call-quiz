@@ -10,6 +10,12 @@ import {
   parseImageKey,
 } from '@/lib/assetKeys'
 import { hasSourceChanged, normalizeAudioManifest } from '@/lib/audioManifest'
+import {
+  deriveTitleClipId,
+  parseCargoWikinames,
+  parseImageInfoUrl,
+  titleCallFileTitle,
+} from '@/lib/bluearchiveWikiClient'
 import { buildChallengePlans } from '@/lib/challengePlan'
 import type { QuizEntry, Student, TitleCallClip } from '@/lib/interfaces'
 import {
@@ -1231,6 +1237,58 @@ const deterministicRandom = () => 0
   // 書き出し→取り込みで往復できる
   const text = buildQuestionSheetText(questions, refs)
   assert.deepEqual(parseQuestionSheetText(text, refs).questions, questions)
+}
+
+// --- bluearchive.wiki クライアント(音声の第二供給源) ---
+{
+  const cargo = {
+    cargoquery: [
+      { title: { Id: '10149', Wikiname: 'Kokoro' } },
+      { title: { Id: '20060', Wikiname: 'Ibuki (Swimsuit)' } },
+      { title: { Id: 'broken', Wikiname: 'X' } }, // Id が数値でない行は無視
+      { title: { Id: '10150' } }, // Wikiname 欠落も無視
+    ],
+  }
+  const map = parseCargoWikinames(cargo)
+  assert.equal(map.size, 2)
+  assert.equal(map.get(10149), 'Kokoro')
+  assert.equal(map.get(20060), 'Ibuki (Swimsuit)')
+  assert.equal(parseCargoWikinames({}).size, 0)
+  assert.equal(parseCargoWikinames(null).size, 0)
+
+  assert.equal(titleCallFileTitle('Kokoro'), 'File:Kokoro Title.ogg')
+  assert.equal(
+    titleCallFileTitle('Hoshino (Battle)'),
+    'File:Hoshino (Battle) Title.ogg',
+  )
+
+  const found = {
+    query: {
+      pages: {
+        '123': {
+          title: 'File:Kokoro Title.ogg',
+          imageinfo: [
+            { url: 'https://static.wikitide.net/x/Kokoro_Title.ogg' },
+          ],
+        },
+      },
+    },
+  }
+  assert.equal(
+    parseImageInfoUrl(found),
+    'https://static.wikitide.net/x/Kokoro_Title.ogg',
+  )
+  // ファイルが無いページは missing キーが付く
+  const missing = { query: { pages: { '-1': { missing: '' } } } }
+  assert.equal(parseImageInfoUrl(missing), null)
+  assert.equal(parseImageInfoUrl({}), null)
+  assert.equal(parseImageInfoUrl(null), null)
+
+  // clipId は SchaleDB の命名規則('jp_ch0368/ch0368_title.mp3')に一致させる
+  assert.equal(deriveTitleClipId('CH0368'), 'ch0368_title')
+  assert.equal(deriveTitleClipId('Aru'), 'aru_title')
+  assert.equal(deriveTitleClipId('CH0258_01'), 'ch0258_01_title')
+  assert.equal(deriveTitleClipId('日本語'), null) // キー規約外は null
 }
 
 console.log('All quiz tests passed.')
