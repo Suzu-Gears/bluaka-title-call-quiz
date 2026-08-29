@@ -281,6 +281,14 @@ h1 {
   padding-top: 0;
 }
 
+/* × は見出し箱の中心ではなく「タイトル文字の中心」に合わせる。
+   箱は上下パディングが非対称(0.85rem/0.6rem)で、タイトル自身も下に
+   0.1em のパディング(下線ぶん)を持つため、その半分ずつを引き上げる:
+   (0.85rem - 0.6rem)/2 + (0.1em×1.2rem)/2 = 0.185rem */
+.app-dialog > .filter-dialog-head .filter-dialog-close {
+  top: calc(50% - 0.185rem);
+}
+
 .app-dialog > .filter-dialog-head {
   position: sticky;
   top: 0;
@@ -2432,7 +2440,9 @@ body:has(dialog[open]) {
   font-family: sans-serif;
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  /* contain はスクロール連鎖を止めるだけでバウンスが残る。ダイアログ自体が
+     ラバーバンドで引っ張れてしまうため none にする(iOS 16+) */
+  overscroll-behavior: none;
 }
 
 /* iOS Safari は 16px 未満の入力欄にフォーカスすると画面ごとズームするため、
