@@ -131,8 +131,9 @@ select option {
   max-width: 1080px;
   margin-inline: auto;
   box-sizing: border-box;
-  /* 左右とも設定ボタンぶんの余白を取り、タイトルを常に中央に保つ */
-  padding: 0.65rem 3.2rem;
+  /* 左右とも設定ボタンぶんの余白を取り、タイトルを常に中央に保つ。
+     上下はロゴ SVG 自体の余白だけで足りるので 0 */
+  padding: 0 3.2rem;
   text-align: center;
 }
 
