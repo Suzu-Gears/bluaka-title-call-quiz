@@ -2,7 +2,9 @@
 <html lang="ja" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <!-- initial-scale=1 が無いと、内容がビューポートより広い瞬間に
+         iOS Safari がページ全体を縮小表示してしまう -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Cache-Control"
       content="no-cache, no-store, must-revalidate"
@@ -47,8 +49,8 @@
     <div class="main" role="main">
       <header class="app-header">
         <div class="app-header-inner">
-          <!-- fitty は親要素の clientWidth(padding込み)を基準に拡大するため、
-               padding を持たないこのラッパーで計測幅を正しくする -->
+          <!-- タイトルの font-size はこのラッパーの幅(cqi)から CSS が決める。
+               padding を持たせないこと(持たせると基準幅がずれる) -->
           <div class="app-title-fit">
             <h1 id="app-title">ブルアカ タイトルコールクイズ</h1>
           </div>

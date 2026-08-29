@@ -47,35 +47,22 @@ const setupPageSwitch = () => {
 }
 
 /** タイトルは改行させず、設定アイコンが入りきらない幅では文字を縮める。 */
-const setupTitleFit = () => {
-  const title = document.getElementById('app-title')
-  if (!title) return
-  const maxSize = parseFloat(window.getComputedStyle(title).fontSize)
-  const instance = fitty(title, { minSize: 12, maxSize, multiLine: false })
-
-  // 初期化直後はレイアウトや Web フォント(Kosugi Maru)適用前の幅で
-  // 計測されることがあり、そのままだとタイトルがヘッダーからはみ出す。
-  // 描画確定後とフォント読み込み完了時に測り直して防ぐ。
-  const refit = () => {
-    instance.fit()
+const setupFontLoadRefit = () => {
+  if (!('fonts' in document)) {
+    return
   }
-  requestAnimationFrame(refit)
-  window.setTimeout(refit, 300)
-  window.addEventListener('load', refit)
-  if ('fonts' in document) {
-    void document.fonts.ready.then(() => {
+  void document.fonts.ready.then(() => {
+    fitty.fitAll()
+  })
+  // Web フォント適用後の測り直しは1回で足りる。フォールバックフォントの
+  // 遅延到着まで拾うと、そのたびに全要素の強制再計測が走ってしまう。
+  document.fonts.addEventListener(
+    'loadingdone',
+    () => {
       fitty.fitAll()
-    })
-    // Web フォント適用後の測り直しは1回で足りる。フォールバックフォントの
-    // 遅延到着まで拾うと、そのたびに全要素の強制再計測が走ってしまう。
-    document.fonts.addEventListener(
-      'loadingdone',
-      () => {
-        fitty.fitAll()
-      },
-      { once: true },
-    )
-  }
+    },
+    { once: true },
+  )
 }
 
 const setFooterVersion = () => {
@@ -134,7 +121,7 @@ const bootstrap = async () => {
   }
   setupAnalytics()
   setupSettings()
-  setupTitleFit()
+  setupFontLoadRefit()
   setupPageSwitch()
   setFooterVersion()
   const entries = await loadEntries()
