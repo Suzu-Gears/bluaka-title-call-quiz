@@ -9,6 +9,7 @@ import {
   registerAppServiceWorker,
 } from '@/lib/appUpdate'
 import { resolveAssetUrl } from '@/lib/assetPath'
+import { setupConsoleEasterEgg } from '@/lib/consoleEasterEgg'
 import {
   FINAL_DATA_SCHEMA_VERSION,
   type FinalData,
@@ -163,6 +164,7 @@ const bootstrap = async () => {
   const enterQuiz = () => {
     void ensureQuizSetup()
     void ensureFallbackFonts()
+    setupConsoleEasterEgg()
   }
 
   // オプション内の進捗ボタン(エクスポート等)はクイズモジュール側で配線される。
