@@ -1014,6 +1014,13 @@ h1,
 }
 
 /* ゲームの「| ポジション」風のセクション見出し(左に水色バー+下に点線) */
+/* display 指定を持つ要素は hidden 属性が負けるため明示的に握りつぶす
+   (オプションの PWA 限定セクションの出し分けで使う) */
+.filter-section-label[hidden],
+.settings-download-progress[hidden] {
+  display: none;
+}
+
 .filter-section-label {
   display: flex;
   align-items: center;

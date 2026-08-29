@@ -119,11 +119,18 @@ export const setupSettings = (): void => {
   if (!openButton || !dialog) {
     return
   }
-  if (!isPwaMode()) {
-    return
-  }
 
+  // 歯車は常時表示し、PWA(ホーム画面追加)でしか意味を持たないセクション
+  // (更新・全データダウンロード)だけを出し分ける。Web版の通常タブは
+  // 起動時に自動更新され、Service Worker も使わないため。
+  const pwa = isPwaMode()
   openButton.hidden = false
+  dialog.querySelectorAll<HTMLElement>('.pwa-only').forEach((element) => {
+    element.hidden = !pwa
+  })
+  dialog.querySelectorAll<HTMLElement>('.web-only').forEach((element) => {
+    element.hidden = pwa
+  })
 
   const setElementText = (element: HTMLElement | null, message: string) => {
     if (element) {
@@ -374,8 +381,10 @@ export const setupSettings = (): void => {
     // iOS でフォーカスリングが表示されてしまうため、ダイアログ自体へ移す。
     dialog.focus({ preventScroll: true })
     // 開くたびに最新情報へ更新する(結果メッセージは出さない)
-    void runUpdateCheck(false)
-    void renderCacheSizeLine()
+    if (pwa) {
+      void runUpdateCheck(false)
+      void renderCacheSizeLine()
+    }
   })
   closeButton?.addEventListener('click', () => {
     dialog.close()
@@ -399,5 +408,7 @@ export const setupSettings = (): void => {
   })
 
   // 起動時に一度だけ更新を確認し、あれば歯車にバッジを出す(適用はしない)。
-  void runUpdateCheck(false)
+  if (pwa) {
+    void runUpdateCheck(false)
+  }
 }

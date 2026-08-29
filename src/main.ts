@@ -165,6 +165,12 @@ const bootstrap = async () => {
     void ensureFallbackFonts()
   }
 
+  // オプション内の進捗ボタン(エクスポート等)はクイズモジュール側で配線される。
+  // オプションを開いた時点で読み込みを始め、最初のクリックから効くようにする。
+  document
+    .getElementById('settings-open')
+    ?.addEventListener('click', () => void ensureQuizSetup())
+
   // 挑戦状リンク('#c=' は quizShare の SHARED_QUIZ_HASH_KEY)で開かれた・
   // 貼り付けられたときは即座に初期化する(ハッシュの解釈は setupQuizShare が行う)。
   if (window.location.hash.startsWith('#c=')) {

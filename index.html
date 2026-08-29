@@ -139,8 +139,8 @@
             class="settings-button"
             type="button"
             aria-haspopup="dialog"
-            aria-label="設定"
-            title="設定"
+            aria-label="オプション"
+            title="オプション"
             hidden
           >
             <svg
@@ -460,28 +460,6 @@
                   role="menuitem"
                 >
                   クイズ設定画面に戻る
-                </button>
-                <button
-                  id="quiz-export-progress-button"
-                  type="button"
-                  role="menuitem"
-                >
-                  進捗をエクスポート
-                </button>
-                <button
-                  id="quiz-import-progress-button"
-                  type="button"
-                  role="menuitem"
-                >
-                  進捗をインポート
-                </button>
-                <button
-                  id="quiz-sync-button"
-                  type="button"
-                  role="menuitem"
-                  hidden
-                >
-                  クラウド同期
                 </button>
               </div>
             </div>
@@ -939,7 +917,7 @@
       tabindex="-1"
     >
       <div class="filter-dialog-head">
-        <h3 class="filter-dialog-title">設定</h3>
+        <h3 class="filter-dialog-title">オプション</h3>
         <button
           id="settings-dialog-close"
           class="filter-dialog-close"
@@ -955,12 +933,12 @@
         <dd id="settings-network-state">-</dd>
         <dt>現在のバージョン</dt>
         <dd id="settings-current-version">-</dd>
-        <dt>最新バージョン</dt>
-        <dd id="settings-latest-version">未確認</dd>
+        <dt class="pwa-only">最新バージョン</dt>
+        <dd id="settings-latest-version" class="pwa-only">未確認</dd>
       </dl>
-      <div class="filter-section-label">アップデート</div>
-      <p id="settings-update-note" class="settings-note" hidden></p>
-      <div class="app-dialog-actions">
+      <div class="filter-section-label pwa-only">アップデート</div>
+      <p id="settings-update-note" class="settings-note pwa-only" hidden></p>
+      <div class="app-dialog-actions pwa-only">
         <button id="settings-check-update" type="button">更新を確認</button>
         <button
           id="settings-apply-update"
@@ -976,17 +954,21 @@
           ></span>
         </button>
       </div>
-      <div class="filter-section-label">データのダウンロード</div>
-      <p id="settings-cache-size-line" class="settings-note">
+      <!-- Web版にはアプリ化の案内だけを出す(JSが表示を切り替える) -->
+      <p class="settings-note web-only" hidden>
+        ホーム画面に追加（アプリとしてインストール）すると、全データの端末保存・オフライン利用・手動更新が使えるようになります。
+      </p>
+      <div class="filter-section-label pwa-only">データのダウンロード</div>
+      <p id="settings-cache-size-line" class="settings-note pwa-only">
         保存状況を確認しています...
       </p>
-      <p class="settings-note">
+      <p class="settings-note pwa-only">
         音声・画像などの全データをまとめて端末に保存します。モバイル回線では通信量にご注意ください（Wi-Fi
         推奨）。
       </p>
       <div
         id="settings-download-progress"
-        class="settings-download-progress"
+        class="settings-download-progress pwa-only"
         hidden
       >
         <progress
@@ -996,7 +978,7 @@
         ></progress>
         <span id="settings-download-progress-text"></span>
       </div>
-      <div class="app-dialog-actions">
+      <div class="app-dialog-actions pwa-only">
         <button id="settings-download-all" type="button">
           すべてダウンロード
         </button>
@@ -1006,9 +988,22 @@
       </div>
       <p
         id="settings-download-status"
-        class="app-dialog-status"
+        class="app-dialog-status pwa-only"
         role="status"
       ></p>
+      <div class="filter-section-label">進捗データ</div>
+      <p class="settings-note">
+        クイズの正答記録の書き出し・読み込みと、端末間のクラウド同期です。
+      </p>
+      <div class="app-dialog-actions">
+        <button id="quiz-export-progress-button" type="button">
+          進捗をエクスポート
+        </button>
+        <button id="quiz-import-progress-button" type="button">
+          進捗をインポート
+        </button>
+        <button id="quiz-sync-button" type="button" hidden>クラウド同期</button>
+      </div>
       <div class="filter-section-label">キャッシュ</div>
       <p class="settings-note">
         表示や音声がおかしいときに使ってください。進捗は消えません。
