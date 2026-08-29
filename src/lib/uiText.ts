@@ -106,7 +106,7 @@ export const QUIZ_SHARE_UI_TEXT = {
   importNoPlayableStudents:
     '共有されたクイズに、現在のデータで出題できる生徒がいませんでした。',
   imageFailed: '画像を作成できませんでした。',
-  imageDownloaded: '画像を保存しました。Xの投稿に添付してください。',
+  imageDownloaded: '画像を保存しました。',
   imageCopied: '画像をコピーしました。Xの投稿画面に貼り付けてください。',
   cardAppName: 'ブルアカ タイトルコールクイズ',
   cardPerfect: '100点満点、花丸です！',

@@ -554,47 +554,58 @@ export const imageDeliveryMessage = (method: ImageDeliveryMethod): string => {
  * どの手段で渡せたかを返す(呼び出し側が案内文を出し分ける)。
  * 共有シートはタッチ端末に限る(PC ではコピーの方が X に貼りやすい)。
  */
-export const deliverCardImage = async (
-  canvas: HTMLCanvasElement,
+/**
+ * OS の共有シートが使えるか(= 画像とテキストを 1 操作で渡せるか)。
+ * タッチ端末に限るのは、デスクトップの共有シートが実質使い物にならないため。
+ */
+export const canShareCardImage = (): boolean =>
+  window.matchMedia('(pointer: coarse)').matches &&
+  typeof navigator.share === 'function' &&
+  typeof navigator.canShare === 'function'
+
+/** OS の共有シートへ画像とテキストを渡す。渡せなければ false。 */
+const shareCardImage = async (
+  blobPromise: Promise<Blob>,
   fileName: string,
   shareText?: string,
-): Promise<ImageDeliveryMethod> => {
-  // Safari はユーザー操作の直後でないと clipboard.write を拒否するため、
-  // Blob の Promise をそのまま ClipboardItem へ渡す(await を挟まない)。
-  const blobPromise = canvasToPngBlob(canvas)
-
-  const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
-  if (
-    isTouchDevice &&
-    typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function'
-  ) {
-    try {
-      const blob = await blobPromise
-      const file = new File([blob], fileName, { type: 'image/png' })
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], text: shareText })
-        return 'share'
-      }
-    } catch (error) {
-      // 共有キャンセルはそのまま終わる(他の手段へ切り替えない)
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return 'share'
-      }
-    }
+): Promise<boolean> => {
+  if (!canShareCardImage()) {
+    return false
   }
-
   try {
-    if (typeof ClipboardItem === 'function' && navigator.clipboard?.write) {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blobPromise }),
-      ])
-      return 'clipboard'
+    const blob = await blobPromise
+    const file = new File([blob], fileName, { type: 'image/png' })
+    if (!navigator.canShare({ files: [file] })) {
+      return false
     }
-  } catch {
-    // コピー不可ならダウンロードへ
+    await navigator.share({ files: [file], text: shareText })
+    return true
+  } catch (error) {
+    // 共有シートのキャンセルは失敗ではない(他の手段へ切り替えない)
+    return error instanceof DOMException && error.name === 'AbortError'
   }
+}
 
+/** 画像をクリップボードへ。書き込めなければ false。 */
+const copyCardImage = async (blobPromise: Promise<Blob>): Promise<boolean> => {
+  if (typeof ClipboardItem !== 'function' || !navigator.clipboard?.write) {
+    return false
+  }
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': blobPromise }),
+    ])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 画像を PNG として保存。 */
+const downloadCardImage = async (
+  blobPromise: Promise<Blob>,
+  fileName: string,
+): Promise<boolean> => {
   try {
     const blob = await blobPromise
     const link = document.createElement('a')
@@ -602,8 +613,55 @@ export const deliverCardImage = async (
     link.download = fileName
     link.click()
     URL.revokeObjectURL(link.href)
-    return 'download'
+    return true
   } catch {
-    return 'none'
+    return false
   }
+}
+
+/**
+ * Safari はユーザー操作の直後でないと clipboard.write を拒否するため、Blob の
+ * Promise を await せずそのまま ClipboardItem へ渡す。canvas から Blob を作る
+ * のは呼び出し側では await しないこと。
+ */
+export const shareCardImageToOs = async (
+  canvas: HTMLCanvasElement,
+  fileName: string,
+  shareText?: string,
+): Promise<ImageDeliveryMethod> => {
+  const blobPromise = canvasToPngBlob(canvas)
+  return (await shareCardImage(blobPromise, fileName, shareText))
+    ? 'share'
+    : 'none'
+}
+
+export const copyCardImageToClipboard = async (
+  canvas: HTMLCanvasElement,
+): Promise<ImageDeliveryMethod> => {
+  const blobPromise = canvasToPngBlob(canvas)
+  return (await copyCardImage(blobPromise)) ? 'clipboard' : 'none'
+}
+
+export const saveCardImage = async (
+  canvas: HTMLCanvasElement,
+  fileName: string,
+): Promise<ImageDeliveryMethod> => {
+  const blobPromise = canvasToPngBlob(canvas)
+  return (await downloadCardImage(blobPromise, fileName)) ? 'download' : 'none'
+}
+
+/** 環境に応じて共有 → コピー → 保存の順に試す(挑戦状のアイキャッチ用)。 */
+export const deliverCardImage = async (
+  canvas: HTMLCanvasElement,
+  fileName: string,
+  shareText?: string,
+): Promise<ImageDeliveryMethod> => {
+  const blobPromise = canvasToPngBlob(canvas)
+  if (await shareCardImage(blobPromise, fileName, shareText)) {
+    return 'share'
+  }
+  if (await copyCardImage(blobPromise)) {
+    return 'clipboard'
+  }
+  return (await downloadCardImage(blobPromise, fileName)) ? 'download' : 'none'
 }
