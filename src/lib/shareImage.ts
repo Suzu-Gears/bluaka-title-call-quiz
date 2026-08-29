@@ -80,10 +80,40 @@ const fitFontSize = (
   return size
 }
 
-const drawAppName = (ctx: CanvasRenderingContext2D) => {
+/**
+ * タイトルロゴ。SVG を <img> で読むと Safari がマスクを落として文字が消える
+ * ため、canvas にはあらかじめ焼いた PNG を使う(比率 1600:352)。
+ */
+const LOGO_ASPECT = 1600 / 352
+
+const loadLogo = (): Promise<HTMLImageElement | null> =>
+  loadImage(resolveAssetUrl('title-logo-card.png'))
+
+/**
+ * ロゴを中央に描く。読み込めなかったときは同じ位置に文字で代替する。
+ * centerY はロゴの縦中心。
+ */
+const drawLogo = (
+  ctx: CanvasRenderingContext2D,
+  logo: HTMLImageElement | null,
+  width: number,
+  centerX: number,
+  centerY: number,
+) => {
+  if (logo) {
+    const height = width / LOGO_ASPECT
+    ctx.drawImage(
+      logo,
+      centerX - width / 2,
+      centerY - height / 2,
+      width,
+      height,
+    )
+    return
+  }
   ctx.fillStyle = '#2f86d6'
-  ctx.font = `bold 40px ${FONT_FAMILY}`
-  ctx.fillText(QUIZ_SHARE_UI_TEXT.cardAppName, CARD_WIDTH / 2, CARD_MARGIN + 84)
+  ctx.font = `bold ${Math.round(width * 0.09)}px ${FONT_FAMILY}`
+  ctx.fillText(QUIZ_SHARE_UI_TEXT.cardAppName, centerX, centerY + 12)
 }
 
 const drawHost = (ctx: CanvasRenderingContext2D) => {
@@ -106,16 +136,16 @@ export interface ChallengeCardContent {
 }
 
 /** 挑戦状のアイキャッチ画像。 */
-export const drawChallengeCard = (
+export const drawChallengeCard = async (
   content: ChallengeCardContent,
-): HTMLCanvasElement | null => {
+): Promise<HTMLCanvasElement | null> => {
   const prepared = createCardCanvas()
   if (!prepared) {
     return null
   }
   const { canvas, ctx } = prepared
   const innerWidth = CARD_WIDTH - CARD_MARGIN * 2 - 80
-  drawAppName(ctx)
+  drawLogo(ctx, await loadLogo(), 400, CARD_WIDTH / 2, 150)
 
   const title = content.title || QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName
   ctx.fillStyle = '#333333'
@@ -150,6 +180,91 @@ export const drawChallengeCard = (
   return canvas
 }
 
+interface ScoreBlockOptions {
+  centerX: number
+  /** スコア文字のベースライン。 */
+  scoreBaseline: number
+  /** 「100点満点、花丸です！」等のベースライン。スタンプより下に置く。 */
+  captionBaseline: number
+  maxWidth: number
+  stamp: HTMLImageElement | null
+  stampSize: number
+  scoreStartSize: number
+  correctCount: number
+  totalCount: number
+}
+
+/**
+ * スコアとスタンプ、その下の一言をまとめて描く。
+ * スコアとスタンプは横に並べて 1 セットで中央へ、一言はその下で中央寄せ。
+ */
+const drawScoreBlock = (
+  ctx: CanvasRenderingContext2D,
+  options: ScoreBlockOptions,
+): void => {
+  const {
+    centerX,
+    scoreBaseline,
+    captionBaseline,
+    maxWidth,
+    stamp,
+    stampSize,
+    scoreStartSize,
+    correctCount,
+    totalCount,
+  } = options
+  const isPerfect = totalCount > 0 && correctCount === totalCount
+  const showStamp = isPerfect && !!stamp
+  const STAMP_GAP = 32
+
+  const scoreText = `${correctCount} / ${totalCount}`
+  // 「9999 / 9999」のような長いスコアは収まるまで自動で縮める。
+  const scoreFontSize = fitFontSize(
+    ctx,
+    scoreText,
+    maxWidth - (showStamp ? stampSize + STAMP_GAP : 0),
+    scoreStartSize,
+    44,
+  )
+  const scoreWidth = ctx.measureText(scoreText).width
+  const groupWidth = showStamp ? scoreWidth + STAMP_GAP + stampSize : scoreWidth
+  const groupLeft = centerX - groupWidth / 2
+
+  ctx.textAlign = 'left'
+  ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
+  ctx.font = `bold ${scoreFontSize}px ${FONT_FAMILY}`
+  ctx.fillText(scoreText, groupLeft, scoreBaseline)
+
+  if (showStamp && stamp) {
+    // つぶれないよう大きめに、少し傾けてスタンプらしく押す。
+    ctx.save()
+    ctx.translate(
+      groupLeft + scoreWidth + STAMP_GAP + stampSize / 2,
+      scoreBaseline - scoreFontSize / 2.6,
+    )
+    ctx.rotate(-0.18)
+    ctx.drawImage(stamp, -stampSize / 2, -stampSize / 2, stampSize, stampSize)
+    ctx.restore()
+  }
+
+  const accuracy =
+    totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#555555'
+  ctx.font = `bold 32px ${FONT_FAMILY}`
+  ctx.fillText(
+    fitText(
+      ctx,
+      isPerfect
+        ? QUIZ_SHARE_UI_TEXT.cardPerfect
+        : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
+      maxWidth,
+    ),
+    centerX,
+    captionBaseline,
+  )
+}
+
 export interface ChallengeResultCardContent extends ChallengeCardContent {
   correctCount: number
   totalCount: number
@@ -173,97 +288,42 @@ export const drawChallengeResultCard = async (
   const innerWidth = CARD_WIDTH - CARD_MARGIN * 2 - 80
   const isPerfect =
     content.totalCount > 0 && content.correctCount === content.totalCount
-  const stamp = isPerfect
-    ? await loadImage(resolveAssetUrl('kokona-stamp.png'))
-    : null
+  const [logo, stamp] = await Promise.all([
+    loadLogo(),
+    isPerfect ? loadImage(resolveAssetUrl('kokona-stamp.png')) : null,
+  ])
 
-  drawAppName(ctx)
+  drawLogo(ctx, logo, 380, CARD_WIDTH / 2, 148)
 
   const title = content.title || QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName
   ctx.fillStyle = '#333333'
-  ctx.font = `bold 52px ${FONT_FAMILY}`
-  ctx.fillText(fitText(ctx, `「${title}」`, innerWidth), CARD_WIDTH / 2, 226)
+  ctx.font = `bold 48px ${FONT_FAMILY}`
+  ctx.fillText(fitText(ctx, `「${title}」`, innerWidth), CARD_WIDTH / 2, 250)
 
-  ctx.fillStyle = '#1f5e9c'
-  ctx.font = `bold 36px ${FONT_FAMILY}`
-  ctx.fillText(
+  // 問題数と作者は 1 行にまとめる(スコアとスタンプの場所を空けるため)。
+  const metaLine = [
     `全${content.questionCount}問（${content.questionSummary}）`,
-    CARD_WIDTH / 2,
-    286,
-  )
+    content.author
+      ? `${QUIZ_SHARE_UI_TEXT.challengeAuthorPrefix}${content.author}`
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join('　')
+  ctx.fillStyle = '#1f5e9c'
+  ctx.font = `bold 30px ${FONT_FAMILY}`
+  ctx.fillText(fitText(ctx, metaLine, innerWidth), CARD_WIDTH / 2, 300)
 
-  // 説明文はスコアの場所を圧迫するので、このカードでは出さない(バナーには出る)。
-  if (content.author) {
-    ctx.fillStyle = '#555555'
-    ctx.font = `28px ${FONT_FAMILY}`
-    // 満点だと右側にスタンプが来るので、作者名が長くても届かない幅に抑える。
-    ctx.fillText(
-      fitText(
-        ctx,
-        `${QUIZ_SHARE_UI_TEXT.challengeAuthorPrefix}${content.author}`,
-        isPerfect ? innerWidth - 360 : innerWidth,
-      ),
-      CARD_WIDTH / 2,
-      330,
-    )
-  }
-
-  // スコアとスタンプは結果カードと同じく 1 セットで中央に置く。
-  const STAMP_SIZE = 150
-  const STAMP_GAP = 24
-  const showStamp = isPerfect && !!stamp
-  const scoreText = `${content.correctCount} / ${content.totalCount}`
-  const scoreFontSize = fitFontSize(
-    ctx,
-    scoreText,
-    innerWidth - (showStamp ? STAMP_SIZE + STAMP_GAP : 0),
-    92,
-    44,
-  )
-  const scoreWidth = ctx.measureText(scoreText).width
-  const groupLeft = showStamp
-    ? (CARD_WIDTH - (scoreWidth + STAMP_GAP + STAMP_SIZE)) / 2
-    : 0
-  const textAnchor = showStamp ? groupLeft + scoreWidth : CARD_WIDTH / 2
-  const captionWidth = showStamp ? textAnchor - CARD_MARGIN - 40 : innerWidth
-
-  ctx.textAlign = showStamp ? 'right' : 'center'
-  ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
-  ctx.font = `bold ${scoreFontSize}px ${FONT_FAMILY}`
-  ctx.fillText(scoreText, textAnchor, 424)
-
-  const accuracy =
-    content.totalCount > 0
-      ? Math.round((content.correctCount / content.totalCount) * 100)
-      : 0
-  ctx.fillStyle = '#555555'
-  ctx.font = `bold 32px ${FONT_FAMILY}`
-  ctx.fillText(
-    fitText(
-      ctx,
-      isPerfect
-        ? QUIZ_SHARE_UI_TEXT.cardPerfect
-        : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
-      captionWidth,
-    ),
-    textAnchor,
-    480,
-  )
-  ctx.textAlign = 'center'
-
-  if (showStamp && stamp) {
-    ctx.save()
-    ctx.translate(groupLeft + scoreWidth + STAMP_GAP + STAMP_SIZE / 2, 398)
-    ctx.rotate(-0.18)
-    ctx.drawImage(
-      stamp,
-      -STAMP_SIZE / 2,
-      -STAMP_SIZE / 2,
-      STAMP_SIZE,
-      STAMP_SIZE,
-    )
-    ctx.restore()
-  }
+  drawScoreBlock(ctx, {
+    centerX: CARD_WIDTH / 2,
+    scoreBaseline: 420,
+    captionBaseline: 486,
+    maxWidth: innerWidth,
+    stamp,
+    stampSize: 130,
+    scoreStartSize: 84,
+    correctCount: content.correctCount,
+    totalCount: content.totalCount,
+  })
 
   drawHost(ctx)
   return canvas
@@ -297,7 +357,7 @@ export interface ResultCardContent {
 // リザルト画像(縦長)のレイアウト定数
 const RESULT_WIDTH = 900
 const RESULT_PADDING = 30
-const RESULT_HEADER_HEIGHT = 330
+const RESULT_HEADER_HEIGHT = 390
 const RESULT_ROW_HEIGHT = 128
 const RESULT_ROW_GAP = 14
 const RESULT_FOOTER_HEIGHT = 80
@@ -331,7 +391,8 @@ export const drawResultCard = async (
   }
 
   // 先に全画像を読み込む(失敗した分はプレースホルダー)
-  const [stamp, fallbackImage, ...rowImages] = await Promise.all([
+  const [logo, stamp, fallbackImage, ...rowImages] = await Promise.all([
+    loadLogo(),
     loadImage(resolveAssetUrl('kokona-stamp.png')),
     loadImage(resolveAssetUrl('default-student-image.webp')),
     ...rows.map((row) =>
@@ -359,48 +420,8 @@ export const drawResultCard = async (
   const innerX = RESULT_PADDING + 28
   const innerWidth = RESULT_WIDTH - (RESULT_PADDING + 28) * 2
 
-  // --- ヘッダー(スコア) ---
-  const accuracy =
-    content.totalCount > 0
-      ? Math.round((content.correctCount / content.totalCount) * 100)
-      : 0
-  const isPerfect =
-    content.totalCount > 0 && content.correctCount === content.totalCount
-  const showStamp = isPerfect && !!stamp
-
-  // 満点のときは「スコア + スタンプ」を 1 セットとして中央に置く。
-  // 位置を固定すると桁数によってスタンプへ潜り込んだり妙な隙間が空くため、
-  // スコアの実寸を測ってから左端を決める。
-  // スタンプはタイトル行より下(スコアと同じ帯)なので、タイトルは満点でも
-  // 幅いっぱい使える。
-  const STAMP_SIZE = 180
-  const STAMP_GAP = 24
-  const stampCenterY = RESULT_PADDING + 218
-  const scoreText = `${content.correctCount} / ${content.totalCount}`
-  // 「9999 / 9999」のような長いスコアは収まるまで自動で縮める
-  const scoreFontSize = fitFontSize(
-    ctx,
-    scoreText,
-    innerWidth - (showStamp ? STAMP_SIZE + STAMP_GAP : 0),
-    96,
-    44,
-  )
-  const scoreWidth = ctx.measureText(scoreText).width
-  const groupLeft = (RESULT_WIDTH - (scoreWidth + STAMP_GAP + STAMP_SIZE)) / 2
-  const scoreRight = showStamp ? groupLeft + scoreWidth : null
-  const stampCenterX = groupLeft + scoreWidth + STAMP_GAP + STAMP_SIZE / 2
-  /** 満点時はスタンプの左隣(右寄せ)、それ以外は従来どおり中央。 */
-  const textAnchor = scoreRight === null ? RESULT_WIDTH / 2 : scoreRight
-  const captionWidth = scoreRight === null ? innerWidth : scoreRight - innerX
-
-  ctx.textAlign = 'center'
-  ctx.fillStyle = '#2f86d6'
-  ctx.font = `bold 34px ${FONT_FAMILY}`
-  ctx.fillText(
-    QUIZ_SHARE_UI_TEXT.cardAppName,
-    RESULT_WIDTH / 2,
-    RESULT_PADDING + 62,
-  )
+  // --- ヘッダー(ロゴ + スコア) ---
+  drawLogo(ctx, logo, 340, RESULT_WIDTH / 2, RESULT_PADDING + 66)
 
   if (content.title) {
     ctx.fillStyle = '#333333'
@@ -408,44 +429,21 @@ export const drawResultCard = async (
     ctx.fillText(
       fitText(ctx, `「${content.title}」`, innerWidth),
       RESULT_WIDTH / 2,
-      RESULT_PADDING + 116,
+      RESULT_PADDING + 152,
     )
   }
 
-  ctx.textAlign = scoreRight === null ? 'center' : 'right'
-  ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
-  ctx.font = `bold ${scoreFontSize}px ${FONT_FAMILY}`
-  ctx.fillText(scoreText, textAnchor, RESULT_PADDING + 226)
-
-  ctx.fillStyle = '#555555'
-  ctx.font = `bold 34px ${FONT_FAMILY}`
-  ctx.fillText(
-    fitText(
-      ctx,
-      isPerfect
-        ? QUIZ_SHARE_UI_TEXT.cardPerfect
-        : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
-      captionWidth,
-    ),
-    textAnchor,
-    RESULT_PADDING + 288,
-  )
-  ctx.textAlign = 'center'
-
-  if (isPerfect && stamp) {
-    // つぶれないよう大きめに、少し傾けてスタンプらしく押す。
-    ctx.save()
-    ctx.translate(stampCenterX, stampCenterY)
-    ctx.rotate(-0.18)
-    ctx.drawImage(
-      stamp,
-      -STAMP_SIZE / 2,
-      -STAMP_SIZE / 2,
-      STAMP_SIZE,
-      STAMP_SIZE,
-    )
-    ctx.restore()
-  }
+  drawScoreBlock(ctx, {
+    centerX: RESULT_WIDTH / 2,
+    scoreBaseline: RESULT_PADDING + 256,
+    captionBaseline: RESULT_PADDING + 340,
+    maxWidth: innerWidth,
+    stamp,
+    stampSize: 150,
+    scoreStartSize: 96,
+    correctCount: content.correctCount,
+    totalCount: content.totalCount,
+  })
 
   // --- 正誤の一覧(リザルト画面の再現) ---
   ctx.textAlign = 'left'
