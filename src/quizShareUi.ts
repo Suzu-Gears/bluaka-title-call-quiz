@@ -10,6 +10,7 @@ import {
 } from '@/lib/quizShare'
 import {
   deliverCardImage,
+  drawChallengeResultCard,
   drawResultCard,
   imageDeliveryMessage,
   type ResultCardEntry,
@@ -316,12 +317,25 @@ export const setupQuizShare = (
       if (!currentResult) {
         return
       }
-      const canvas = await drawResultCard({
-        title: currentResult.challenge?.title || null,
-        correctCount: currentResult.correctCount,
-        totalCount: currentResult.totalCount,
-        entries: currentResult.entries,
-      })
+      const challenge = currentResult.challenge
+      // 挑戦状は共有 URL と一緒に出回るので、正誤一覧を載せると答えを配って
+      // しまう。アイキャッチにスコアを載せた形にする。
+      const canvas = challenge
+        ? await drawChallengeResultCard({
+            title: challenge.title,
+            author: challenge.author,
+            desc: challenge.desc,
+            questionCount: currentResult.totalCount,
+            questionSummary: challenge.questionSummary,
+            correctCount: currentResult.correctCount,
+            totalCount: currentResult.totalCount,
+          })
+        : await drawResultCard({
+            title: null,
+            correctCount: currentResult.correctCount,
+            totalCount: currentResult.totalCount,
+            entries: currentResult.entries,
+          })
       if (!canvas) {
         setResultShareStatus(QUIZ_SHARE_UI_TEXT.imageFailed)
         return

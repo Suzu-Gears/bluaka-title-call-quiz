@@ -150,6 +150,125 @@ export const drawChallengeCard = (
   return canvas
 }
 
+export interface ChallengeResultCardContent extends ChallengeCardContent {
+  correctCount: number
+  totalCount: number
+}
+
+/**
+ * 挑戦状の結果カード。アイキャッチにスコアとスタンプを載せた形。
+ *
+ * 標準クイズの結果カードと違って正誤一覧は描かない。挑戦状の結果は共有 URL と
+ * セットで出回るため、一覧を載せると受け取った人に答えを配ることになる
+ * (標準クイズは出題がその場のランダムなので一覧を載せても再現されない)。
+ */
+export const drawChallengeResultCard = async (
+  content: ChallengeResultCardContent,
+): Promise<HTMLCanvasElement | null> => {
+  const prepared = createCardCanvas()
+  if (!prepared) {
+    return null
+  }
+  const { canvas, ctx } = prepared
+  const innerWidth = CARD_WIDTH - CARD_MARGIN * 2 - 80
+  const isPerfect =
+    content.totalCount > 0 && content.correctCount === content.totalCount
+  const stamp = isPerfect
+    ? await loadImage(resolveAssetUrl('kokona-stamp.png'))
+    : null
+
+  drawAppName(ctx)
+
+  const title = content.title || QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName
+  ctx.fillStyle = '#333333'
+  ctx.font = `bold 52px ${FONT_FAMILY}`
+  ctx.fillText(fitText(ctx, `「${title}」`, innerWidth), CARD_WIDTH / 2, 226)
+
+  ctx.fillStyle = '#1f5e9c'
+  ctx.font = `bold 36px ${FONT_FAMILY}`
+  ctx.fillText(
+    `全${content.questionCount}問（${content.questionSummary}）`,
+    CARD_WIDTH / 2,
+    286,
+  )
+
+  // 説明文はスコアの場所を圧迫するので、このカードでは出さない(バナーには出る)。
+  if (content.author) {
+    ctx.fillStyle = '#555555'
+    ctx.font = `28px ${FONT_FAMILY}`
+    // 満点だと右側にスタンプが来るので、作者名が長くても届かない幅に抑える。
+    ctx.fillText(
+      fitText(
+        ctx,
+        `${QUIZ_SHARE_UI_TEXT.challengeAuthorPrefix}${content.author}`,
+        isPerfect ? innerWidth - 360 : innerWidth,
+      ),
+      CARD_WIDTH / 2,
+      330,
+    )
+  }
+
+  // スコアとスタンプは結果カードと同じく 1 セットで中央に置く。
+  const STAMP_SIZE = 150
+  const STAMP_GAP = 24
+  const showStamp = isPerfect && !!stamp
+  const scoreText = `${content.correctCount} / ${content.totalCount}`
+  const scoreFontSize = fitFontSize(
+    ctx,
+    scoreText,
+    innerWidth - (showStamp ? STAMP_SIZE + STAMP_GAP : 0),
+    92,
+    44,
+  )
+  const scoreWidth = ctx.measureText(scoreText).width
+  const groupLeft = showStamp
+    ? (CARD_WIDTH - (scoreWidth + STAMP_GAP + STAMP_SIZE)) / 2
+    : 0
+  const textAnchor = showStamp ? groupLeft + scoreWidth : CARD_WIDTH / 2
+  const captionWidth = showStamp ? textAnchor - CARD_MARGIN - 40 : innerWidth
+
+  ctx.textAlign = showStamp ? 'right' : 'center'
+  ctx.fillStyle = isPerfect ? '#d6642f' : '#1f5e9c'
+  ctx.font = `bold ${scoreFontSize}px ${FONT_FAMILY}`
+  ctx.fillText(scoreText, textAnchor, 424)
+
+  const accuracy =
+    content.totalCount > 0
+      ? Math.round((content.correctCount / content.totalCount) * 100)
+      : 0
+  ctx.fillStyle = '#555555'
+  ctx.font = `bold 32px ${FONT_FAMILY}`
+  ctx.fillText(
+    fitText(
+      ctx,
+      isPerfect
+        ? QUIZ_SHARE_UI_TEXT.cardPerfect
+        : `${QUIZ_SHARE_UI_TEXT.cardAccuracyPrefix}${accuracy}%`,
+      captionWidth,
+    ),
+    textAnchor,
+    480,
+  )
+  ctx.textAlign = 'center'
+
+  if (showStamp && stamp) {
+    ctx.save()
+    ctx.translate(groupLeft + scoreWidth + STAMP_GAP + STAMP_SIZE / 2, 398)
+    ctx.rotate(-0.18)
+    ctx.drawImage(
+      stamp,
+      -STAMP_SIZE / 2,
+      -STAMP_SIZE / 2,
+      STAMP_SIZE,
+      STAMP_SIZE,
+    )
+    ctx.restore()
+  }
+
+  drawHost(ctx)
+  return canvas
+}
+
 const loadImage = (src: string): Promise<HTMLImageElement | null> =>
   new Promise((resolve) => {
     const image = new Image()
