@@ -288,6 +288,9 @@ h1 {
    (0.85rem - 0.6rem)/2 + (0.1em×1.2rem)/2 = 0.185rem */
 .app-dialog > .filter-dialog-head .filter-dialog-close {
   top: calc(50% - 0.185rem);
+  /* × の字面は上端から 17.3px の位置に来るので、右端からも同じだけ空ける
+     (既定では 9.6px しかなく、右上の角丸に対して右寄りに見える) */
+  right: 0.48rem;
 }
 
 .app-dialog > .filter-dialog-head {
