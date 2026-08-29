@@ -66,9 +66,15 @@ const setupTitleFit = () => {
     void document.fonts.ready.then(() => {
       fitty.fitAll()
     })
-    document.fonts.addEventListener('loadingdone', () => {
-      fitty.fitAll()
-    })
+    // Web フォント適用後の測り直しは1回で足りる。フォールバックフォントの
+    // 遅延到着まで拾うと、そのたびに全要素の強制再計測が走ってしまう。
+    document.fonts.addEventListener(
+      'loadingdone',
+      () => {
+        fitty.fitAll()
+      },
+      { once: true },
+    )
   }
 }
 
@@ -153,34 +159,43 @@ const bootstrap = async () => {
     return quizSetupPromise
   }
 
+  // コアサブセットに無い文字(ユーザーが自作クイズや挑戦状に入力した文字)は
+  // クイズ機能の中でしか表示されない。フォールバック定義を先に読み込むと
+  // 該当スライスが遅れて届いて字形が差し替わり、レイアウトシフトになるため、
+  // クイズ画面を実際に開くときまで読み込まない。
+  let fallbackFontsPromise: Promise<unknown> | null = null
+  const ensureFallbackFonts = (): Promise<unknown> => {
+    fallbackFontsPromise ??= import('@/fonts-fallback.css')
+    return fallbackFontsPromise
+  }
+
+  const enterQuiz = () => {
+    void ensureQuizSetup()
+    void ensureFallbackFonts()
+  }
+
   // 挑戦状リンク('#c=' は quizShare の SHARED_QUIZ_HASH_KEY)で開かれた・
   // 貼り付けられたときは即座に初期化する(ハッシュの解釈は setupQuizShare が行う)。
   if (window.location.hash.startsWith('#c=')) {
-    void ensureQuizSetup()
+    enterQuiz()
   }
   window.addEventListener('hashchange', () => {
     if (window.location.hash.startsWith('#c=')) {
-      void ensureQuizSetup()
+      enterQuiz()
     }
   })
-  // クイズタブが押されたら確実に、押されなくてもアイドル時に先読みしておく。
   document
     .querySelectorAll('[data-view-target="quiz-view"]')
     .forEach((button) =>
-      button.addEventListener('click', () => void ensureQuizSetup(), {
-        once: true,
-      }),
+      button.addEventListener('click', enterQuiz, { once: true }),
     )
-  // コアサブセットに無い文字用のフォールバックフォント定義も、
-  // 初期表示を妨げないようアイドル時に読み込む。
-  const prefetchDeferred = () => {
-    void ensureQuizSetup()
-    void import('@/fonts-fallback.css')
-  }
+
+  // クイズのコードだけは、押されなくてもアイドル時に先読みしておく
+  // (JS の読み込みは表示に影響しないのでシフトの原因にならない)。
   if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(prefetchDeferred)
+    window.requestIdleCallback(() => void ensureQuizSetup())
   } else {
-    window.setTimeout(prefetchDeferred, 2000)
+    window.setTimeout(() => void ensureQuizSetup(), 2000)
   }
 }
 
