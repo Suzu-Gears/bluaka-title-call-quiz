@@ -52,7 +52,15 @@
           <!-- タイトルの font-size はこのラッパーの幅(cqi)から CSS が決める。
                padding を持たせないこと(持たせると基準幅がずれる) -->
           <div class="app-title-fit">
-            <h1 id="app-title">ブルアカ タイトルコールクイズ</h1>
+            <h1 id="app-title" class="app-title-logo">
+              <img
+                src="%BASE_URL%title-logo.svg"
+                alt="ブルアカ タイトルコールクイズ"
+                width="1243"
+                height="250"
+                decoding="async"
+              />
+            </h1>
           </div>
           <button
             id="settings-open"
@@ -771,7 +779,14 @@
             rel="noopener noreferrer"
             >Schale DB</a
           >
-          を参照しています。ゲーム画像・情報の所有権および著作権はそれぞれの権利者に帰属します。
+          および
+          <a
+            href="https://bluearchive.wiki/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Blue Archive Wiki</a
+          >
+          を参照しています。ゲーム音声・画像・情報の所有権および著作権はそれぞれの権利者に帰属します。
         </small>
       </footer>
     </div>

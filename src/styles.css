@@ -134,6 +134,22 @@ select option {
   text-align: center;
 }
 
+/* タイトルロゴ(SVG 画像)。テキスト用の下線グラデーションや cqi の
+   font-size 計算は使わない。幅・高さ属性 + aspect-ratio でシフトを防ぐ */
+h1.app-title-logo {
+  display: block;
+  padding: 0;
+  background: none;
+  line-height: 0;
+}
+
+.app-title-logo img {
+  display: block;
+  width: min(100%, 430px);
+  height: auto;
+  margin-inline: auto;
+}
+
 /* タイトルの基準幅になるラッパー(padding を持たせないこと)。
    h1 の font-size はこの幅(cqi)から決まる。 */
 .app-title-fit {
