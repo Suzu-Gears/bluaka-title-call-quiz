@@ -309,8 +309,16 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     '.list-head-sentinel',
   )
   if (listHead && listHeadSentinel && 'IntersectionObserver' in window) {
+    // theme-color も吸着に連動させる。iOS はステータスバー(ノッチ左右)を
+    // この色で塗るため、静止時はヘッダの白、吸着中は帯の色に合わせると
+    // Safari タブと同じ「ノッチと帯が地続き」の見た目が PWA でも再現される。
+    const themeColorMeta = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]',
+    )
     new IntersectionObserver(([entry]) => {
-      listHead.classList.toggle('is-stuck', !entry.isIntersecting)
+      const stuck = !entry.isIntersecting
+      listHead.classList.toggle('is-stuck', stuck)
+      themeColorMeta?.setAttribute('content', stuck ? '#a9c4d6' : '#ffffff')
     }).observe(listHeadSentinel)
   }
 
@@ -438,7 +446,9 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   // ソート反映後の先頭(=ファーストビュー)のカードは遅延させず即時読み込みにし、
   // LCP になる画像の発見・取得を前倒しする。先頭数枚はさらに優先度を上げる。
   ;[...grid.querySelectorAll<HTMLImageElement>('.grid-item img')]
-    .filter((img) => img.closest<HTMLElement>('.grid-item')?.style.display !== 'none')
+    .filter(
+      (img) => img.closest<HTMLElement>('.grid-item')?.style.display !== 'none',
+    )
     .slice(0, 24)
     .forEach((img, index) => {
       img.loading = 'eager'

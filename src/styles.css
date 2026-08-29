@@ -32,10 +32,11 @@
    iOS Safari は 16 以降で対応(それ以前は無視される)。
    仕様上ビューポートへは html か body のどちらか一方しか伝播しないため
    両方に指定する。副作用として「引っ張って更新」も無効になる。 */
-html,
-body {
+html {
   overscroll-behavior-y: none;
 }
+/* body には付けない: WebKit(iOS PWA)では body に指定すると body が
+   スクロールコンテナ扱いになり、position: sticky が効かなくなる。 */
 
 body {
   margin: 0;

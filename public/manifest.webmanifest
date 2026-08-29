@@ -22,5 +22,7 @@
   ],
   "short_name": "タイトルコール",
   "description": "ブルーアーカイブのタイトルコールクイズ",
-  "display": "standalone"
+  "display": "standalone",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff"
 }
