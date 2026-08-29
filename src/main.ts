@@ -3,11 +3,11 @@ import '@/fonts.css'
 import fitty from 'fitty'
 
 import { setupStudentGrid } from '@/cardList'
+import { setupAnalytics } from '@/lib/analytics'
 import {
   applyPendingAppUpdate,
   registerAppServiceWorker,
 } from '@/lib/appUpdate'
-import { setupAnalytics } from '@/lib/analytics'
 import { resolveAssetUrl } from '@/lib/assetPath'
 import {
   FINAL_DATA_SCHEMA_VERSION,
@@ -68,7 +68,11 @@ const setupFontLoadRefit = () => {
 const setFooterVersion = () => {
   const versionText = document.getElementById('footer-version')
   if (versionText) {
-    versionText.textContent = `©2025 ブルアカタイトルコールクイズ ${__APP_VERSION__}`
+    // 公開年から現在年までの範囲表記。年が変わっても手直し不要にする。
+    const startYear = 2025
+    const year = new Date().getFullYear()
+    const yearLabel = year > startYear ? `${startYear}-${year}` : `${startYear}`
+    versionText.textContent = `©${yearLabel} ブルアカタイトルコールクイズ ${__APP_VERSION__}`
   }
 }
 
@@ -160,6 +164,12 @@ const bootstrap = async () => {
     void ensureQuizSetup()
     void ensureFallbackFonts()
   }
+
+  // オプション内の進捗ボタン(エクスポート等)はクイズモジュール側で配線される。
+  // オプションを開いた時点で読み込みを始め、最初のクリックから効くようにする。
+  document
+    .getElementById('settings-open')
+    ?.addEventListener('click', () => void ensureQuizSetup())
 
   // 挑戦状リンク('#c=' は quizShare の SHARED_QUIZ_HASH_KEY)で開かれた・
   // 貼り付けられたときは即座に初期化する(ハッシュの解釈は setupQuizShare が行う)。

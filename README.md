@@ -98,7 +98,15 @@ SchaleDB の **JSON を 2 本**参照します。生徒一覧ページ（`https:
 そのため役割を次のように定めています。
 
 - **R2 バケットの内容＝配信される音声の正本。** ビルドは R2 の内容を `public/` にミラーします。
-- **SchaleDB＝新規クリップの供給源。** `voice.json` にあって R2 に無いものだけを取得して R2 へ追加します。
+- **SchaleDB＝新規クリップの第一供給源。** `voice.json` にあって R2 に無いものだけを取得して R2 へ追加します。
+- **bluearchive.wiki＝第二供給源（フォールバック）。** SchaleDB 側にまだ実ファイルが無いとき
+  （実装直後は wiki の方が掲載が速い）や、voice.json から掲載が消えた生徒（コラボ終了など）を
+  wiki の `File:{Wikiname} Title.ogg` から取得し、SchaleDB 配布と同等の mp3
+  （44.1kHz・モノラル・VBR 約70kbps）へ変換して同じキー規約で R2 に置きます。
+  生徒の対応付けは Cargo API の数値 Id（SchaleDB の Id と全 274 名で一致確認済み）。
+  clipId を SchaleDB の命名規則に合わせるため、後日 SchaleDB 側に音源が現れても重複しません。
+  wiki 由来のクリップは audio-manifest に指紋を記録しません
+  （記録すると `cache:refresh` が SchaleDB 版の公開を「録り直し」と誤認するため）。
 - したがって **`voice.json` から消えても R2 にあるものは配信され続けます**（ビルドログに `[r2-only]` と表示）。
 - 逆に R2 から削除すれば配信からも消えます。
 
@@ -485,7 +493,7 @@ OK なら `resetToStartScreen()` でリセットしてから遷移します。
 
 ### エクスポート / インポート
 
-クイズ画面のメニューから利用できます。
+ヘッダの歯車から開く「オプション」ダイアログで利用できます。
 
 - **エクスポート** … `{ formatVersion, exportedAt, proficiency }` の JSON を表示し、
   クリップボードへのコピーとファイル保存ができます。

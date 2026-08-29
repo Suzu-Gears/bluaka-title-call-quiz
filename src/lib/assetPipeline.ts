@@ -10,12 +10,18 @@ import {
   parseAudioKey,
   parseImageKey,
 } from '@/lib/assetKeys'
+import { convertOggToMp3 } from '@/lib/audioConvert'
 import {
   type AudioManifest,
   createEmptyAudioManifest,
   normalizeAudioManifest,
   upsertClipRecord,
 } from '@/lib/audioManifest'
+import {
+  deriveTitleClipId,
+  fetchWikinameMap,
+  resolveTitleCallOggUrl,
+} from '@/lib/bluearchiveWikiClient'
 import {
   downloadObjectToFile,
   getObjectJson,
@@ -25,6 +31,7 @@ import {
   uploadFileToR2,
 } from '@/lib/cloudflareR2Client'
 import {
+  ensureDirectory,
   listFilesRecursively,
   readLocalJSONIfValid,
   saveJSON,
@@ -90,6 +97,8 @@ export interface BuildAssetsResult {
    */
   pendingAudio: string[]
   pendingImages: number[]
+  /** bluearchive.wiki から補完したクリップ(`キー <- 取得元URL`)。 */
+  wikiAudio: string[]
   orphanAudioKeys: string[]
   r2OnlyClips: string[]
   entriesWithoutAudio: string[]
@@ -223,6 +232,53 @@ export async function loadSchaleDBSnapshot(): Promise<SchaleDBSnapshot> {
   return { students, titleCalls, voiceIds }
 }
 
+// --- bluearchive.wiki フォールバック ---
+// SchaleDB に音源が無い(未公開・掲載取り下げ)タイトルコールを wiki から補う。
+// 取り込んだ mp3 は通常のクリップと同じキー体系で置くため、後日 SchaleDB 側に
+// 音源が現れても clipId 単位の存在判定により再取得されず、重複しない。
+// 指紋は audio-manifest に記録しない: 記録すると refreshCache が SchaleDB 版の
+// 公開を「録り直し」と誤認して偽の新世代を作ってしまう(未記録なら次回の
+// refresh が現在値を基準として記録し直すだけで済む)。
+let wikinamesPromise: Promise<Map<number, string>> | null = null
+const getWikinames = (): Promise<Map<number, string>> =>
+  (wikinamesPromise ??= fetchWikinameMap())
+
+/**
+ * bluearchive.wiki からタイトルコールを取得し、mp3 へ変換して配置する。
+ * 成功したら取得元 URL、wiki に無い・失敗した場合は null(呼び出し側は
+ * 従来どおり「待ち」として扱う)。
+ */
+async function fetchAudioFromWiki(
+  parts: AudioKeyParts,
+  useR2: boolean,
+): Promise<string | null> {
+  const key = formatAudioKey(parts)
+  try {
+    const wikiname = (await getWikinames()).get(parts.studentId)
+    if (!wikiname) {
+      return null
+    }
+    const oggUrl = await resolveTitleCallOggUrl(wikiname)
+    if (!oggUrl) {
+      return null
+    }
+    const oggPath = path.join(TMP_DIR, 'wiki-audio', `${parts.clipId}.ogg`)
+    await downloadBinary(oggUrl, oggPath)
+    const localPath = path.join(PUBLIC_DIR, key)
+    ensureDirectory(path.dirname(localPath))
+    await convertOggToMp3(oggPath, localPath)
+    if (useR2) {
+      await uploadFileToR2(localPath, key, 'audio/mpeg')
+    }
+    return oggUrl
+  } catch (error) {
+    console.warn(
+      `bluearchive.wiki からの取り込みに失敗: ${key}: ${(error as Error).message}`,
+    )
+    return null
+  }
+}
+
 /**
  * ビルド用のアセットを揃え、final.json を出力する。
  *
@@ -260,6 +316,7 @@ export async function buildAssets(): Promise<BuildAssetsResult> {
   const failedAudio: string[] = []
   const pendingAudio: string[] = []
   const addedKeys: AudioKeyParts[] = []
+  const wikiAudio: string[] = []
 
   // --- 音声の差分補充 ---
   // 存在判定は clipId 単位(グローバル)。R2 上でクリップを本来の形態のフォルダへ
@@ -293,15 +350,65 @@ export async function buildAssets(): Promise<BuildAssetsResult> {
     } catch (error) {
       if (isNotFoundError(error)) {
         // 実装直後の生徒は voice.json に載っていても音源がまだ置かれていない。
-        // 次回以降のビルドで自動的に拾えるため、失敗としては数えない。
-        pendingAudio.push(`${key} (Id=${studentId})`)
-        console.log(`音源が未公開のためスキップ: ${sourceUrl}`)
+        // wiki の方が掲載が速いことが多いので、先にそちらを試す。
+        const wikiUrl = await fetchAudioFromWiki(parts, useR2)
+        if (wikiUrl) {
+          addedKeys.push(parts)
+          addedAudio.push(key)
+          wikiAudio.push(`${key} <- ${wikiUrl}`)
+          console.log(`音声を wiki から取り込み: ${key}`)
+        } else {
+          // wiki にも無ければ従来どおり待ち状態。次回以降のビルドで自動的に拾える。
+          pendingAudio.push(`${key} (Id=${studentId})`)
+          console.log(`音源が未公開のためスキップ: ${sourceUrl}`)
+        }
       } else {
         failedAudio.push(`${key} (${(error as Error).message})`)
         console.error(
           `音声の取得に失敗: ${sourceUrl}: ${(error as Error).message}`,
         )
       }
+    }
+    await sleep(requestIntervalMs)
+  }
+
+  // --- voice.json に掲載が無い生徒の補完(コラボの掲載取り下げなど) ---
+  // 初音ミクのように voice.json から消える生徒は通常の差分補充に乗らない。
+  // 音源をどこにも持たない生徒に限り wiki を照会する。clipId は SchaleDB の
+  // 命名規則に合わせて DevName から導出する(掲載が復活しても重複しない)。
+  const studentIdsWithAudio = new Set(
+    [...existingAudioKeys, ...addedKeys].map((key) => key.studentId),
+  )
+  const knownClipIds = new Set([
+    ...existingClipIds,
+    ...addedKeys.map((key) => key.clipId),
+  ])
+  for (const student of students) {
+    if (titleCalls.has(student.Id) || studentIdsWithAudio.has(student.Id)) {
+      continue
+    }
+    const clipId = deriveTitleClipId(student.DevName)
+    if (!clipId || knownClipIds.has(clipId)) {
+      continue
+    }
+    const parts: AudioKeyParts = {
+      studentId: student.Id,
+      clipId,
+      generation: 1,
+    }
+    const wikiUrl = await fetchAudioFromWiki(parts, useR2)
+    if (wikiUrl) {
+      const key = formatAudioKey(parts)
+      addedKeys.push(parts)
+      addedAudio.push(key)
+      wikiAudio.push(`${key} <- ${wikiUrl}`)
+      knownClipIds.add(clipId)
+      console.log(`音声を wiki から取り込み (voice.json 不掲載): ${key}`)
+    } else {
+      // ホシノ（臨戦）の別レコード(2レコード1音声)などは wiki にも無いのが正常。
+      console.log(
+        `voice.json に掲載が無く wiki にも音源なし: ${student.Name} (Id=${student.Id})`,
+      )
     }
     await sleep(requestIntervalMs)
   }
@@ -403,6 +510,7 @@ export async function buildAssets(): Promise<BuildAssetsResult> {
     failedImages,
     pendingAudio,
     pendingImages,
+    wikiAudio,
     orphanAudioKeys: orphanAudioKeys.map(formatAudioKey),
     r2OnlyClips,
     entriesWithoutAudio,
@@ -429,9 +537,15 @@ function reportBuildResult(result: BuildAssetsResult): void {
     `追加: 音声 ${result.addedAudio.length} 件、画像 ${result.addedImages.length} 件`,
   )
 
+  if (result.wikiAudio.length > 0) {
+    console.log(
+      `[wiki] bluearchive.wiki から補完したクリップ (${result.wikiAudio.length} 件):`,
+    )
+    result.wikiAudio.forEach((item) => console.log(`  ${item}`))
+  }
   if (result.pendingAudio.length > 0) {
     console.log(
-      `SchaleDB にまだ音源が無いクリップ (${result.pendingAudio.length} 件、実装直後の生徒では通常の状態):`,
+      `SchaleDB にも wiki にも音源が無いクリップ (${result.pendingAudio.length} 件、実装直後の生徒では通常の状態):`,
     )
     result.pendingAudio.forEach((item) => console.log(`  ${item}`))
     console.log(
