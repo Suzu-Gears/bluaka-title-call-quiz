@@ -23,6 +23,6 @@
   "short_name": "タイトルコール",
   "description": "ブルーアーカイブのタイトルコールクイズ",
   "display": "standalone",
-  "theme_color": "#ffffff",
+  "theme_color": "#a9c4d6",
   "background_color": "#ffffff"
 }

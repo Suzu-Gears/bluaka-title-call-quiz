@@ -309,16 +309,8 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
     '.list-head-sentinel',
   )
   if (listHead && listHeadSentinel && 'IntersectionObserver' in window) {
-    // theme-color も吸着に連動させる。iOS はステータスバー(ノッチ左右)を
-    // この色で塗るため、静止時はヘッダの白、吸着中は帯の色に合わせると
-    // Safari タブと同じ「ノッチと帯が地続き」の見た目が PWA でも再現される。
-    const themeColorMeta = document.querySelector<HTMLMetaElement>(
-      'meta[name="theme-color"]',
-    )
     new IntersectionObserver(([entry]) => {
-      const stuck = !entry.isIntersecting
-      listHead.classList.toggle('is-stuck', stuck)
-      themeColorMeta?.setAttribute('content', stuck ? '#a9c4d6' : '#ffffff')
+      listHead.classList.toggle('is-stuck', !entry.isIntersecting)
     }).observe(listHeadSentinel)
   }
 
