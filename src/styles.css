@@ -1708,14 +1708,11 @@ h1,
   align-items: stretch;
 }
 
-/* 幅が足りるときは中央寄せ、足りないときは左端からスクロールできる margin-auto 方式。
-   justify-content: center だと、あふれた際に左端が切れてスクロールできなくなる。 */
-.quiz-count-panel .quiz-question-count-input-controls > :first-child {
-  margin-inline-start: auto;
-}
-
-.quiz-count-panel .quiz-question-count-input-controls > :last-child {
-  margin-inline-end: auto;
+/* 「問題数」バナーは枠いっぱいのまま、増減 UI だけを枠の中央に置く。
+   この箱は min-width: max-content なので中身より狭くならない。狭い画面では
+   箱ごと親の横スクロールに乗るだけで、中央寄せが左端を隠すことはない。 */
+.quiz-count-panel .quiz-question-count-input-controls {
+  justify-content: center;
 }
 
 /* 「任務開始」風の大きな開始ボタン */
