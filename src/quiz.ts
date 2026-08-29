@@ -333,6 +333,12 @@ export const setupQuiz = (
   let currentDrawMode = getDrawModeValue()
   /** 学習・復習モードで今回のラウンドに出題する生徒(先頭から順に出す)。 */
   let roundQueue: string[] = []
+  /**
+   * 直近の出題で 1 問目になった生徒(新しい順)。
+   * 母数が 142 人(通常生徒)しかないため一様抽選でも連続一致は 1/142 で起き、
+   * リスタートを繰り返すと体感的に頻発する。1 問目だけ直近ぶんを避ける。
+   */
+  let recentFirstAnswers: string[] = []
   let learningPoolNames: string[] = []
   let reviewPoolNames: string[] = []
   let shouldShowCurrentAnswerStats = false
@@ -1038,6 +1044,36 @@ export const setupQuiz = (
     currentDrawMode === QUIZ_DRAW_MODE_LEARNING ||
     currentDrawMode === QUIZ_DRAW_MODE_REVIEW
 
+  /** 直近何回ぶんの 1 問目を避けるか。 */
+  const RECENT_FIRST_ANSWER_LIMIT = 2
+
+  /**
+   * 1 問目の抽選から直近の 1 問目を外した候補を返す。
+   *
+   * 母数が小さいと全部外れて選択の余地が無くなり、毎回同じ順序で巡回する
+   * だけになってしまう(3 人だと完全な 3 周期になる)。候補が 2 件を
+   * 下回らない範囲でだけ外し、足りなければ古いものから諦める。
+   * 選択肢に使う候補は減らさないこと(4 択は 4 人必要なため)。
+   */
+  const excludeRecentFirstAnswers = (
+    names: readonly string[],
+  ): readonly string[] => {
+    let excluded = recentFirstAnswers
+    let remaining = names.filter((name) => !excluded.includes(name))
+    while (remaining.length < 2 && excluded.length > 0) {
+      excluded = excluded.slice(0, -1)
+      remaining = names.filter((name) => !excluded.includes(name))
+    }
+    return remaining.length > 0 ? remaining : names
+  }
+
+  const rememberFirstAnswer = (name: string) => {
+    recentFirstAnswers = [
+      name,
+      ...recentFirstAnswers.filter((value) => value !== name),
+    ].slice(0, RECENT_FIRST_ANSWER_LIMIT)
+  }
+
   /** 問題の種類によらない出題時の共通処理(問番号・ボタン状態・表示リセット)。 */
   const prepareQuestionView = () => {
     questionNumber += 1
@@ -1426,6 +1462,8 @@ export const setupQuiz = (
     // 4択の選択肢に使う候補。ランダムモードでは使用済みを除いた available、
     // 学習・復習モードでは全候補(選択肢としての再登場を許す)。
     let choicePool: readonly string[] = activeNames
+    // prepareQuestionView() で加算されるため、抽選時点の 1 問目は 0。
+    const isFirstQuestion = questionNumber === 0
     if (isPoolDrawMode()) {
       const nextAnswer = roundQueue.shift()
       if (nextAnswer === undefined) {
@@ -1440,8 +1478,16 @@ export const setupQuiz = (
         showResultScreen()
         return
       }
-      currentAnswer = available[Math.floor(Math.random() * available.length)]
+      // 答えの抽選だけ直近の 1 問目を避ける。choicePool は available のまま
+      // 減らさない(4 択に必要な 4 人を割らないため)。
+      const answerPool = isFirstQuestion
+        ? excludeRecentFirstAnswers(available)
+        : available
+      currentAnswer = answerPool[Math.floor(Math.random() * answerPool.length)]
       choicePool = available
+    }
+    if (isFirstQuestion) {
+      rememberFirstAnswer(currentAnswer)
     }
     currentQuestionClip = pickRandomClip(clipsForName(currentAnswer))
     prepareQuestionView()
@@ -1492,6 +1538,19 @@ export const setupQuiz = (
           ? learningPoolNames
           : reviewPoolNames
       roundQueue = shuffleArray(pool).slice(0, totalQuestions)
+      // 先頭(1 問目)が直近の 1 問目と同じなら、そうでない要素と入れ替える。
+      // 全部が直近と同じ場合(候補が極端に少ないとき)は何もしない。
+      if (recentFirstAnswers.includes(roundQueue[0])) {
+        const swapIndex = roundQueue.findIndex(
+          (name) => !recentFirstAnswers.includes(name),
+        )
+        if (swapIndex > 0) {
+          ;[roundQueue[0], roundQueue[swapIndex]] = [
+            roundQueue[swapIndex],
+            roundQueue[0],
+          ]
+        }
+      }
     }
     shouldShowCurrentAnswerStats = false
     awaitingResult = false
