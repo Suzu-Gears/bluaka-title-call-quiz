@@ -289,14 +289,14 @@ h1 {
   border-bottom: 1px solid #e3e8ee;
 }
 
-/* GitHub リンクはアイコン付き */
-.settings-github-link {
+/* フッタの GitHub リンク(アイコン付き) */
+.github-link {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
 }
 
-.settings-github-icon {
+.github-icon {
   width: 1.1em;
   height: 1.1em;
   fill: currentColor;
