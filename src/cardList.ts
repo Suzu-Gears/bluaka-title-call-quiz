@@ -449,13 +449,52 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
 
   let fittyInstances: FittyInstance[] = setupFitty()
   let devicePixelRatio = window.devicePixelRatio
+  /** dpr が変わったが、非表示中で作り直せなかったことを覚えておく。 */
+  let needsFittyRebuild = false
+
+  const isCardListHidden = (): boolean => cardListSection?.hidden ?? false
+
+  const rebuildFitty = () => {
+    fittyInstances.forEach((instance) => instance.unsubscribe())
+    fittyInstances = setupFitty()
+  }
+
   window.addEventListener('resize', () => {
-    if (window.devicePixelRatio !== devicePixelRatio) {
-      devicePixelRatio = window.devicePixelRatio
-      fittyInstances.forEach((instance) => instance.unsubscribe())
-      fittyInstances = setupFitty()
+    if (window.devicePixelRatio === devicePixelRatio) {
+      return
     }
+    devicePixelRatio = window.devicePixelRatio
+    // クイズ画面を開いている間は display:none で親の幅が 0 になり、
+    // 作り直すと 0 幅で計測されて文字サイズが決まらない。
+    // unsubscribe() は fitty が付けたインラインスタイルを消すので、
+    // そのまま戻ると名前が原寸のままカードからはみ出す。
+    // 非表示なら作り直しは再表示時まで持ち越す。
+    if (isCardListHidden()) {
+      needsFittyRebuild = true
+      return
+    }
+    rebuildFitty()
   })
+
+  // 再表示(hidden 属性が外れる)は resize を伴わないため、fitty は自力で
+  // 測り直さない。非表示中に何らかの理由でサイズが失われていても復帰できる
+  // よう、表示に戻ったら必ず測り直す。
+  if (cardListSection) {
+    new MutationObserver(() => {
+      if (cardListSection.hidden) {
+        return
+      }
+      if (needsFittyRebuild) {
+        needsFittyRebuild = false
+        rebuildFitty()
+        return
+      }
+      fittyInstances.forEach((instance) => instance.fit())
+    }).observe(cardListSection, {
+      attributes: true,
+      attributeFilter: ['hidden'],
+    })
+  }
 
   const sharedAudioPlayer = document.createElement('audio')
   sharedAudioPlayer.hidden = true
