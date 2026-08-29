@@ -164,6 +164,7 @@ export const setupQuiz = (
   const menuResetScreenButton = document.getElementById(
     'quiz-menu-reset-screen-button',
   ) as HTMLButtonElement | null
+  const menuContainer = menuButton?.closest<HTMLElement>('.quiz-menu') ?? null
 
   const startButton = document.getElementById(
     'quiz-start-button',
@@ -420,6 +421,12 @@ export const setupQuiz = (
     }
     if (menuRestartButton) {
       menuRestartButton.disabled = !running
+    }
+    // 中身(リスタート・設定画面に戻る)は出題中とリザルトでしか意味がないので、
+    // 設定画面ではメニューごと隠す
+    setHidden(menuContainer, !running)
+    if (!running) {
+      setMenuOpen(false)
     }
   }
 
