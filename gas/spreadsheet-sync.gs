@@ -21,7 +21,11 @@
 const SHEET_NAME = 'progress'
 // 英字と数字の両方を必須にして、推測されやすい手入力コードを弾く。
 const CODE_PATTERN = /^(?=.*[0-9])(?=.*[a-z])[0-9a-z]{10}$/i
-/** Crockford Base32(紛らわしい i/l/o/u を除外)。10 文字で 50bit。 */
+/**
+ * Crockford Base32。10 文字で 50bit。
+ * i/l は 1 と、o は 0 と紛らわしいので除外。u だけは理由が違い、
+ * 偶然きわどい単語が出来上がるのを避けるために外している。
+ */
 const CODE_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz'
 
 function generateCode() {
