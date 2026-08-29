@@ -145,7 +145,7 @@ export const drawChallengeCard = async (
   }
   const { canvas, ctx } = prepared
   const innerWidth = CARD_WIDTH - CARD_MARGIN * 2 - 80
-  drawLogo(ctx, await loadLogo(), 400, CARD_WIDTH / 2, 150)
+  drawLogo(ctx, await loadLogo(), 570, CARD_WIDTH / 2, 128)
 
   const title = content.title || QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName
   ctx.fillStyle = '#333333'
@@ -293,7 +293,7 @@ export const drawChallengeResultCard = async (
     isPerfect ? loadImage(resolveAssetUrl('kokona-stamp.png')) : null,
   ])
 
-  drawLogo(ctx, logo, 380, CARD_WIDTH / 2, 148)
+  drawLogo(ctx, logo, 570, CARD_WIDTH / 2, 128)
 
   const title = content.title || QUIZ_SHARE_UI_TEXT.tweetDefaultQuizName
   ctx.fillStyle = '#333333'
@@ -357,7 +357,7 @@ export interface ResultCardContent {
 // リザルト画像(縦長)のレイアウト定数
 const RESULT_WIDTH = 900
 const RESULT_PADDING = 30
-const RESULT_HEADER_HEIGHT = 390
+const RESULT_HEADER_HEIGHT = 342
 const RESULT_ROW_HEIGHT = 128
 const RESULT_ROW_GAP = 14
 const RESULT_FOOTER_HEIGHT = 80
@@ -421,7 +421,7 @@ export const drawResultCard = async (
   const innerWidth = RESULT_WIDTH - (RESULT_PADDING + 28) * 2
 
   // --- ヘッダー(ロゴ + スコア) ---
-  drawLogo(ctx, logo, 340, RESULT_WIDTH / 2, RESULT_PADDING + 66)
+  drawLogo(ctx, logo, 470, RESULT_WIDTH / 2, RESULT_PADDING + 56)
 
   if (content.title) {
     ctx.fillStyle = '#333333'
@@ -435,8 +435,8 @@ export const drawResultCard = async (
 
   drawScoreBlock(ctx, {
     centerX: RESULT_WIDTH / 2,
-    scoreBaseline: RESULT_PADDING + 256,
-    captionBaseline: RESULT_PADDING + 340,
+    scoreBaseline: RESULT_PADDING + 208,
+    captionBaseline: RESULT_PADDING + 292,
     maxWidth: innerWidth,
     stamp,
     stampSize: 150,
