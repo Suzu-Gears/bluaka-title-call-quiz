@@ -75,10 +75,15 @@ const precacheAppShell = async () => {
     const files = Array.isArray(manifest?.files) ? manifest.files : []
     const shellPaths = files
       .map((file) => file?.path)
+      // fonts/ も含める。更新直後のページはまだ SW に制御されておらず、
+      // フォントの preload はキャッシュを素通りするため、ここで入れないと
+      // 「更新を適用」のたびに保存済みから 1 件欠けたままになる。
       .filter(
         (path) =>
           typeof path === 'string' &&
-          (path.startsWith('assets/') || path === 'data/final.json'),
+          (path.startsWith('assets/') ||
+            path.startsWith('fonts/') ||
+            path === 'data/final.json'),
       )
     await Promise.all(
       shellPaths.map(async (path) => {

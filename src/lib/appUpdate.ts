@@ -107,24 +107,37 @@ export const clearServiceWorkersAndCaches = async (): Promise<void> => {
   }
 }
 
-/** 端末に貯めたメディア(音声・画像)のパス接頭辞。更新時に残す対象。 */
-const MEDIA_PATH_PREFIXES = ['audio/', 'image/'].map(
-  (path) => new URL(resolveAssetUrl(path), window.location.href).pathname,
-)
+const toPathname = (path: string): string =>
+  new URL(resolveAssetUrl(path), window.location.href).pathname
 
-const isMediaRequest = (request: Request): boolean => {
+/**
+ * 更新で消す対象 = ビルドごとに差し替わるアプリシェル。
+ *
+ * 「残すものを選ぶ」のではなく「消すものを絞る」ことが重要。ここに挙げたものは
+ * すべて、SW の precacheAppShell か直後のページ読み込みで必ず取り直されるので、
+ * 更新後に保存済み件数が目減りしない。逆に、消しても誰も取り直さないファイル
+ * (アイコン・og-image・robots.txt・ビルド生成物の JSON など)を消してしまうと、
+ * 「すべてダウンロード」をやり直すまで欠けたままになる。
+ */
+const SHELL_EXACT_PATHS = ['', 'index.html', 'data/final.json'].map(toPathname)
+const SHELL_PATH_PREFIXES = ['assets/', 'fonts/'].map(toPathname)
+
+const isAppShellRequest = (request: Request): boolean => {
   try {
     const { pathname } = new URL(request.url)
-    return MEDIA_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    return (
+      SHELL_EXACT_PATHS.includes(pathname) ||
+      SHELL_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    )
   } catch {
     return false
   }
 }
 
 /**
- * 更新用: Service Worker を解除し、アプリシェル(HTML/JS/CSS など)の
- * キャッシュだけを消す。「すべてダウンロード」で貯めた音声・画像
- * (合わせて 9MB 超)は残し、更新のたびに取り直させない。
+ * 更新用: Service Worker を解除し、アプリシェル(HTML/JS/CSS・フォント・
+ * final.json)だけを消す。「すべてダウンロード」で貯めた音声・画像
+ * (合わせて 9MB 超)やアイコン類は残し、更新のたびに取り直させない。
  *
  * 音声・画像は録り直し(世代)や差し替えでファイル名自体が変わるため、
  * 古いエントリが残っても誤って配信されることはない。同名で中身だけ
@@ -143,7 +156,7 @@ export const clearAppShellCaches = async (): Promise<void> => {
         const requests = await cache.keys()
         await Promise.all(
           requests
-            .filter((request) => !isMediaRequest(request))
+            .filter((request) => isAppShellRequest(request))
             .map((request) => cache.delete(request)),
         )
       }),
