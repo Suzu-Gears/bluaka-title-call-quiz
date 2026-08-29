@@ -59,6 +59,11 @@ export const createCard = (
   imageContainer.className = 'image-container'
   const image = document.createElement('img')
   image.loading = 'lazy'
+  // width/height 属性は付けないこと。CSS は width と aspect-ratio だけを
+  // 指定していて height を持たないため、height 属性があるとそれが有効な
+  // 高さになって aspect-ratio が効かなくなり、画像が .image-container の
+  // 枠(padding-bottom: 110%)をはみ出して名前と下の行を覆ってしまう。
+  // 表示領域は .image-container 側で確保済みなので寸法指定は不要。
   image.src = resolveAssetUrl(formatImageKey(memberId))
   image.alt = entry.Name
   image.onerror = () => {
@@ -429,6 +434,18 @@ export const setupStudentGrid = (entries: readonly QuizEntry[]): void => {
   // 復元した設定を初期表示に反映する。
   applySortForCurrentState()
   filterCards(lastAppliedStudentFilter)
+
+  // ソート反映後の先頭(=ファーストビュー)のカードは遅延させず即時読み込みにし、
+  // LCP になる画像の発見・取得を前倒しする。先頭数枚はさらに優先度を上げる。
+  ;[...grid.querySelectorAll<HTMLImageElement>('.grid-item img')]
+    .filter((img) => img.closest<HTMLElement>('.grid-item')?.style.display !== 'none')
+    .slice(0, 24)
+    .forEach((img, index) => {
+      img.loading = 'eager'
+      if (index < 8) {
+        img.fetchPriority = 'high'
+      }
+    })
 
   let fittyInstances: FittyInstance[] = setupFitty()
   let devicePixelRatio = window.devicePixelRatio

@@ -80,17 +80,23 @@ export const registerAppServiceWorker = (): void => {
     })
 }
 
-export const clearServiceWorkersAndCaches = async (): Promise<void> => {
-  if ('serviceWorker' in navigator) {
-    try {
-      const registrations = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(
-        registrations.map((registration) => registration.unregister()),
-      )
-    } catch {
-      // 解除に失敗しても更新自体は続行する
-    }
+const unregisterServiceWorkers = async (): Promise<void> => {
+  if (!('serviceWorker' in navigator)) {
+    return
   }
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(
+      registrations.map((registration) => registration.unregister()),
+    )
+  } catch {
+    // 解除に失敗しても更新自体は続行する
+  }
+}
+
+/** 設定画面の「キャッシュ削除」「初期化」用。音声・画像も含めて全部消す。 */
+export const clearServiceWorkersAndCaches = async (): Promise<void> => {
+  await unregisterServiceWorkers()
   if ('caches' in window) {
     try {
       const keys = await caches.keys()
@@ -98,6 +104,65 @@ export const clearServiceWorkersAndCaches = async (): Promise<void> => {
     } catch {
       // 削除に失敗しても更新自体は続行する
     }
+  }
+}
+
+const toPathname = (path: string): string =>
+  new URL(resolveAssetUrl(path), window.location.href).pathname
+
+/**
+ * 更新で消す対象 = ビルドごとに差し替わるアプリシェル。
+ *
+ * 「残すものを選ぶ」のではなく「消すものを絞る」ことが重要。ここに挙げたものは
+ * すべて、SW の precacheAppShell か直後のページ読み込みで必ず取り直されるので、
+ * 更新後に保存済み件数が目減りしない。逆に、消しても誰も取り直さないファイル
+ * (アイコン・og-image・robots.txt・ビルド生成物の JSON など)を消してしまうと、
+ * 「すべてダウンロード」をやり直すまで欠けたままになる。
+ */
+const SHELL_EXACT_PATHS = ['', 'index.html', 'data/final.json'].map(toPathname)
+const SHELL_PATH_PREFIXES = ['assets/', 'fonts/'].map(toPathname)
+
+const isAppShellRequest = (request: Request): boolean => {
+  try {
+    const { pathname } = new URL(request.url)
+    return (
+      SHELL_EXACT_PATHS.includes(pathname) ||
+      SHELL_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 更新用: Service Worker を解除し、アプリシェル(HTML/JS/CSS・フォント・
+ * final.json)だけを消す。「すべてダウンロード」で貯めた音声・画像
+ * (合わせて 9MB 超)やアイコン類は残し、更新のたびに取り直させない。
+ *
+ * 音声・画像は録り直し(世代)や差し替えでファイル名自体が変わるため、
+ * 古いエントリが残っても誤って配信されることはない。同名で中身だけ
+ * 差し替えた場合に備え、設定画面の「キャッシュ削除」は全消しのまま残す。
+ */
+export const clearAppShellCaches = async (): Promise<void> => {
+  await unregisterServiceWorkers()
+  if (!('caches' in window)) {
+    return
+  }
+  try {
+    const keys = await caches.keys()
+    await Promise.all(
+      keys.map(async (key) => {
+        const cache = await caches.open(key)
+        const requests = await cache.keys()
+        await Promise.all(
+          requests
+            .filter((request) => isAppShellRequest(request))
+            .map((request) => cache.delete(request)),
+        )
+      }),
+    )
+  } catch {
+    // 削除に失敗しても更新自体は続行する
   }
 }
 
@@ -123,9 +188,9 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
   return { info, available: info.version !== __BUILD_STAMP__ }
 }
 
-/** 手動更新用: キャッシュを破棄して最新ビルドとしてリロードする。 */
+/** 手動更新用: アプリシェルを破棄して最新ビルドとしてリロードする。 */
 export const applyUpdateNow = async (): Promise<void> => {
-  await clearServiceWorkersAndCaches()
+  await clearAppShellCaches()
   removeStorage(ATTEMPT_KEY)
   window.location.reload()
 }
@@ -172,6 +237,6 @@ export const applyPendingAppUpdate = async (): Promise<void> => {
     JSON.stringify({ version: info.version, at: Date.now() }),
   )
 
-  await clearServiceWorkersAndCaches()
+  await clearAppShellCaches()
   window.location.reload()
 }

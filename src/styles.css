@@ -524,6 +524,15 @@ h1,
   font-family: sans-serif;
 }
 
+/* カードは JS が後から流し込むため、空のままだとフッターが画面内に描画され、
+   カード注入時に大きく押し下げられてレイアウトシフトになる(デスクトップの
+   CLS 0.855 の原因)。カードが入るまで高さを予約してフッターを画面外に置く。
+   :empty なのでカードが1枚でも入れば解除され、絞り込み結果が0件のとき
+   (子は display:none で残る)には効かない。 */
+.grid:empty {
+  min-height: 100vh;
+}
+
 @media (min-resolution: 160dpi), (-webkit-min-device-pixel-ratio: 2) {
   .grid {
     /* 旧版の minmax(160px) 相当。パネルの枠(約46px)で狭くなったぶんを

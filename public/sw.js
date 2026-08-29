@@ -51,7 +51,14 @@ const precacheAppShell = async () => {
   try {
     const response = await fetch(scopeUrl('index.html'), { cache: 'no-store' })
     if (response.ok) {
-      await cache.put(scopeUrl('index.html'), await stripRedirect(response))
+      const shell = await stripRedirect(response)
+      // PWA の起動は index.html ではなくスコープ("/")へのナビゲーションになる。
+      // index.html だけを保存するとキーが一致せず毎回キャッシュミスして
+      // ネットワークから最新を取ってしまい、「更新は設定画面から」という
+      // バージョン固定が効かない(更新バッジが出ないまま勝手に更新される)。
+      // 同じ内容を両方のキーで保存しておく。
+      await cache.put(scopeUrl('index.html'), shell.clone())
+      await cache.put(self.registration.scope, shell)
     }
   } catch {
     // 取れなくても登録自体は続ける(ランタイムキャッシュで補う)
@@ -68,10 +75,15 @@ const precacheAppShell = async () => {
     const files = Array.isArray(manifest?.files) ? manifest.files : []
     const shellPaths = files
       .map((file) => file?.path)
+      // fonts/ も含める。更新直後のページはまだ SW に制御されておらず、
+      // フォントの preload はキャッシュを素通りするため、ここで入れないと
+      // 「更新を適用」のたびに保存済みから 1 件欠けたままになる。
       .filter(
         (path) =>
           typeof path === 'string' &&
-          (path.startsWith('assets/') || path === 'data/final.json'),
+          (path.startsWith('assets/') ||
+            path.startsWith('fonts/') ||
+            path === 'data/final.json'),
       )
     await Promise.all(
       shellPaths.map(async (path) => {

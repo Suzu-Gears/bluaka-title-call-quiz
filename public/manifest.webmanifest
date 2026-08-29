@@ -1,5 +1,7 @@
 {
   "name": "ブルーアーカイブ タイトルコールクイズ",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/icon-192.png",

@@ -15,6 +15,15 @@
       content="ブルアカのタイトルコールを聴いて、生徒を当てるクイズゲームです。"
     />
     <meta name="robots" content="noimageindex" />
+    <!-- コアサブセットフォント(tools/build-font-subset.py 生成)。
+         初回ペイント前に到着させ、フォント差し替えによるレイアウトシフトを防ぐ -->
+    <link
+      rel="preload"
+      href="%BASE_URL%fonts/kosugi-maru-core.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="icon" href="%BASE_URL%favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
@@ -35,7 +44,7 @@
     <meta name="twitter:image" content="%BASE_URL%icon-mask.png" />
   </head>
   <body>
-    <div class="main">
+    <div class="main" role="main">
       <header class="app-header">
         <div class="app-header-inner">
           <!-- fitty は親要素の clientWidth(padding込み)を基準に拡大するため、
@@ -722,6 +731,7 @@
                   id="quiz-result-perfect-stamp"
                   src="%BASE_URL%kokona-stamp.png"
                   alt="100点満点スタンプ"
+                  loading="lazy"
                   hidden
                 />
                 <p id="quiz-result-perfect-message" hidden>
