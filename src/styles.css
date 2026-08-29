@@ -748,6 +748,19 @@ h1,
 
 /* ゲームの検索バー: 白い角丸ボックス + 虫めがねアイコン。
    プレースホルダー・入力文字とも中央寄せ(左右の padding も揃えて真ん中に) */
+/* iOS/macOS Safari が入力欄の中に出す連絡先の自動入力ボタンを消す。
+   name="search" で提案自体を止めているが、Safari のバージョンによっては
+   ボタンだけ残ることがあるための保険(WebKit 以外では単に無視される)。 */
+.student-filter-input::-webkit-contacts-auto-fill-button,
+#quiz-name-answer-input::-webkit-contacts-auto-fill-button {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
 .student-filter-input {
   width: 100%;
   min-width: 8rem;

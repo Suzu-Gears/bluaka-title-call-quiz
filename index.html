@@ -296,11 +296,19 @@
             <div class="grid-scroll">
               <div id="student-search-bar" class="student-search-bar" hidden>
                 <label class="search-wrapper" for="student-filter-input">
-                  <span class="visually-hidden">名前フィルター</span>
+                  <!-- ラベル文言に「名前」を入れないこと(下の name 属性の説明を参照) -->
+                  <span class="visually-hidden">生徒の絞り込み</span>
+                  <!-- name="search": iOS Safari は autocomplete="off" を無視して
+                       name → placeholder → label の順に文言を見て人名欄かを推測し、
+                       連絡先の自動入力を提案してくる。name に search を含めると
+                       検索欄と判断してその推測自体を打ち切る。
+                       ハイフンを含む name は逆効果(連絡先アイコンと電話番号の
+                       ドロップダウンが出る)ので入れないこと。 -->
                   <input
                     id="student-filter-input"
                     class="student-filter-input"
                     type="search"
+                    name="search"
                     placeholder="生徒の名前を入力してください"
                     autocomplete="off"
                   />
@@ -680,11 +688,14 @@
               class="quiz-name-answer-form"
               hidden
             >
-              <!-- type="search": iOS Safari が名前欄と誤認して連絡先の自動入力を
-                   提案するのを防ぐ(検索欄・解答欄は連絡先候補の対象外になる) -->
+              <!-- name="search": iOS Safari の連絡先自動入力の抑止。
+                   詳細は生徒の絞り込み欄(#student-filter-input)のコメント参照。
+                   このフォームは submit を preventDefault しているので、
+                   name を付けても送信内容には影響しない。 -->
               <input
                 id="quiz-name-answer-input"
                 type="search"
+                name="search"
                 autocomplete="off"
                 placeholder="生徒名を入力"
               />
