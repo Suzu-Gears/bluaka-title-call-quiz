@@ -1004,16 +1004,20 @@
         </button>
         <button id="quiz-sync-button" type="button" hidden>クラウド同期</button>
       </div>
-      <div class="filter-section-label">キャッシュ</div>
-      <p class="settings-note">
+      <div class="filter-section-label cache-section">キャッシュ</div>
+      <p class="settings-note cache-section">
         表示や音声がおかしいときに使ってください。進捗は消えません。
       </p>
-      <div class="app-dialog-actions">
+      <div class="app-dialog-actions cache-section">
         <button id="settings-clear-cache" type="button">
           キャッシュをクリア
         </button>
       </div>
-      <p id="settings-cache-status" class="app-dialog-status" role="status"></p>
+      <p
+        id="settings-cache-status"
+        class="app-dialog-status cache-section"
+        role="status"
+      ></p>
       <div class="filter-section-label">リセット</div>
       <p class="settings-note">
         進捗(クイズの正答記録)や設定をすべて消して初期状態に戻します。
@@ -1030,7 +1034,19 @@
       <p id="settings-reset-status" class="app-dialog-status" role="status"></p>
     </dialog>
     <dialog id="progress-dialog" class="app-dialog" tabindex="-1">
-      <h3 id="progress-dialog-title">進捗データ</h3>
+      <div class="filter-dialog-head">
+        <h3 id="progress-dialog-title" class="filter-dialog-title">
+          進捗データ
+        </h3>
+        <button
+          id="progress-dialog-close-button"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
       <p id="progress-dialog-description" class="app-dialog-description"></p>
       <textarea
         id="progress-dialog-textarea"
@@ -1061,7 +1077,6 @@
         <button id="progress-dialog-apply-button" type="button">
           読み込む
         </button>
-        <button id="progress-dialog-close-button" type="button">閉じる</button>
       </div>
     </dialog>
     <dialog
@@ -1339,7 +1354,17 @@
       <div id="quiz-editor-picker-list" class="quiz-editor-picker-list"></div>
     </dialog>
     <dialog id="sync-dialog" class="app-dialog" tabindex="-1">
-      <h3>クラウド同期</h3>
+      <div class="filter-dialog-head">
+        <h3 class="filter-dialog-title">クラウド同期</h3>
+        <button
+          id="sync-close-button"
+          class="filter-dialog-close"
+          type="button"
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+      </div>
       <p class="app-dialog-description">
         同期コードはパスワードと同じ扱いです。他人に教えないでください。<br />
         別の端末で同じコードを入力すると、同じ進捗を読み書きできます。
@@ -1395,7 +1420,6 @@
         <button id="sync-download-button" type="button">
           クラウドから読込
         </button>
-        <button id="sync-close-button" type="button">閉じる</button>
       </div>
     </dialog>
     <script type="module" src="%BASE_URL%src/main.ts"></script>

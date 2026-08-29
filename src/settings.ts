@@ -13,6 +13,7 @@ import {
   readLocalCacheStatus,
   type CacheManifest,
 } from '@/lib/assetCache'
+import { closeOnBackdropClick } from '@/lib/uiState'
 
 declare const __APP_VERSION__: string
 
@@ -131,6 +132,34 @@ export const setupSettings = (): void => {
   dialog.querySelectorAll<HTMLElement>('.web-only').forEach((element) => {
     element.hidden = pwa
   })
+  // キャッシュ(Service Worker + Cache Storage)は PWA の仕組みなので、
+  // Web版では通常不要。ただし SW 登録はオリジン単位のため、過去に PWA を
+  // 使った端末では通常タブも残った SW に支配される。その残骸がある場合に
+  // 限り、Web版でもクリア手段を見せる。
+  if (!pwa) {
+    dialog.querySelectorAll<HTMLElement>('.cache-section').forEach((el) => {
+      el.hidden = true
+    })
+    void (async () => {
+      let leftovers = false
+      try {
+        if (navigator.serviceWorker) {
+          const regs = await navigator.serviceWorker.getRegistrations()
+          leftovers = regs.length > 0
+        }
+        if (!leftovers && 'caches' in window) {
+          leftovers = (await caches.keys()).length > 0
+        }
+      } catch {
+        // 判定できなければ隠したままにする
+      }
+      if (leftovers) {
+        dialog.querySelectorAll<HTMLElement>('.cache-section').forEach((el) => {
+          el.hidden = false
+        })
+      }
+    })()
+  }
 
   const setElementText = (element: HTMLElement | null, message: string) => {
     if (element) {
@@ -345,8 +374,11 @@ export const setupSettings = (): void => {
       clearCacheButton.disabled = true
       setCacheStatus('キャッシュを削除しています...')
       await clearServiceWorkersAndCaches()
-      // 解除したままだとオフライン起動できなくなるため、その場で登録し直す
-      registerAppServiceWorker()
+      if (pwa) {
+        // 解除したままだとオフライン起動できなくなるため、その場で登録し直す
+        // (Web版は残骸の掃除が目的なので登録しない)
+        registerAppServiceWorker()
+      }
       setCacheStatus('キャッシュをクリアしました。')
       clearCacheButton.disabled = false
       void renderCacheSizeLine()
@@ -392,20 +424,7 @@ export const setupSettings = (): void => {
   // ダイアログの外(バックドロップ)をタップしたら閉じる。
   // 外側クリックは target がダイアログ自身になるため、座標が内容領域の
   // 外にあるときだけ閉じる(パディング部分のタップでは閉じない)。
-  dialog.addEventListener('click', (event) => {
-    if (event.target !== dialog) {
-      return
-    }
-    const rect = dialog.getBoundingClientRect()
-    const isInsideDialog =
-      event.clientX >= rect.left &&
-      event.clientX <= rect.right &&
-      event.clientY >= rect.top &&
-      event.clientY <= rect.bottom
-    if (!isInsideDialog) {
-      dialog.close()
-    }
-  })
+  closeOnBackdropClick(dialog)
 
   // 起動時に一度だけ更新を確認し、あれば歯車にバッジを出す(適用はしない)。
   if (pwa) {

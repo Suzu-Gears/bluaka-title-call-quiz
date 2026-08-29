@@ -1,3 +1,4 @@
+import { showCopyFeedback } from '@/lib/copyFeedback'
 import {
   buildProgressExport,
   countProficiencyRecords,
@@ -6,7 +7,6 @@ import {
   serializeProgressExport,
 } from '@/lib/progressTransfer'
 import type { ProficiencyMap } from '@/lib/quizProgress'
-import { showCopyFeedback } from '@/lib/copyFeedback'
 import { readStorage, writeStorage } from '@/lib/safeStorage'
 import {
   fetchRemoteProgress,
@@ -18,6 +18,7 @@ import {
   requestNewSyncCode,
   setCustomSyncEndpoint,
 } from '@/lib/syncClient'
+import { closeOnBackdropClick } from '@/lib/uiState'
 import {
   formatImportSucceeded,
   formatSyncDownloaded,
@@ -144,6 +145,7 @@ export const setupProgressPanel = (
   exportButton?.addEventListener('click', () => openDialog('export'))
   importButton?.addEventListener('click', () => openDialog('import'))
   closeButton?.addEventListener('click', () => dialog.close())
+  closeOnBackdropClick(dialog)
 
   copyButton?.addEventListener('click', async () => {
     try {
@@ -261,6 +263,7 @@ export const setupProgressPanel = (
     syncDialog.focus({ preventScroll: true })
   })
   syncCloseButton?.addEventListener('click', () => syncDialog.close())
+  closeOnBackdropClick(syncDialog)
 
   syncEndpointInput?.addEventListener('change', () => {
     const url = syncEndpointInput.value.trim()
