@@ -685,9 +685,11 @@ export const setupQuiz = (
       hideNameSuggestions()
       return
     }
+    // 挑戦状は出題対象の設定と無関係に出題されるので、候補も全生徒から出す
+    // (activeNames のままだと、チェックを外した区分の正解が候補に現れない)。
     const matches = buildNameInputSuggestions(
       sortedCandidateNames,
-      activeNames,
+      activeChallenge ? sortedCandidateNames : activeNames,
       rawInput,
       8,
     )
